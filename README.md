@@ -12,14 +12,14 @@ models, and asks whether the improvement loop narrows the gap.
 
 ## Status
 
-Milestones 1-2 of 8 complete: the game engine and the baseline agents, with 205 unit
-tests. No LLM code yet.
+Milestones 1-3 of 8 complete: the game engine, the baseline agents, and rendering
+plus run records, with 267 unit tests. No LLM code yet.
 
 | # | Milestone | State |
 |---|-----------|-------|
 | 1 | Engine (pieces, rotation, collision, line clears, 7-bag, legal placements) | **done** |
 | 2 | Baselines (random + hand-written heuristic agent) | **done** |
-| 3 | Rendering + metrics | not started |
+| 3 | Rendering + metrics | **done** |
 | 4 | Model client (OpenAI-compatible, local + cloud) | not started |
 | 5 | Strategy agent + sandbox | not started |
 | 6 | Improvement loop | not started |
@@ -131,6 +131,87 @@ model plays identical seeds would fail silently.
 
 **Weights are a frozen dataclass**, defaulting to the published El-Tetris values,
 so weight sets can be compared in one run without editing source.
+
+## Prompt rendering
+
+Everything a model reads is built in `render.py`, so the whole model-facing
+surface sits in one reviewable file.
+
+```
+0123456789
+..........
+..........
+##.......#
+##......##
+##.....###
+#.#####.##
+
+current piece   I
+next pieces     Z S O L Z
+score           2300
+lines cleared   22
+pieces placed   60
+max height      4
+holes           2
+bumpiness       6
+```
+
+```bash
+uv run tetris-bench play --seed 1 --max-pieces 60 --show-state
+```
+
+**A column index row sits above the grid.** A placement is named by rotation and
+column, so a model can read the column number straight down rather than counting
+cells, which is exactly the sort of thing it will get wrong.
+
+**Filled cells are `#`, not the piece letter.** Tetris is Markovian in occupancy:
+which placements are legal, which rows clear and what the board becomes next
+depend only on whether a cell is filled, so the identity of the piece that filled
+it cannot change the best move. The letters are not meaningless -- they show how
+a stack was built -- but they are decision-irrelevant, and they cost tokens and
+ask the model to treat seven symbols as equivalent. `--show-pieces` brings them
+back for feedback snapshots and debugging.
+
+**Legal moves are offered as a numbered list**, and a model answers with an
+index:
+
+```
+ 0  rot=0 col=0 lands row 15
+ 1  rot=0 col=1 lands row 15
+ 2  rot=0 col=2 lands row 18
+```
+
+Choosing from a list it was handed cannot produce an illegal move, whereas
+describing one freely can -- and an invalid output is a wasted call plus a row in
+the failure column.
+
+**There is no hold piece.** Hold roughly doubles the branching factor per turn
+for a benchmark about scoring-function quality, not move vocabulary.
+
+## Run records
+
+Two layers rather than one flat dataclass. `GameResult` is what a finished game
+produced and knows nothing about models, so the baseline agents emit a complete
+record with nothing left empty. `RunRecord` wraps one with the model-side facts
+-- model, mode, iteration, and tokens, latency and cost. They flatten to a
+single-level JSON object at write time, so the JSONL on disk loads straight into
+a dataframe:
+
+```json
+{"agent": "heuristic", "agent_seed": null, "avg_bumpiness": 6.45, "avg_holes": 0.8,
+ "avg_max_height": 3.65, "cause": "piece_limit", "final_aggregate_height": 22,
+ "final_bumpiness": 6, "final_holes": 2, "final_max_height": 4, "lines_cleared": 22,
+ "pieces_placed": 60, "score": 2300, "seed": 1}
+```
+
+```bash
+uv run tetris-bench play --agent heuristic --seed 1 --log runs/baseline.jsonl
+```
+
+Averages are sampled after every placement rather than read off the final board,
+because a game that ends tall may have been played low for most of its length,
+and the reverse. JSONL rather than one JSON array because a run that crashes
+leaves every completed game already on disk and readable.
 
 ## Results
 

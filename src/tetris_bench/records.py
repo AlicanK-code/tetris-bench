@@ -1,0 +1,127 @@
+"""The shape of a logged run.
+
+Two layers, deliberately not one flat dataclass.
+
+:class:`GameResult` is what a finished game produced -- score, lines, and the
+board features at the end and on average. It knows nothing about models, so the
+baseline agents produce a complete record with no empty fields.
+
+:class:`RunRecord` wraps a :class:`GameResult` with the model-side facts: which
+model, which mode, which iteration of the improvement loop, and what the calls
+cost in tokens, time and money. Baseline games simply have no ``RunRecord``.
+
+They flatten to a single JSON object at write time, so the JSONL on disk is one
+level deep and trivially loadable into a dataframe -- the layering is for the
+code's benefit, not the file's.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
+from tetris_bench.engine.game import GameOverCause
+from tetris_bench.metrics import BoardStats
+
+
+@dataclass(frozen=True)
+class GameResult:
+    """What one finished game produced.
+
+    The averages are sampled after every placement rather than read off the
+    final board, because a game that ends tall may have been played low for most
+    of its length, and the reverse. The final board alone hides that.
+    """
+
+    agent: str
+    seed: int
+    agent_seed: int | None
+    score: int
+    lines_cleared: int
+    pieces_placed: int
+    cause: GameOverCause | None
+    final_aggregate_height: int
+    final_max_height: int
+    final_bumpiness: int
+    final_holes: int
+    avg_max_height: float
+    avg_bumpiness: float
+    avg_holes: float
+
+    @classmethod
+    def from_game_stats(
+        cls,
+        *,
+        agent: str,
+        seed: int,
+        agent_seed: int | None,
+        score: int,
+        lines_cleared: int,
+        pieces_placed: int,
+        cause: GameOverCause | None,
+        final: BoardStats,
+        samples: list[BoardStats],
+    ) -> GameResult:
+        """Build a result from the final board and the per-placement samples."""
+
+        def mean(values: list[int]) -> float:
+            return sum(values) / len(values) if values else 0.0
+
+        return cls(
+            agent=agent,
+            seed=seed,
+            agent_seed=agent_seed,
+            score=score,
+            lines_cleared=lines_cleared,
+            pieces_placed=pieces_placed,
+            cause=cause,
+            final_aggregate_height=final.aggregate_height,
+            final_max_height=final.max_height,
+            final_bumpiness=final.bumpiness,
+            final_holes=final.holes,
+            avg_max_height=mean([s.max_height for s in samples]),
+            avg_bumpiness=mean([s.bumpiness for s in samples]),
+            avg_holes=mean([s.holes for s in samples]),
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        """A flat dict, ready to be written as a line of JSONL."""
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ModelUsage:
+    """What talking to a model cost for one game.
+
+    Zeroed rather than optional: a strategy-mode game that made no calls at a
+    given checkpoint really did use zero tokens, which is different from unknown.
+    """
+
+    model_calls: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    latency_seconds: float = 0.0
+    estimated_cost_usd: float = 0.0
+    invalid_outputs: int = 0
+    sandbox_failures: int = 0
+
+
+@dataclass(frozen=True)
+class RunRecord:
+    """One game played by one model at one iteration of the improvement loop."""
+
+    game: GameResult
+    model: str
+    mode: str
+    iteration: int
+    usage: ModelUsage = field(default_factory=ModelUsage)
+
+    def as_dict(self) -> dict[str, Any]:
+        """Flatten to a single-level JSON object for JSONL."""
+        return {
+            "model": self.model,
+            "mode": self.mode,
+            "iteration": self.iteration,
+            **self.game.as_dict(),
+            **asdict(self.usage),
+        }

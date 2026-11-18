@@ -7,7 +7,8 @@ import pytest
 from tetris_bench.agents.heuristic import heuristic_agent
 from tetris_bench.agents.random_agent import RandomAgent
 from tetris_bench.engine.game import Game
-from tetris_bench.runner import GameResult, play_game
+from tetris_bench.records import GameResult
+from tetris_bench.runner import play_game
 
 
 def test_plays_until_the_game_is_over():

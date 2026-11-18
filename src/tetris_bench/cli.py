@@ -4,17 +4,22 @@ Currently one subcommand, ``play``, which runs a single game with a baseline
 agent. Declared in ``pyproject.toml`` as the ``tetris-bench`` script, so::
 
     uv run tetris-bench play --agent heuristic --seed 1
+    uv run tetris-bench play --agent random --show-state --log runs/baseline.jsonl
 """
 
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from tetris_bench.agents.base import Agent
 from tetris_bench.agents.heuristic import heuristic_agent
 from tetris_bench.agents.random_agent import RandomAgent
 from tetris_bench.engine.game import DEFAULT_MAX_PIECES, Game
-from tetris_bench.runner import GameResult, play_game
+from tetris_bench.jsonl import append_record
+from tetris_bench.records import GameResult
+from tetris_bench.render import render_board, render_state
+from tetris_bench.runner import play_game
 
 AGENT_NAMES = ("random", "heuristic")
 
@@ -59,8 +64,8 @@ def format_result(result: GameResult, board: str) -> str:
             f"pieces placed  {result.pieces_placed}",
             f"ended by       {result.cause}",
             f"max height     {result.final_max_height} (avg {result.avg_max_height:.1f})",
-            f"holes          {result.final_holes}",
-            f"bumpiness      {result.final_bumpiness}",
+            f"holes          {result.final_holes} (avg {result.avg_holes:.1f})",
+            f"bumpiness      {result.final_bumpiness} (avg {result.avg_bumpiness:.1f})",
         ]
     )
 
@@ -76,6 +81,13 @@ def build_parser() -> argparse.ArgumentParser:
     play.add_argument("--agent-seed", type=int, default=0, help="random agent's own seed")
     play.add_argument("--max-pieces", type=positive_int, default=DEFAULT_MAX_PIECES)
     play.add_argument("--quiet", action="store_true", help="print one summary line only")
+    play.add_argument(
+        "--show-state",
+        action="store_true",
+        help="print the model-facing state instead of the result summary",
+    )
+    play.add_argument("--show-pieces", action="store_true", help="render piece letters, not '#'")
+    play.add_argument("--log", type=Path, default=None, help="append the result to a JSONL file")
     return parser
 
 
@@ -88,11 +100,17 @@ def main() -> None:
         agent = build_agent(args.agent, args.agent_seed)
         result = play_game(game, agent, agent_seed=getattr(agent, "seed", None))
 
-        if args.quiet:
+        if args.log is not None:
+            append_record(args.log, result)
+
+        if args.show_state:
+            print(render_state(game, show_pieces=args.show_pieces))
+        elif args.quiet:
             print(
                 f"{result.agent} seed={result.seed} score={result.score} "
                 f"lines={result.lines_cleared} pieces={result.pieces_placed} "
                 f"cause={result.cause}"
             )
         else:
-            print(format_result(result, str(game.board)))
+            board = render_board(game.board, show_pieces=args.show_pieces)
+            print(format_result(result, board))

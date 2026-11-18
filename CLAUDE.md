@@ -17,7 +17,9 @@ This is a portfolio project. Code should be readable, well structured and easy t
 
 ## Key design decisions
 
-1. **Text/grid state, not screenshots.** The board is passed as a text grid plus structured metadata (current piece, next pieces, hold). Vision is out of scope.
+1. **Text/grid state, not screenshots.** The board is passed as a text grid plus structured metadata (current piece, next pieces). Vision is out of scope.
+   - **No hold piece.** Hold roughly doubles the branching factor per turn and adds a state dimension for a model to reason about, for a benchmark whose subject is the quality of a scoring function rather than the breadth of the move vocabulary. Additive to add later if wanted.
+   - Filled cells render as `#` by default, dropping piece identity: Tetris is Markovian in occupancy, so which piece filled a cell cannot change the best move. `show_pieces=True` keeps the letters for feedback snapshots and debugging.
 2. **Placement-based, not real-time.** No gravity timing. Each turn the agent chooses a final placement (rotation + column) from the list of legal placements. This removes latency from the problem.
 3. **Deterministic and seeded.** Piece generation uses a seeded 7-bag randomiser. Every model plays the same seeds, so results are directly comparable.
 4. **Two play modes:**
@@ -44,8 +46,11 @@ tetris-bench/
 ├── configs/            # model + experiment configs (YAML)
 ├── src/tetris_bench/
 │   ├── engine/         # board, pieces, rotation, line clears, 7-bag RNG, legal placements
-│   ├── render.py       # board -> text grid for prompts
-│   ├── metrics.py      # holes, height, bumpiness, etc.
+│   ├── render.py       # board/state/placements -> text for prompts
+│   ├── metrics.py      # holes, height, bumpiness, BoardStats snapshot
+│   ├── records.py      # GameResult (game-side) + RunRecord (model-side)
+│   ├── jsonl.py        # append/read run records
+│   ├── runner.py       # play_game(game, agent) -> GameResult
 │   ├── clients/        # OpenAI-compatible client, provider config
 │   ├── agents/         # direct agent, strategy agent
 │   ├── sandbox.py      # safe execution of model-written scoring functions
@@ -90,7 +95,8 @@ uv sync                         # install deps
 uv run pytest                   # run tests
 uv run ruff check . && uv run ruff format .
 uv run tetris-bench play --agent heuristic --seed 1
-uv run tetris-bench loop --config configs/local-small.yaml
+uv run tetris-bench play --agent random --show-state --log runs/baseline.jsonl
+uv run tetris-bench loop --config configs/local-small.yaml   # not built yet
 ```
 
 ## Conventions

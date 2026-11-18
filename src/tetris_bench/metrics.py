@@ -20,6 +20,8 @@ What each one is for:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from tetris_bench.engine.board import Board
 
 
@@ -62,3 +64,29 @@ def holes(board: Board) -> int:
             elif blocked:
                 total += 1
     return total
+
+
+@dataclass(frozen=True)
+class BoardStats:
+    """All four features of one board, measured together.
+
+    A snapshot rather than four separate calls: the runner samples this after
+    every placement, the renderer shows it alongside the grid, and the
+    improvement loop will put it in a feedback summary. Computing them as a set
+    keeps those three uses from drifting apart.
+    """
+
+    aggregate_height: int
+    max_height: int
+    bumpiness: int
+    holes: int
+
+
+def board_stats(board: Board) -> BoardStats:
+    """Measure every feature of ``board`` in one go."""
+    return BoardStats(
+        aggregate_height=aggregate_height(board),
+        max_height=max_height(board),
+        bumpiness=bumpiness(board),
+        holes=holes(board),
+    )

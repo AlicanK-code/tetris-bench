@@ -71,6 +71,53 @@ class TestMain:
         assert out.count("\n") == 0
         assert out.startswith("heuristic")
 
+    def test_show_state_prints_the_model_facing_view(self, capsys, monkeypatch):
+        monkeypatch.setattr(
+            "sys.argv",
+            ["tetris-bench", "play", "--max-pieces", "10", "--show-state"],
+        )
+        main()
+        out = capsys.readouterr().out
+        assert "0123456789" in out
+        assert "current piece" in out
+        assert "hold" not in out.lower()
+
+    def test_log_appends_a_jsonl_record(self, capsys, monkeypatch, tmp_path):
+        from tetris_bench.jsonl import read_records
+
+        path = tmp_path / "runs" / "baseline.jsonl"
+        monkeypatch.setattr(
+            "sys.argv",
+            ["tetris-bench", "play", "--max-pieces", "10", "--quiet", "--log", str(path)],
+        )
+        main()
+        records = list(read_records(path))
+        assert len(records) == 1
+        assert records[0]["agent"] == "heuristic"
+        assert records[0]["pieces_placed"] == 10
+
+    def test_log_accumulates_across_runs(self, capsys, monkeypatch, tmp_path):
+        from tetris_bench.jsonl import read_records
+
+        path = tmp_path / "baseline.jsonl"
+        for seed in (1, 2):
+            monkeypatch.setattr(
+                "sys.argv",
+                [
+                    "tetris-bench",
+                    "play",
+                    "--seed",
+                    str(seed),
+                    "--max-pieces",
+                    "10",
+                    "--quiet",
+                    "--log",
+                    str(path),
+                ],
+            )
+            main()
+        assert [r["seed"] for r in read_records(path)] == [1, 2]
+
     def test_random_agent_reports_its_seed(self, capsys, monkeypatch):
         monkeypatch.setattr(
             "sys.argv",
