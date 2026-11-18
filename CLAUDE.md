@@ -1,0 +1,108 @@
+# CLAUDE.md — Tetris LLM Benchmark (working name: `tetris-bench`)
+
+## What this project is
+
+A benchmark that measures how well LLMs **improve at Tetris across repeated attempts**, not just how well they play once.
+
+Each model plays the same seeded piece sequences, gets feedback on how it did, revises its strategy, and plays again. The headline result is each model's **improvement curve**: who learns fastest, who plateaus, and who regresses after a revision.
+
+Secondary angle: a **gap analysis** between small local models (run on a MacBook) and frontier API models. Does the improvement loop narrow the gap?
+
+This is a portfolio project. Code should be readable, well structured and easy to explain in an interview.
+
+### Prior work (for context, not to copy)
+- **lmgame-Bench** (UCSD, 2025): Tetris is one of several games; the authors found vision input hurts and a harness helps.
+- **TetrisBench** (a16z, 2026): direct move-picking failed; it worked once the model wrote a *scoring function* that ranks legal placements.
+- Our differentiator: the **iterative self-improvement loop** and how it is measured.
+
+## Key design decisions
+
+1. **Text/grid state, not screenshots.** The board is passed as a text grid plus structured metadata (current piece, next pieces, hold). Vision is out of scope.
+2. **Placement-based, not real-time.** No gravity timing. Each turn the agent chooses a final placement (rotation + column) from the list of legal placements. This removes latency from the problem.
+3. **Deterministic and seeded.** Piece generation uses a seeded 7-bag randomiser. Every model plays the same seeds, so results are directly comparable.
+4. **Two play modes:**
+   - `direct`: the model picks a placement each turn (expensive; used as a baseline).
+   - `strategy`: the model writes a Python `score(board, placement) -> float` function. The engine evaluates every legal placement with it and picks the best. The model is called only between games or at checkpoints. **This is the main mode.**
+5. **Improvement loop.** After each game the model receives a feedback summary (score, lines, holes, max height, cause of death, a few key board snapshots) along with its previous function, and returns a revised one. Run N iterations per model per seed set.
+6. **One client interface for every model.** Local models (Ollama / LM Studio) and cloud models are all called through an OpenAI-compatible chat API. The provider is just config (base URL, model name, API key).
+
+## Safety: model-generated code
+
+`strategy` mode executes code written by a model. It must never run in-process with full privileges.
+- Run it in a separate subprocess with a hard timeout (per call and per game).
+- Do not allow imports, or allowlist pure modules only (e.g. `math`). Do not allow file, network or OS access.
+- Validate the function's signature and return type, and treat exceptions or timeouts as a recorded failure, not a crash.
+- Log every generated function to disk for later inspection.
+
+## Planned structure
+
+```
+tetris-bench/
+├── CLAUDE.md
+├── README.md
+├── pyproject.toml
+├── configs/            # model + experiment configs (YAML)
+├── src/tetris_bench/
+│   ├── engine/         # board, pieces, rotation, line clears, 7-bag RNG, legal placements
+│   ├── render.py       # board -> text grid for prompts
+│   ├── metrics.py      # holes, height, bumpiness, etc.
+│   ├── clients/        # OpenAI-compatible client, provider config
+│   ├── agents/         # direct agent, strategy agent
+│   ├── sandbox.py      # safe execution of model-written scoring functions
+│   ├── loop.py         # improvement loop orchestration
+│   └── cli.py          # entry points
+├── runs/               # outputs: JSONL logs, generated functions (gitignored)
+├── analysis/           # notebooks/scripts for curves + tables
+└── tests/
+```
+
+## Build order (milestones)
+
+1. **Engine**: pieces, rotations, collision, line clears, seeded 7-bag, legal-placement enumeration, game-over detection. Fully unit tested. No LLMs yet.
+2. **Baselines**: a random agent and a hand-written heuristic agent (classic weights: aggregate height, holes, bumpiness, lines). These sanity-check the engine and give reference scores.
+3. **Rendering + metrics**: text grid output and per-game stats.
+4. **Model client**: one OpenAI-compatible client and config for local (Ollama/LM Studio) and cloud providers. Track tokens, latency and cost per call.
+5. **Strategy agent + sandbox**: prompt the model for a scoring function, run it safely, play a game.
+6. **Improvement loop**: feedback summary → revised function → replay, for N iterations over a fixed seed set.
+7. **Direct agent**: baseline mode for comparison (small seed set only, as it is expensive).
+8. **Analysis**: improvement curves per model, local-vs-frontier gap, cost per point, a results table for the README.
+
+Finish and test each milestone before starting the next.
+
+## Metrics to log (per game, as JSONL)
+
+model, mode, seed, iteration, score, lines cleared, pieces placed, final/avg max height, holes, bumpiness, cause of game over, invalid outputs / sandbox failures, model calls, tokens in/out, latency, estimated cost.
+
+Derived: improvement per iteration, best-so-far curve, iterations to plateau, regression count.
+
+## Tech stack
+
+- Python 3.11+, `uv` (or pip/venv) for environments
+- `pytest` for tests, `ruff` for lint/format
+- `openai` SDK (pointed at different base URLs for different providers)
+- `pyyaml` for configs, `pandas` + `matplotlib` for analysis
+- Local inference: Ollama or LM Studio on a MacBook (Apple Silicon, 32GB unified memory), so roughly 20–30B models at 4-bit quantisation at most
+
+## Commands (update as they become real)
+
+```bash
+uv sync                         # install deps
+uv run pytest                   # run tests
+uv run ruff check . && uv run ruff format .
+uv run tetris-bench play --agent heuristic --seed 1
+uv run tetris-bench loop --config configs/local-small.yaml
+```
+
+## Conventions
+
+- Type hints everywhere; small, pure functions in the engine.
+- The engine has zero dependencies on LLM code.
+- Never commit API keys; read them from environment variables (`.env` is gitignored).
+- Every experiment run is reproducible from its config file + seed list.
+- Keep prompts in versioned template files, not inline strings, so prompt changes are traceable.
+
+## Working with me
+
+- I'm building Python fluency, so explain non-obvious design choices briefly and prefer clear code over clever code.
+- Propose a plan before large changes; keep commits small and focused per milestone.
+- Ask before adding new dependencies.

@@ -1,0 +1,15 @@
+# Environments
+.venv/
+__pycache__/
+*.py[cod]
+
+# Secrets
+.env
+
+# Run outputs: JSONL logs and model-generated scoring functions
+runs/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.DS_Store
