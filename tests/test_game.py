@@ -54,6 +54,27 @@ class TestNewGame:
     def test_same_seed_gives_the_same_opening_pieces(self):
         assert Game(seed=99).next_pieces == Game(seed=99).next_pieces
 
+    @pytest.mark.parametrize("max_pieces", [0, -1, -500])
+    def test_rejects_a_meaningless_piece_budget(self, max_pieces):
+        """A cap below 1 has no sensible reading, so it is refused outright.
+
+        Defining a behaviour for it instead would turn a config typo into a
+        silently short run rather than an error at the point of the mistake.
+        """
+        with pytest.raises(ValueError, match="max_pieces must be at least 1"):
+            Game(seed=1, max_pieces=max_pieces)
+
+    def test_accepts_a_budget_of_one(self):
+        game = Game(seed=1, max_pieces=1)
+        assert not game.over
+        game.step(lowest_first(game))
+        assert game.over
+        assert game.cause == "piece_limit"
+        assert game.pieces_placed == 1
+
+    def test_accepts_no_limit(self):
+        assert Game(seed=1, max_pieces=None).max_pieces is None
+
 
 class TestStep:
     def test_locks_the_piece_onto_the_board(self):

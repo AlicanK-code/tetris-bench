@@ -63,6 +63,17 @@ def _drop(board: Board, shape: tuple[Cell, ...], column: int) -> int | None:
     return row
 
 
+def apply_placement(board: Board, placement: Placement) -> tuple[Board, int]:
+    """Lock a placement in and clear any completed rows.
+
+    Returns the resulting board and how many rows it cleared. This is the one
+    place that "commit a move" is defined, shared by :meth:`Game.step` and by any
+    scoring function that needs to look at the board a move would produce.
+    """
+    locked = board.place(placement.cells, placement.kind)
+    return locked.clear_lines()
+
+
 def legal_placements(board: Board, kind: str) -> list[Placement]:
     """Every placement of ``kind`` that lands fully inside ``board``.
 

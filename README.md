@@ -12,12 +12,13 @@ models, and asks whether the improvement loop narrows the gap.
 
 ## Status
 
-Milestone 1 of 8 complete: the game engine, with 139 unit tests. No LLM code yet.
+Milestones 1-2 of 8 complete: the game engine and the baseline agents, with 205 unit
+tests. No LLM code yet.
 
 | # | Milestone | State |
 |---|-----------|-------|
 | 1 | Engine (pieces, rotation, collision, line clears, 7-bag, legal placements) | **done** |
-| 2 | Baselines (random + hand-written heuristic agent) | not started |
+| 2 | Baselines (random + hand-written heuristic agent) | **done** |
 | 3 | Rendering + metrics | not started |
 | 4 | Model client (OpenAI-compatible, local + cloud) | not started |
 | 5 | Strategy agent + sandbox | not started |
@@ -63,18 +64,73 @@ additive to undo later.
 Line scores are the classic 100 / 300 / 500 / 800 for 1-4 rows, with no level
 multiplier since there is no gravity to speed up.
 
-## Reference baseline
+## Reference baselines
 
-A deliberately naive policy -- "drop each piece as deep as it will go" -- buries
-holes and blocks out well before the piece budget. It is the floor the
-Milestone 2 heuristic agent has to beat:
+Three reference players, all at the default 500-piece budget. These are what the
+LLM agents get measured against.
 
-| seed | pieces placed | lines | score | ended by |
-|------|---------------|-------|-------|----------|
-| 1    | 95            | 21    | 2100  | block_out |
-| 2    | 55            | 5     | 500   | block_out |
-| 17   | 111           | 28    | 2800  | block_out |
-| 123  | 72            | 12    | 1300  | block_out |
+| agent | what it does | mean score | mean pieces |
+|-------|--------------|-----------:|------------:|
+| random | uniform over legal placements | 0 | 24 |
+| naive | drops each piece as deep as it will go | 1,675 | 83 |
+| heuristic | El-Tetris weights, 1-ply | **21,450** | **500** |
+
+Per seed:
+
+| agent | seed | pieces | lines | score | final holes | avg height | ended by |
+|-------|-----:|-------:|------:|------:|------------:|-----------:|----------|
+| random | 1 | 23 | 0 | 0 | 81 | 11.6 | block_out |
+| random | 2 | 25 | 0 | 0 | 91 | 14.1 | block_out |
+| random | 17 | 25 | 0 | 0 | 88 | 13.2 | block_out |
+| random | 123 | 25 | 0 | 0 | 93 | 13.3 | block_out |
+| naive | 1 | 95 | 21 | 2,100 | - | - | block_out |
+| naive | 2 | 55 | 5 | 500 | - | - | block_out |
+| naive | 17 | 111 | 28 | 2,800 | - | - | block_out |
+| naive | 123 | 72 | 12 | 1,300 | - | - | block_out |
+| heuristic | 1 | 500 | 197 | 21,600 | 2 | 6.9 | piece_limit |
+| heuristic | 2 | 500 | 198 | 21,200 | 1 | 4.0 | piece_limit |
+| heuristic | 17 | 500 | 195 | 21,200 | 4 | 4.8 | piece_limit |
+| heuristic | 123 | 500 | 194 | 21,800 | 5 | 5.3 | piece_limit |
+
+The random agent never clears a single line before dying, which makes it a floor
+rather than a competitor. The heuristic reaches the piece budget on every seed
+with 1-5 holes and an average stack height under 7 -- it is not dying, it is
+being stopped by the cap, so the cap is what bounds the score.
+
+Reproduce any row with:
+
+```bash
+uv run tetris-bench play --agent heuristic --seed 1
+```
+
+## Agent design notes
+
+**The scoring function is the primitive, not the agent.**
+`ScoringFunction = Callable[[Board, Placement], float]` rates one candidate move,
+and `ScoringAgent` is a small adapter that applies a scorer to every legal
+placement and keeps the best. The heuristic agent is `ScoringAgent` plus a
+weighted sum of board features.
+
+This matters for milestone 5. `strategy` mode asks a model to write exactly a
+`score(board, placement) -> float` function, so a sandboxed model-written scorer
+drops into the same slot as the hand-written heuristic, driven by the same
+adapter -- no parallel code path, and an apples-to-apples comparison for free.
+`Agent` stays the general interface, since "choose uniformly at random" is not a
+per-placement rating.
+
+**Features are measured after the move, not before.** The heuristic scores the
+board a placement *would produce*, once the piece is locked and any completed
+rows are cleared. Scoring the current board would rate every candidate
+identically, because the board is the same for all of them.
+
+**Two independent seeds per run.** One for the piece sequence, one for the
+agent's own randomness. The random agent owns its own `random.Random` instance:
+sharing the game's piece RNG would let the agent's draws shift the piece
+sequence, so two agents would face different games and the premise that every
+model plays identical seeds would fail silently.
+
+**Weights are a frozen dataclass**, defaulting to the published El-Tetris values,
+so weight sets can be compared in one run without editing source.
 
 ## Results
 

@@ -13,7 +13,7 @@ exactly from its config. The public surface is deliberately small:
 from tetris_bench.engine.board import DEFAULT_HEIGHT, DEFAULT_WIDTH, EMPTY, Board
 from tetris_bench.engine.game import LINE_SCORES, Game, GameOverCause
 from tetris_bench.engine.pieces import PIECE_KINDS, PIECES, Cell, Piece, Shape
-from tetris_bench.engine.placements import Placement, legal_placements
+from tetris_bench.engine.placements import Placement, apply_placement, legal_placements
 from tetris_bench.engine.rng import SevenBag
 
 __all__ = [
@@ -31,5 +31,6 @@ __all__ = [
     "Placement",
     "SevenBag",
     "Shape",
+    "apply_placement",
     "legal_placements",
 ]

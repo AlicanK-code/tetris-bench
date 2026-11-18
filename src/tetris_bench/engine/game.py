@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Literal
 
 from tetris_bench.engine.board import DEFAULT_HEIGHT, DEFAULT_WIDTH, Board
-from tetris_bench.engine.placements import Placement, legal_placements
+from tetris_bench.engine.placements import Placement, apply_placement, legal_placements
 from tetris_bench.engine.rng import SevenBag
 
 GameOverCause = Literal["block_out", "piece_limit"]
@@ -46,6 +46,14 @@ class Game:
         preview: int = DEFAULT_PREVIEW,
         max_pieces: int | None = DEFAULT_MAX_PIECES,
     ) -> None:
+        # Refuse a meaningless budget rather than defining a behaviour for it.
+        # A zero or negative cap has no sensible reading, and quietly playing one
+        # piece (or none) would turn a config typo into a silently short run.
+        if max_pieces is not None and max_pieces < 1:
+            raise ValueError(
+                f"max_pieces must be at least 1, or None for no limit, got {max_pieces}"
+            )
+
         self.seed = seed
         self.preview = preview
         self.max_pieces = max_pieces
@@ -82,8 +90,7 @@ class Game:
         if placement not in self.legal_placements():
             raise ValueError(f"illegal placement: {placement!r}")
 
-        self.board = self.board.place(placement.cells, placement.kind)
-        self.board, cleared = self.board.clear_lines()
+        self.board, cleared = apply_placement(self.board, placement)
 
         self.score += LINE_SCORES[cleared]
         self.lines_cleared += cleared
