@@ -1,0 +1,61 @@
+# Model entries for benchmark runs.
+#
+# This project runs local models only. The size ladder below is the experiment:
+# the same model family at increasing sizes, so the question becomes whether the
+# improvement loop lets a small model close on a larger one.
+#
+# `provider` picks a known provider (ollama, lmstudio, openai, anthropic), which
+# supplies the base URL and the API-key environment variable. Override base_url
+# for a remote Ollama box or a gateway.
+#
+# `pricing` is dollars per million tokens and lives here rather than in code, so
+# a cost logged months ago stays explainable by the config that produced it.
+# Local models are free, which is a fact about them, not a missing value --
+# which is why the headline cost measures are tokens and wall-clock, not dollars.
+#
+# Pull these before a run, and check the tags against `ollama list`:
+#   ollama pull qwen3:4b && ollama pull qwen3:8b
+#   ollama pull qwen3:14b && ollama pull qwen3:30b-a3b
+
+models:
+  # --- the size ladder: Apple Silicon, 32GB, so ~30B at 4-bit is the ceiling ---
+  - name: qwen3-4b
+    provider: ollama
+    model: qwen3:4b
+    pricing: {input_per_million: 0, output_per_million: 0}
+
+  - name: qwen3-8b
+    provider: ollama
+    model: qwen3:8b
+    pricing: {input_per_million: 0, output_per_million: 0}
+
+  - name: qwen3-14b
+    provider: ollama
+    model: qwen3:14b
+    pricing: {input_per_million: 0, output_per_million: 0}
+
+  # Mixture-of-experts: 30B total, ~3B active, so it runs far faster than its
+  # size suggests and fits comfortably in 32GB at 4-bit.
+  - name: qwen3-30b
+    provider: ollama
+    model: qwen3:30b-a3b
+    pricing: {input_per_million: 0, output_per_million: 0}
+
+# --- not run: kept to document the shape of other provider entries ---
+#
+# LM Studio, the other supported local runtime. Same OpenAI-compatible shape,
+# different port; the preset handles that.
+#
+#  - name: gpt-oss-local
+#    provider: lmstudio
+#    model: openai/gpt-oss-20b
+#    pricing: {input_per_million: 0, output_per_million: 0}
+#
+# A paid cloud entry. Needs ANTHROPIC_API_KEY in the environment; reached through
+# the provider's OpenAI-compatible endpoint, so it uses the identical code path.
+# Pricing verified 2026-11-18 -- re-check before trusting any cost column.
+#
+#  - name: opus
+#    provider: anthropic
+#    model: claude-opus-5-5
+#    pricing: {input_per_million: 4.0, output_per_million: 20.0}

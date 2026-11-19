@@ -6,7 +6,9 @@ A benchmark that measures how well LLMs **improve at Tetris across repeated atte
 
 Each model plays the same seeded piece sequences, gets feedback on how it did, revises its strategy, and plays again. The headline result is each model's **improvement curve**: who learns fastest, who plateaus, and who regresses after a revision.
 
-Secondary angle: a **gap analysis** between small local models (run on a MacBook) and frontier API models. Does the improvement loop narrow the gap?
+Secondary angle: a **capability-ladder analysis** across local models of increasing size (roughly 4B to 30B, all on one MacBook). Does the improvement loop let a small model close on a larger one?
+
+**Everything runs locally. No paid APIs.** The client supports cloud providers and that path is tested, but no planned run uses one. The practical consequence is that dollar cost is always zero, so the headline cost measures are **tokens and wall-clock seconds**, not dollars.
 
 This is a portfolio project. Code should be readable, well structured and easy to explain in an interview.
 
@@ -70,7 +72,7 @@ tetris-bench/
 5. **Strategy agent + sandbox**: prompt the model for a scoring function, run it safely, play a game.
 6. **Improvement loop**: feedback summary → revised function → replay, for N iterations over a fixed seed set.
 7. **Direct agent**: baseline mode for comparison (small seed set only, as it is expensive).
-8. **Analysis**: improvement curves per model, local-vs-frontier gap, cost per point, a results table for the README.
+8. **Analysis**: improvement curves per model, the size-ladder gap, tokens and seconds per point, a results table for the README.
 
 Finish and test each milestone before starting the next.
 
@@ -78,7 +80,9 @@ Finish and test each milestone before starting the next.
 
 model, mode, seed, iteration, score, lines cleared, pieces placed, final/avg max height, holes, bumpiness, cause of game over, invalid outputs / sandbox failures, model calls, tokens in/out, latency, estimated cost.
 
-Derived: improvement per iteration, best-so-far curve, iterations to plateau, regression count.
+Derived: improvement per iteration, best-so-far curve, iterations to plateau, regression count, tokens per point, seconds per point.
+
+Estimated cost stays in the schema and will read zero for every local run; it is there so a paid model could be added without a migration.
 
 ## Tech stack
 
@@ -86,7 +90,7 @@ Derived: improvement per iteration, best-so-far curve, iterations to plateau, re
 - `pytest` for tests, `ruff` for lint/format
 - `openai` SDK (pointed at different base URLs for different providers)
 - `pyyaml` for configs, `pandas` + `matplotlib` for analysis
-- Local inference: Ollama or LM Studio on a MacBook (Apple Silicon, 32GB unified memory), so roughly 20–30B models at 4-bit quantisation at most
+- Local inference: Ollama or LM Studio on a MacBook (Apple Silicon, 32GB unified memory), so roughly 20–30B models at 4-bit quantisation at most. This is the only inference the project uses.
 
 ## Commands (update as they become real)
 
@@ -96,6 +100,8 @@ uv run pytest                   # run tests
 uv run ruff check . && uv run ruff format .
 uv run tetris-bench play --agent heuristic --seed 1
 uv run tetris-bench play --agent random --show-state --log runs/baseline.jsonl
+uv sync --extra llm                                          # model client deps
+uv run tetris-bench models                                   # validate model config
 uv run tetris-bench loop --config configs/local-small.yaml   # not built yet
 ```
 

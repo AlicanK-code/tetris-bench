@@ -7,24 +7,29 @@ Each model plays the same seeded piece sequences, receives feedback on how it di
 its strategy, and plays again. The headline result is each model's **improvement curve**:
 who learns fastest, who plateaus, and who regresses after a revision.
 
-A secondary angle compares small local models (run on a MacBook) against frontier API
-models, and asks whether the improvement loop narrows the gap.
+A secondary angle compares local models of increasing size -- a capability ladder
+from roughly 4B to 30B, all on one MacBook -- and asks whether the improvement
+loop lets a small model close on a larger one.
+
+**Everything runs locally; no paid APIs.** The client supports cloud providers and
+that path is tested, but no planned run uses one. Dollar cost is therefore always
+zero, so the headline cost measures are tokens and wall-clock seconds.
 
 ## Status
 
-Milestones 1-3 of 8 complete: the game engine, the baseline agents, and rendering
-plus run records, with 267 unit tests. No LLM code yet.
+Milestones 1-4 of 8 complete: the game engine, the baseline agents, rendering and
+run records, and the model client, with 351 unit tests.
 
 | # | Milestone | State |
 |---|-----------|-------|
 | 1 | Engine (pieces, rotation, collision, line clears, 7-bag, legal placements) | **done** |
 | 2 | Baselines (random + hand-written heuristic agent) | **done** |
 | 3 | Rendering + metrics | **done** |
-| 4 | Model client (OpenAI-compatible, local + cloud) | not started |
+| 4 | Model client (OpenAI-compatible, local + cloud) | **done** |
 | 5 | Strategy agent + sandbox | not started |
 | 6 | Improvement loop | not started |
 | 7 | Direct agent | not started |
-| 8 | Analysis (curves, gap, cost per point) | not started |
+| 8 | Analysis (curves, ladder gap, tokens/seconds per point) | not started |
 
 ## Setup
 
@@ -212,6 +217,71 @@ Averages are sampled after every placement rather than read off the final board,
 because a game that ends tall may have been played low for most of its length,
 and the reverse. JSONL rather than one JSON array because a run that crashes
 leaves every completed game already on disk and readable.
+
+## Model client
+
+One OpenAI-compatible client serves local runtimes and cloud providers alike, so
+the provider is configuration rather than code and swapping a 30B local model for
+a frontier one is a config edit.
+
+```bash
+uv sync --extra llm
+uv run tetris-bench models
+```
+
+```
+name       provider  model          in $/M  out $/M  key
+qwen3-4b   ollama    qwen3:4b       0       0        not needed
+qwen3-8b   ollama    qwen3:8b       0       0        not needed
+qwen3-14b  ollama    qwen3:14b      0       0        not needed
+qwen3-30b  ollama    qwen3:30b-a3b  0       0        not needed
+```
+
+That command validates configuration without touching the network, and reports
+whether each model's key is present -- the one setup mistake worth catching
+before a run rather than during one. Everything live in the committed config is
+local and free; a paid entry is kept commented out to document the shape.
+
+**Known providers live in code, configs name one.** Ollama and LM Studio serve on
+fixed localhost ports and need no credential, so a config entry says which
+provider and which model and nothing that would be identical in every file.
+`base_url` and `api_key_env` can still be overridden for a remote box or a
+gateway.
+
+**Pricing lives in the config.** Each entry declares dollars per million tokens;
+local models declare zero. Since a run must be reproducible from its config and
+seed list, and prices change, a cost logged months ago stays explainable by the
+file that produced it.
+
+**Temperature defaults to 0.** Sampling noise would otherwise show up as
+improvement that is not there.
+
+**Transient failures are retried in the client**, with exponential backoff capped
+at 30s, so callers only handle *semantic* failures: output that will not parse, a
+scoring function that will not compile. A dropped connection, a timeout, a rate
+limit and a 5xx are retried; a bad key, a malformed request and a missing model
+are not, because retrying those just burns time and quota.
+
+**Retries are tallied apart from calls.** `model_calls` counts logical calls so
+cost-per-call stays meaningful, `retries` records provider flakiness separately,
+and `failed_calls` counts calls that never succeeded. Latency is wall-clock and so
+includes time spent retrying, because that is what a run costs in time. A failed
+call still updates the tally: a run's cost includes the calls that did not work.
+
+**The transport is injected**, so every test runs with no network, no API key and
+no local model. That matters because the code recording failures has to be
+exercised on purpose rather than when a provider happens to be down.
+
+**Cost is measured in tokens and seconds, not dollars.** Local inference is free,
+so `estimated_cost_usd` reads zero on every run. It stays in the schema so a paid
+model could be added without a migration, but tokens-per-point and
+seconds-per-point are the figures that mean anything here -- tokens being the
+hardware-independent one, and seconds being what you actually wait for.
+
+Cloud providers go through their OpenAI-compatible endpoints, so adding one is a
+config entry rather than new code. The benefit of the single path is that local
+and hosted runs are directly comparable; the cost is that provider-specific
+features are unavailable through a compatibility layer.
 
 ## Results
 

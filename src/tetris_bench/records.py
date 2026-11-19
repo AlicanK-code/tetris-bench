@@ -104,6 +104,12 @@ class ModelUsage:
     estimated_cost_usd: float = 0.0
     invalid_outputs: int = 0
     sandbox_failures: int = 0
+    # Retries are tallied apart from calls so cost-per-call stays meaningful
+    # while provider flakiness is still visible. failed_calls counts logical
+    # calls that never succeeded, which is different from a call that needed
+    # two attempts and then worked.
+    retries: int = 0
+    failed_calls: int = 0
 
 
 @dataclass(frozen=True)

@@ -135,3 +135,76 @@ class TestMain:
         )
         main()
         assert "random" in capsys.readouterr().out
+
+
+class TestHelpText:
+    def test_description_is_a_single_readable_line(self):
+        """argparse reflows its description, so __doc__ must not be used."""
+        parser = build_parser()
+        assert parser.description is not None
+        assert "\n" not in parser.description
+        assert "uv run" not in parser.description
+
+    def test_examples_keep_their_line_breaks(self, capsys):
+        parser = build_parser()
+        with pytest.raises(SystemExit):
+            parser.parse_args(["--help"])
+        out = capsys.readouterr().out
+        assert "examples:" in out
+        assert "tetris-bench play --agent heuristic --seed 1\n" in out
+
+
+class TestModelsCommand:
+    def test_lists_configured_models(self, capsys, monkeypatch):
+        monkeypatch.setattr("sys.argv", ["tetris-bench", "models"])
+        main()
+        out = capsys.readouterr().out
+        assert "qwen3-30b" in out
+        assert "ollama" in out
+        assert "not needed" in out
+
+    def test_reports_a_missing_cloud_key(self, monkeypatch):
+        from tetris_bench.cli import format_models
+        from tetris_bench.clients.config import ModelConfig
+
+        configs = [ModelConfig(name="opus", provider="anthropic", model="m")]
+        assert "ANTHROPIC_API_KEY MISSING" in format_models(configs, environ={})
+
+    def test_reports_a_present_cloud_key_without_leaking_it(self):
+        from tetris_bench.cli import format_models
+        from tetris_bench.clients.config import ModelConfig
+
+        configs = [ModelConfig(name="opus", provider="anthropic", model="m")]
+        out = format_models(configs, environ={"ANTHROPIC_API_KEY": "sk-secret"})
+        assert "ANTHROPIC_API_KEY set" in out
+        assert "sk-secret" not in out
+
+    def test_local_models_need_no_key(self):
+        from tetris_bench.cli import format_models
+        from tetris_bench.clients.config import ModelConfig
+
+        configs = [ModelConfig(name="local", provider="ollama", model="m")]
+        assert "not needed" in format_models(configs, environ={})
+
+    def test_shows_pricing(self):
+        from tetris_bench.cli import format_models
+        from tetris_bench.clients.config import ModelConfig, Pricing
+
+        configs = [
+            ModelConfig(
+                name="opus",
+                provider="anthropic",
+                model="m",
+                pricing=Pricing(input_per_million=15.0, output_per_million=75.0),
+            )
+        ]
+        out = format_models(configs, environ={})
+        assert "15" in out
+        assert "75" in out
+
+    def test_rejects_a_missing_config_file(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            "sys.argv", ["tetris-bench", "models", "--config", str(tmp_path / "nope.yaml")]
+        )
+        with pytest.raises(FileNotFoundError):
+            main()

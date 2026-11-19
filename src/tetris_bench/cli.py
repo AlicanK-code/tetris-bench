@@ -10,11 +10,13 @@ agent. Declared in ``pyproject.toml`` as the ``tetris-bench`` script, so::
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 from tetris_bench.agents.base import Agent
 from tetris_bench.agents.heuristic import heuristic_agent
 from tetris_bench.agents.random_agent import RandomAgent
+from tetris_bench.clients.config import ModelConfig, load_model_configs
 from tetris_bench.engine.game import DEFAULT_MAX_PIECES, Game
 from tetris_bench.jsonl import append_record
 from tetris_bench.records import GameResult
@@ -70,9 +72,65 @@ def format_result(result: GameResult, board: str) -> str:
     )
 
 
+EPILOG = """\
+examples:
+  tetris-bench play --agent heuristic --seed 1
+  tetris-bench play --agent random --agent-seed 0 --seed 1 --quiet
+  tetris-bench play --seed 1 --max-pieces 60 --show-state
+  tetris-bench play --agent heuristic --seed 1 --log runs/baseline.jsonl
+  tetris-bench models --config configs/models.yaml
+"""
+
+
+DEFAULT_MODEL_CONFIG = Path("configs/models.yaml")
+
+
+def format_models(configs: list[ModelConfig], environ: dict[str, str]) -> str:
+    """Render the configured models as a table.
+
+    Reports whether each cloud model's key is present in the environment, which
+    is the one setup mistake worth catching before a run rather than during it.
+    No network is touched: this validates configuration, not connectivity.
+    """
+    rows = [("name", "provider", "model", "in $/M", "out $/M", "key")]
+    for config in configs:
+        spec = config.provider_spec
+        if not spec.requires_key:
+            key = "not needed"
+        elif environ.get(spec.api_key_env or ""):
+            key = f"{spec.api_key_env} set"
+        else:
+            key = f"{spec.api_key_env} MISSING"
+        rows.append(
+            (
+                config.name,
+                config.provider,
+                config.model,
+                f"{config.pricing.input_per_million:g}",
+                f"{config.pricing.output_per_million:g}",
+                key,
+            )
+        )
+    widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+    return "\n".join(
+        "  ".join(cell.ljust(widths[i]) for i, cell in enumerate(row)).rstrip() for row in rows
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
-    """Build the argument parser. Separate from :func:`main` so tests can use it."""
-    parser = argparse.ArgumentParser(prog="tetris-bench", description=__doc__)
+    """Build the argument parser. Separate from :func:`main` so tests can use it.
+
+    The description is written out rather than taken from ``__doc__``: argparse
+    reflows whatever it is given, which turns a multi-line module docstring into
+    one unreadable run-on. ``RawDescriptionHelpFormatter`` preserves the example
+    block's line breaks.
+    """
+    parser = argparse.ArgumentParser(
+        prog="tetris-bench",
+        description="Benchmark how well LLMs improve at Tetris across repeated attempts.",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     play = sub.add_parser("play", help="play one game with a baseline agent")
@@ -88,6 +146,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     play.add_argument("--show-pieces", action="store_true", help="render piece letters, not '#'")
     play.add_argument("--log", type=Path, default=None, help="append the result to a JSONL file")
+
+    models = sub.add_parser("models", help="list and validate configured models")
+    models.add_argument("--config", type=Path, default=DEFAULT_MODEL_CONFIG)
     return parser
 
 
@@ -114,3 +175,6 @@ def main() -> None:
         else:
             board = render_board(game.board, show_pieces=args.show_pieces)
             print(format_result(result, board))
+
+    elif args.command == "models":
+        print(format_models(load_model_configs(args.config), dict(os.environ)))
