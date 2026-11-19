@@ -33,12 +33,20 @@ class PermanentModelError(ModelError):
 
 @dataclass(frozen=True)
 class RawCompletion:
-    """One completion, stripped to what the benchmark records."""
+    """One completion, stripped to what the benchmark records.
+
+    ``reasoning`` is non-standard: Ollama puts a thinking model's chain of
+    thought there and leaves the answer in ``content``. It is captured because
+    seeing *why* a model revised its scoring function is close to the point of
+    the benchmark, and because those tokens are billed whether or not we read
+    them. Servers that do not produce it simply leave it empty.
+    """
 
     text: str
     model: str
     tokens_in: int
     tokens_out: int
+    reasoning: str = ""
 
 
 class Transport(Protocol):
@@ -52,6 +60,7 @@ class Transport(Protocol):
         temperature: float,
         max_tokens: int | None,
         timeout: float,
+        seed: int | None = None,
     ) -> RawCompletion:
         """Perform one request, raising a :class:`ModelError` on failure."""
         ...
@@ -86,6 +95,7 @@ class OpenAITransport:
         temperature: float,
         max_tokens: int | None,
         timeout: float,
+        seed: int | None = None,
     ) -> RawCompletion:
         import openai
 
@@ -97,6 +107,8 @@ class OpenAITransport:
         }
         if max_tokens is not None:
             request["max_tokens"] = max_tokens
+        if seed is not None:
+            request["seed"] = seed
 
         try:
             completion = self._client.chat.completions.create(**request)
@@ -124,11 +136,12 @@ class OpenAITransport:
         if not completion.choices:
             raise PermanentModelError("response contained no choices")
 
-        text = completion.choices[0].message.content or ""
+        message = completion.choices[0].message
         usage = getattr(completion, "usage", None)
         return RawCompletion(
-            text=text,
+            text=message.content or "",
             model=getattr(completion, "model", "") or "",
             tokens_in=getattr(usage, "prompt_tokens", 0) or 0,
             tokens_out=getattr(usage, "completion_tokens", 0) or 0,
+            reasoning=getattr(message, "reasoning", "") or "",
         )

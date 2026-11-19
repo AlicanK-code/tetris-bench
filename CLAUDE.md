@@ -38,6 +38,17 @@ This is a portfolio project. Code should be readable, well structured and easy t
 - Validate the function's signature and return type, and treat exceptions or timeouts as a recorded failure, not a crash.
 - Log every generated function to disk for later inspection.
 
+As built, this is two independent layers:
+
+1. **Static AST allowlist** (`sandbox.py`) rejects imports, private and dunder attribute access, and the builtins that reach outside the process — before anything runs. Not because a subprocess could not contain them, but because a rejected function fails instantly with a readable reason instead of burning a timeout.
+2. **Containment** (`sandbox_worker.py`) runs the function in a separate interpreter under `-I`, importing no project module, with a small allowlist of builtins and `SIGALRM` bounding each call. Verified to hold on its own with layer 1 disabled: `open` and `__import__` are `NameError`s, `import` fails at load, boards are immutable tuples, and non-numeric or `NaN` returns are refused.
+
+`math` is **pre-injected rather than importable**, so the one pure module a scoring function may want is available without permitting an import statement at all.
+
+One worker per game, batched per piece: a game is ~500 pieces × ~34 placements, so a process per scoring call would mean 17,000 spawns and over eight minutes per game of pure process creation.
+
+The function sees **plain data only** — boards as tuples of tuples of bool, placements as dicts — so no class, module or method of this project crosses into the sandbox.
+
 ## Planned structure
 
 ```
@@ -54,8 +65,10 @@ tetris-bench/
 │   ├── jsonl.py        # append/read run records
 │   ├── runner.py       # play_game(game, agent) -> GameResult
 │   ├── clients/        # OpenAI-compatible client, provider config
-│   ├── agents/         # direct agent, strategy agent
-│   ├── sandbox.py      # safe execution of model-written scoring functions
+│   ├── agents/         # random, heuristic, strategy (direct agent to come)
+│   ├── prompts/        # versioned prompt templates + loader
+│   ├── sandbox.py      # AST validation + host side of the sandbox
+│   ├── sandbox_worker.py  # the isolated child; stdlib only, run by path
 │   ├── loop.py         # improvement loop orchestration
 │   └── cli.py          # entry points
 ├── runs/               # outputs: JSONL logs, generated functions (gitignored)
@@ -69,7 +82,7 @@ tetris-bench/
 2. **Baselines**: a random agent and a hand-written heuristic agent (classic weights: aggregate height, holes, bumpiness, lines). These sanity-check the engine and give reference scores.
 3. **Rendering + metrics**: text grid output and per-game stats.
 4. **Model client**: one OpenAI-compatible client and config for local (Ollama/LM Studio) and cloud providers. Track tokens, latency and cost per call.
-5. **Strategy agent + sandbox**: prompt the model for a scoring function, run it safely, play a game.
+5. **Strategy agent + sandbox**: prompt the model for a scoring function, run it safely, play a game. *Done.*
 6. **Improvement loop**: feedback summary → revised function → replay, for N iterations over a fixed seed set.
 7. **Direct agent**: baseline mode for comparison (small seed set only, as it is expensive).
 8. **Analysis**: improvement curves per model, the size-ladder gap, tokens and seconds per point, a results table for the README.
@@ -102,6 +115,7 @@ uv run tetris-bench play --agent heuristic --seed 1
 uv run tetris-bench play --agent random --show-state --log runs/baseline.jsonl
 uv sync --extra llm                                          # model client deps
 uv run tetris-bench models                                   # validate model config
+uv run tetris-bench strategy --model qwen3-4b --seed 1       # model writes a scorer
 uv run tetris-bench loop --config configs/local-small.yaml   # not built yet
 ```
 

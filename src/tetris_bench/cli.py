@@ -79,6 +79,7 @@ examples:
   tetris-bench play --seed 1 --max-pieces 60 --show-state
   tetris-bench play --agent heuristic --seed 1 --log runs/baseline.jsonl
   tetris-bench models --config configs/models.yaml
+  tetris-bench strategy --model qwen3-4b --seed 1
 """
 
 
@@ -149,6 +150,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     models = sub.add_parser("models", help="list and validate configured models")
     models.add_argument("--config", type=Path, default=DEFAULT_MODEL_CONFIG)
+
+    strategy = sub.add_parser(
+        "strategy", help="ask a model for a scoring function, then play with it"
+    )
+    strategy.add_argument("--model", required=True, help="a name from the model config")
+    strategy.add_argument("--config", type=Path, default=DEFAULT_MODEL_CONFIG)
+    strategy.add_argument("--seed", type=int, default=1, help="piece sequence seed")
+    strategy.add_argument("--max-pieces", type=positive_int, default=DEFAULT_MAX_PIECES)
+    strategy.add_argument(
+        "--per-call-seconds", type=float, default=1.0, help="time budget per placement"
+    )
+    strategy.add_argument(
+        "--save-dir",
+        type=Path,
+        default=Path("runs/functions"),
+        help="where to log the generated function",
+    )
+    strategy.add_argument("--log", type=Path, default=None, help="append the result to JSONL")
+    strategy.add_argument("--show-source", action="store_true", help="print the function")
+    strategy.add_argument(
+        "--template", default=None, help="prompt template name (default: the current version)"
+    )
     return parser
 
 
@@ -178,3 +201,94 @@ def main() -> None:
 
     elif args.command == "models":
         print(format_models(load_model_configs(args.config), dict(os.environ)))
+
+    elif args.command == "strategy":
+        run_strategy(args)
+
+
+def run_strategy(args: argparse.Namespace) -> None:
+    """Ask a model for a scoring function, then play a game with it.
+
+    Imported here rather than at module scope so that `play` and `models` keep
+    working when the optional `llm` extra is not installed.
+    """
+    from tetris_bench.agents.strategy import StrategyAgent, request_scoring_function
+    from tetris_bench.clients.client import ModelClient
+    from tetris_bench.clients.config import load_model_config
+    from tetris_bench.jsonl import append_record
+    from tetris_bench.records import ModelUsage, RunRecord
+    from tetris_bench.sandbox import SandboxLimits, SandboxValidationError, ScoringSandbox
+
+    config = load_model_config(args.config, args.model)
+    client = ModelClient(config)
+
+    print(f"asking {config.name} ({config.model}) for a scoring function...")
+    generated = request_scoring_function(client, per_call_seconds=args.per_call_seconds)
+    stem = f"{config.name}-seed{args.seed}-iter{generated.iteration}"
+    saved = generated.save(args.save_dir, stem)
+    print(f"saved {saved}")
+
+    if args.show_source:
+        print()
+        print(generated.source)
+
+    limits = SandboxLimits(per_call_seconds=args.per_call_seconds)
+    try:
+        with ScoringSandbox(generated.source, limits=limits) as sandbox:
+            agent = StrategyAgent(sandbox)
+            game = Game(seed=args.seed, max_pieces=args.max_pieces)
+            result = play_game(game, agent)
+            failures = sandbox.failures
+            sample = list(sandbox.errors)
+            diagnostics = agent.diagnostics
+    except SandboxValidationError as error:
+        print(f"\nREJECTED: {error}")
+        print("the model's function was not run; it is saved above for inspection")
+        return
+
+    print()
+    print(render_board(game.board))
+    print()
+    print(f"score          {result.score}")
+    print(f"lines cleared  {result.lines_cleared}")
+    print(f"pieces placed  {result.pieces_placed}")
+    print(f"ended by       {result.cause}")
+    print(f"holes          {result.final_holes} (avg {result.avg_holes:.1f})")
+    print(f"max height     {result.final_max_height} (avg {result.avg_max_height:.1f})")
+    print(f"sandbox fails  {failures}")
+    print(f"score spread   {diagnostics.summary()}")
+    for line in sample[:3]:
+        print(f"  {line}")
+    if diagnostics.is_degenerate:
+        print()
+        print(
+            "NOTE: the function scored every candidate the same, so the engine had\n"
+            "      nothing to choose on and played the first legal move each time.\n"
+            "      A zero score here reflects a dead function, not a bad strategy."
+        )
+    usage = client.usage
+    print(
+        f"model          {usage.model_calls} call(s), {usage.tokens_in} in / "
+        f"{usage.tokens_out} out, {usage.latency_seconds:.1f}s"
+    )
+
+    if args.log is not None:
+        append_record(
+            args.log,
+            RunRecord(
+                game=result,
+                model=config.name,
+                mode="strategy",
+                iteration=generated.iteration,
+                usage=ModelUsage(
+                    model_calls=usage.model_calls,
+                    tokens_in=usage.tokens_in,
+                    tokens_out=usage.tokens_out,
+                    latency_seconds=usage.latency_seconds,
+                    estimated_cost_usd=usage.estimated_cost_usd,
+                    sandbox_failures=failures,
+                    retries=usage.retries,
+                    failed_calls=usage.failed_calls,
+                ),
+            ),
+        )

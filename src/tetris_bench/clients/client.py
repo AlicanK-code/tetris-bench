@@ -47,6 +47,7 @@ class ChatResponse:
     latency_seconds: float
     retries: int
     estimated_cost_usd: float
+    reasoning: str = ""
 
 
 def resolve_api_key(config: ModelConfig, environ: dict[str, str] | None = None) -> str:
@@ -118,6 +119,7 @@ class ModelClient:
                     temperature=self.config.temperature,
                     max_tokens=self.config.max_tokens,
                     timeout=self.config.timeout_seconds,
+                    seed=self.config.seed,
                 )
             except PermanentModelError:
                 # No point trying again; record the attempt and surface it.
@@ -156,6 +158,7 @@ class ModelClient:
             latency_seconds=latency,
             retries=retries,
             estimated_cost_usd=cost,
+            reasoning=raw.reasoning,
         )
 
     def _record_failure(self, latency: float, retries: int) -> None:

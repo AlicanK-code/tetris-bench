@@ -1,0 +1,240 @@
+# Finding: prompt v1 vs v2, and a determinism problem
+
+**Date:** 2026-11-19 · **Model:** `qwen3:4b` · **Seed:** 1 · **Temperature:** 0
+**Script:** `analysis/compare_prompts.py`
+**Artifacts:** `runs/functions/qwen3-4b-seed1-strategy_v{1,2}.{py,json}`
+
+Context: [`qwen3-4b-iter0-detailed.md`](qwen3-4b-iter0-detailed.md) recorded a
+first run in which the model wrote a constant scoring function. `strategy_v2` was
+written in response, adding two mechanical clarifications. This compares them.
+
+---
+
+## 1. Result
+
+| template | score | pieces | holes | moves with variation | mean spread | gen s | out tokens |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `strategy_v1` | 0 | 22 | 107 | 0/22 | 0 | 252 | 9,020 |
+| `strategy_v2` | 0 | 22 | 107 | **4/22** | 0.909 | 276 | 8,333 |
+
+Reference, same seed: heuristic 21,600 · naive 2,100 · random 0.
+
+**v2 did not fix it.** Score, pieces and final holes are identical. The only
+movement is in discrimination: v2's function separates candidates on 4 of 22
+moves instead of 0, with a mean spread of 0.909 against a constant term of
+roughly 1,960 — far too small to change any decision.
+
+---
+
+## 2. What each wrote
+
+### v1
+
+```python
+def score(board, placement):
+    filled_cells = sum(cell for row in board for cell in row)
+    holes = 200 - filled_cells
+
+    stack_height = -1
+    for row in range(19, -1, -1):
+        if any(board[row][col] for col in range(10)):
+            stack_height = row
+            break
+
+    return float(holes * (20 - stack_height) + placement["lines_cleared"])
+```
+
+- `holes = 200 - filled_cells` is the count of **all** empty cells. Every piece
+  fills exactly four, so this is identical for every candidate of a given move.
+- The height loop scans rows 19 → 0 and breaks on the first hit, so
+  `stack_height` is the **lowest** occupied row — the bottom of the stack. Once
+  anything rests on the floor it is 19, making `(20 - stack_height)` equal 1.
+- Net: `constant * 1 + lines_cleared`, and `lines_cleared` never fires. Constant.
+
+Note it *did* add the `break` the previous attempt lacked — then scanned from the
+wrong end. Same bug class, different expression.
+
+### v2
+
+```python
+def score(board, placement):
+    lines_cleared = placement["lines_cleared"]
+    empty_cells = 0
+    holes = 0
+    for row in board:
+        for cell in row:
+            if not cell:
+                empty_cells += 1
+    for row in range(20):
+        for col in range(10):
+            if not board[row][col]:
+                up = board[row-1][col] if row > 0 else False
+                down = board[row+1][col] if row < 19 else False
+                left = board[row][col-1] if col > 0 else False
+                right = board[row][col+1] if col < 9 else False
+                if up and down and left and right:
+                    holes += 1
+    return float(lines_cleared * 100 + empty_cells * 10 - holes * 5)
+```
+
+- `empty_cells * 10` is again constant per move, and it is the dominant term at
+  roughly 1,960.
+- `holes` now counts cells **enclosed on all four sides**. A real hole is merely
+  *covered from above* — open below is the normal case — so this definition
+  almost never matches. Hence 4 moves out of 22 with any variation.
+- `- holes * 5` is the only live term, and it is swamped.
+
+---
+
+## 3. Three attempts, three wrong definitions of "hole"
+
+| attempt | prompt | its definition of a hole |
+|---|---|---|
+| 1 | v1 | all empty cells (`empty_cells`) |
+| 2 | v1 | all empty cells (`200 - filled_cells`) |
+| 3 | v2 | cells enclosed on all four sides |
+
+The correct notion — an empty cell with a filled cell somewhere **above** it in
+the same column — never appeared. All three also got the stack-height direction
+wrong, in two different ways.
+
+This is the substantive finding about the bottom rung: the failure is not a
+missing instruction. v2 explicitly told the model its scores must differ between
+candidates and to check that each term actually varies, and it still produced a
+function dominated by a constant term. **The model cannot reliably reason about
+whether its own expressions vary with their input.**
+
+---
+
+## 4. The determinism problem
+
+The two v1 runs used a **byte-identical prompt** (SHA256 `2ffd3f79246e72d5`,
+2,599 chars) at temperature 0, and produced **different functions**.
+
+The reasoning traces are identical for 7,336 characters, then diverge:
+
+| run | text at the divergence |
+|---|---|
+| 1 | `...the "tallness" is the lowest row index (highest up) where the col...` |
+| 2 | `...the "height" of the column is the lowest row index where it's fil...` |
+
+One word choice, after which they never reconverge. Short generations *are*
+reproducible — three identical replies to a one-line prompt, with and without an
+explicit `seed` — so this is a property of long generations: with ~9,000 output
+tokens, floating-point nondeterminism (non-associative reductions, kernel
+scheduling) eventually flips a token, and the rest of the trace follows.
+
+### 4.1 Why this matters more than the prompt result
+
+CLAUDE.md design decision 3 says runs are deterministic and seeded so results
+are directly comparable. That holds for the **piece sequence** — three different
+generated functions all produced exactly 0 points, 22 pieces and 107 holes,
+because all three were effectively constant and therefore played the identical
+degenerate game. The engine is provably deterministic.
+
+It does **not** hold for the model. The same prompt does not give the same
+function.
+
+The consequence for the headline measurement: an improvement curve built from one
+run per iteration cannot distinguish learning from sampling noise. Two of
+CLAUDE.md's derived metrics are directly exposed — **regression count** would
+count noise as regression, and **iterations to plateau** would be read off a
+noisy series.
+
+### 4.2 A fixed seed does not fix it
+
+Tested directly. `seed` **is** honoured by the server: three calls at temperature
+1.0 with `seed=42` returned bit-identical text, where three unseeded calls at the
+same temperature all differed. So there is a seeded RNG in the sampling path.
+
+But with `seed: 1` and temperature 0, two runs of the *same long prompt* still
+produced different functions:
+
+| run | source hash | generation | reasoning |
+|---|---|---:|---:|
+| 1 | `a617db7ce7bf7e33` | 298s | 34,916 chars |
+| 2 | `1ac323317e25d8ee` | 344s | 35,138 chars |
+
+Those two reasoning lengths are exactly the two seen across the earlier unseeded
+runs (34,916 and 35,138). The system appears to flip between two trajectories at
+an early near-tie, and the seed does not determine which.
+
+**This rules out sampling as the operative cause for long generations.** The
+remaining explanation is numerics: floating-point non-associativity in parallel
+reductions, kernel selection varying with batch shape or available memory, model
+reload between calls (Ollama unloads an idle model after ~5 minutes), or
+prompt-cache state. Any of these can shift a logit in its last bits, which is
+enough to flip a near-tie — and ours flips on exactly that kind of choice, two
+near-synonyms the model has no strong preference between.
+
+An earlier reading of the seed test suggested temperature 0 was simply not
+greedy. That was wrong: the seeded test used ~300 output tokens, far too few for
+a numerics-driven flip to be likely. Both mechanisms exist; for a 9,000-token
+generation, numerics dominates and no seed can remove it.
+
+The seed is kept in the config regardless, since it removes one real source of
+variance at no cost. It is simply not sufficient.
+
+### 4.3 But score-level noise may be far smaller than text-level noise
+
+Four generations from this prompt have now produced at least two distinct
+functions. Every one scored **exactly 0, at 22 pieces, with 107 holes**.
+
+Token-level nondeterminism did not propagate to the outcome, because both
+trajectories produced effectively constant functions, and all constant functions
+play the identical degenerate game on a fixed seed.
+
+That matters for how to handle this. The quantity the benchmark reports is the
+score, not the text, so **score variance is what has to be measured** — and it
+may be much smaller than the generation variance suggests. The catch is that this
+particular model is *stably bad*, which is the easiest case. A model producing
+functions near some competence threshold could show much larger score variance.
+The noise floor therefore has to be measured on a rung that actually produces
+varying scores, not on this one.
+
+### 4.4 What this requires
+
+The noise floor has to be measured before any improvement can be claimed: run
+the same model, prompt and seed N times and record the spread of scores. Until
+that number exists, there is no threshold against which a gain between
+iterations means anything.
+
+Options, not yet decided:
+
+1. **Measure the noise floor in score terms, then require improvements to exceed
+   it.** Note this is cheaper than it first appears: §4.3 suggests score variance
+   may be small even where text variance is large. At ~5 minutes per generation,
+   N=5 on one rung is about 25 minutes.
+2. **Several samples per iteration, report medians and spread.** Statistically
+   the right answer; multiplies an already long run by N.
+3. **Accept single runs and report the curve as indicative**, with the
+   nondeterminism stated as a limitation. Cheapest, weakest claim.
+
+---
+
+## 5. Secondary observations
+
+- v2's prompt is longer (761 input tokens vs 649) and produced slightly *fewer*
+  output tokens (8,333 vs 9,020). No evidence the added instructions increased
+  deliberation.
+- The score-spread diagnostic added after the first run did its job: it
+  distinguished "constant function" from "bad strategy" immediately, and showed
+  v2's marginal 4/22 improvement that a score of 0 alone would have hidden.
+- Generation times were 252s and 276s on the smallest rung. A multi-sample,
+  multi-iteration, multi-rung run is a many-hour job and needs checkpointing.
+
+---
+
+## 6. Open decisions
+
+1. How to handle model nondeterminism (§4.2). This gates the validity of the
+   headline result and should be settled before Milestone 6 is built.
+2. Whether to keep withholding the definition of a hole. Three attempts have now
+   failed to derive it. Supplying callable feature helpers would likely produce a
+   measurable curve from the 4B rung, at the cost of reducing "improvement" to
+   reweighting. The alternative is to accept that the bottom rung may produce a
+   flat curve at zero, and report that as the finding.
+3. Whether `strategy_v2` should remain the default. It is marginally better on
+   discrimination and no worse on outcome, but the difference is within what
+   nondeterminism could explain, so the comparison does not justify a preference
+   either way.

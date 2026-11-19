@@ -13,6 +13,19 @@
 # Local models are free, which is a fact about them, not a missing value --
 # which is why the headline cost measures are tokens and wall-clock, not dollars.
 #
+# `seed` is required for reproducibility, not optional. Temperature 0 alone was
+# not enough: the same prompt produced different functions across runs, diverging
+# thousands of tokens in. A fixed seed makes a generation repeatable, which the
+# improvement curve depends on -- without it, run-to-run noise is indistinguishable
+# from a model learning or regressing.
+#
+# `timeout_seconds` is generous because these are thinking models: Qwen3 emits a
+# long chain of thought before its answer, and on this prompt even the 4B rung
+# takes over two minutes. The client's 120s default was being hit and retried
+# three times, which looked like a hang. Thinking cannot be disabled through
+# Ollama's OpenAI-compatible endpoint -- `think: false` only moves the reasoning
+# into `content` -- so the budget has to absorb it.
+#
 # Pull these before a run, and check the tags against `ollama list`:
 #   ollama pull qwen3:4b && ollama pull qwen3:8b
 #   ollama pull qwen3:14b && ollama pull qwen3:30b-a3b
@@ -23,16 +36,22 @@ models:
     provider: ollama
     model: qwen3:4b
     pricing: {input_per_million: 0, output_per_million: 0}
+    timeout_seconds: 600
+    seed: 1
 
   - name: qwen3-8b
     provider: ollama
     model: qwen3:8b
     pricing: {input_per_million: 0, output_per_million: 0}
+    timeout_seconds: 900
+    seed: 1
 
   - name: qwen3-14b
     provider: ollama
     model: qwen3:14b
     pricing: {input_per_million: 0, output_per_million: 0}
+    timeout_seconds: 1200
+    seed: 1
 
   # Mixture-of-experts: 30B total, ~3B active, so it runs far faster than its
   # size suggests and fits comfortably in 32GB at 4-bit.
@@ -40,6 +59,8 @@ models:
     provider: ollama
     model: qwen3:30b-a3b
     pricing: {input_per_million: 0, output_per_million: 0}
+    timeout_seconds: 1200
+    seed: 1
 
 # --- not run: kept to document the shape of other provider entries ---
 #

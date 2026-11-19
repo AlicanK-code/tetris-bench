@@ -29,8 +29,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from tetris_bench.clients.providers import Provider, get_provider
 
 ALLOWED_KEYS = {
@@ -41,6 +39,7 @@ ALLOWED_KEYS = {
     "base_url",
     "api_key_env",
     "temperature",
+    "seed",
     "max_tokens",
     "timeout_seconds",
     "max_retries",
@@ -74,6 +73,13 @@ class ModelConfig:
     # Zero by default: a benchmark wants the same answer for the same prompt, and
     # sampling noise would show up as improvement that is not there.
     temperature: float = 0.0
+    # Temperature 0 alone is not enough. Observed: the same prompt at temperature
+    # 0 produced different functions across runs, diverging ~7,300 characters in.
+    # Short replies were stable, long ones were not, which is what you get if the
+    # server still samples from a sharpened distribution: for most tokens the
+    # argmax dominates, but over thousands of tokens a near-tie eventually gets
+    # decided by an unseeded RNG. A fixed seed removes that.
+    seed: int | None = None
     max_tokens: int | None = None
     timeout_seconds: float = 120.0
     max_retries: int = 3
@@ -125,6 +131,7 @@ def _parse_entry(entry: dict[str, Any], source: str, index: int) -> ModelConfig:
         base_url=entry.get("base_url"),
         api_key_env=entry.get("api_key_env"),
         temperature=entry.get("temperature", 0.0),
+        seed=entry.get("seed"),
         max_tokens=entry.get("max_tokens"),
         timeout_seconds=entry.get("timeout_seconds", 120.0),
         max_retries=entry.get("max_retries", 3),
@@ -151,7 +158,15 @@ def parse_model_configs(data: Any, source: str = "<config>") -> list[ModelConfig
 
 
 def load_model_configs(path: Path | str) -> list[ModelConfig]:
-    """Load every model entry from a YAML config file."""
+    """Load every model entry from a YAML config file.
+
+    ``yaml`` is imported here rather than at module scope so that importing this
+    package costs nothing beyond the standard library. The baseline agents and
+    the engine must keep working when the optional ``llm`` extra is not
+    installed, and the CLI imports this module whether or not a model is used.
+    """
+    import yaml
+
     target = Path(path)
     with target.open(encoding="utf-8") as handle:
         return parse_model_configs(yaml.safe_load(handle), source=str(target))

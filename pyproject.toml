@@ -28,6 +28,13 @@ packages = ["src/tetris_bench"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Two kinds of Markdown hold Python that must not be reformatted:
+#   - prompt templates are data a model reads, and rewriting the code in their
+#     fences silently changes the instructions it is given;
+#   - findings documents quote model-written code as evidence, so reformatting it
+#     misrepresents what the model actually produced.
+# `ruff format` rewrites Python inside Markdown fences, so both are excluded.
+extend-exclude = ["src/tetris_bench/prompts/", "docs/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
