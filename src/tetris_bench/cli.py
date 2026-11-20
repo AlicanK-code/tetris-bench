@@ -81,7 +81,7 @@ examples:
   tetris-bench models --config configs/models.yaml
   tetris-bench strategy --model qwen3-4b --seed 1
   tetris-bench loop --model qwen3-14b --iterations 6
-  tetris-bench loop --model qwen3-30b --chains 5 --seeds 1 2 3
+  tetris-bench loop --model qwen3-30b --chains 5
 """
 
 
@@ -178,7 +178,20 @@ def build_parser() -> argparse.ArgumentParser:
     loop = sub.add_parser("loop", help="run the improvement loop: feedback, revise, replay, repeat")
     loop.add_argument("--model", required=True, help="a name from the model config")
     loop.add_argument("--config", type=Path, default=DEFAULT_MODEL_CONFIG)
-    loop.add_argument("--seeds", type=int, nargs="+", default=[1])
+    loop.add_argument(
+        "--train-seeds",
+        type=int,
+        nargs="+",
+        default=[1, 2, 17],
+        help="sequences whose outcomes are fed back to the model",
+    )
+    loop.add_argument(
+        "--eval-seeds",
+        type=int,
+        nargs="+",
+        default=list(range(1000, 1010)),
+        help="held-out sequences; the curve is read from these",
+    )
     loop.add_argument("--iterations", type=positive_int, default=6)
     loop.add_argument(
         "--chains",
@@ -237,7 +250,8 @@ def run_improvement_loop(args: argparse.Namespace) -> None:
     client = ModelClient(config)
     loop_config = LoopConfig(
         model=config.name,
-        seeds=tuple(args.seeds),
+        train_seeds=tuple(args.train_seeds),
+        eval_seeds=tuple(args.eval_seeds),
         iterations=args.iterations,
         chains=args.chains,
         max_pieces=args.max_pieces,
@@ -245,11 +259,14 @@ def run_improvement_loop(args: argparse.Namespace) -> None:
         log_path=args.log,
         functions_dir=args.save_dir,
     )
-    total = len(loop_config.seeds) * loop_config.chains * loop_config.iterations
+    total = loop_config.chains * loop_config.iterations
     print(
         f"{config.name} ({config.model}): {total} generations "
-        f"({len(loop_config.seeds)} seed(s) x {loop_config.chains} chain(s) "
-        f"x {loop_config.iterations} iterations)"
+        f"({loop_config.chains} chain(s) x {loop_config.iterations} iterations)"
+    )
+    print(
+        f"train seeds {list(loop_config.train_seeds)} fed back; "
+        f"{len(loop_config.eval_seeds)} held-out seeds evaluated per iteration"
     )
     print(f"log {loop_config.log_path} - rerun the same command to resume\n")
     run_loop(client, loop_config)

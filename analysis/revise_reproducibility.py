@@ -51,7 +51,9 @@ def main() -> None:
     args = parser.parse_args()
 
     config = load_model_config(args.config, args.model)
-    loop_config = LoopConfig(model=config.name, seeds=(args.seed,), max_pieces=args.max_pieces)
+    loop_config = LoopConfig(
+        model=config.name, train_seeds=(args.seed,), max_pieces=args.max_pieces
+    )
 
     path = args.function or Path(f"runs/functions/noise/{config.name}-noise1.py")
     if not path.exists():

@@ -94,7 +94,8 @@ class FakeClient:
 def config(tmp_path):
     return LoopConfig(
         model="fake",
-        seeds=(1,),
+        train_seeds=(1,),
+        eval_seeds=(),
         iterations=3,
         chains=1,
         max_pieces=120,
@@ -105,21 +106,22 @@ def config(tmp_path):
 
 class TestPositions:
     def test_covers_the_whole_sweep(self):
-        cfg = LoopConfig(model="m", seeds=(1, 2), iterations=3, chains=2)
-        assert len(list(positions(cfg))) == 12
+        """A position is a (chain, iteration); seeds are played within one."""
+        cfg = LoopConfig(model="m", train_seeds=(1, 2), iterations=3, chains=2)
+        assert len(list(positions(cfg))) == 6
 
     def test_iterations_are_contiguous_within_a_chain(self):
         """Iterations are sequential; chains and seeds are independent."""
-        cfg = LoopConfig(model="m", seeds=(1,), iterations=3, chains=2)
+        cfg = LoopConfig(model="m", train_seeds=(1,), iterations=3, chains=2)
         order = [(p.chain, p.iteration) for p in positions(cfg)]
         assert order == [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
 
     def test_stem_identifies_a_position_uniquely(self):
-        stems = {Position(s, c, i).stem("m") for s in (1, 2) for c in (0, 1) for i in (0, 1)}
-        assert len(stems) == 8
+        stems = {Position(c, i).stem("m") for c in (0, 1) for i in (0, 1)}
+        assert len(stems) == 4
 
     def test_stem_is_readable(self):
-        assert Position(2, 1, 4).stem("qwen3-14b") == "qwen3-14b-seed2-chain1-iter4"
+        assert Position(1, 4).stem("qwen3-14b") == "qwen3-14b-chain1-iter4"
 
 
 class TestPlayFunction:
@@ -221,14 +223,14 @@ class TestRunLoop:
 
         run_loop(FakeClient([CONSTANT, HOLES_ONLY, GOOD]), config, on_progress=None)
         for row in read_records(config.log_path):
-            stem = Position(row["seed"], row["chain"], row["iteration"]).stem("fake")
+            stem = Position(row["chain"], row["iteration"]).stem("fake")
             source = (config.functions_dir / f"{stem}.py").read_text()
             assert row["function_sha"] == hashlib.sha256(source.encode()).hexdigest()[:12]
 
     def test_saves_every_function_to_disk(self, config):
         run_loop(FakeClient([CONSTANT, HOLES_ONLY, GOOD]), config, on_progress=None)
         for iteration in range(3):
-            stem = Position(1, 0, iteration).stem("fake")
+            stem = Position(0, iteration).stem("fake")
             assert (config.functions_dir / f"{stem}.py").exists()
             assert (config.functions_dir / f"{stem}.json").exists()
 
@@ -281,13 +283,28 @@ class TestRunLoop:
         assert len(rows) == 3
         assert all(row["invalid_outputs"] == 1 for row in rows)
         assert all(row["score"] == 0 for row in rows)
+        assert all(row["played"] is False for row in rows)
         assert len(client.prompts) == 3
+
+    def test_an_unparseable_reply_keeps_the_chain_s_previous_function(self, config):
+        """Otherwise the next iteration is shown an empty code block.
+
+        The chain would silently restart while still being numbered a
+        continuation, which corrupts the curve it is supposed to produce.
+        """
+        client = FakeClient([GOOD, "", GOOD], reply_template="{}")
+        client.sources = [f"```python\n{GOOD}\n```", "", f"```python\n{GOOD}\n```"]
+        run_loop(client, config, on_progress=None)
+        third = client.prompts[2]
+        assert "```python\n```" not in third
+        assert "lines_cleared" in third
 
     def test_chains_are_independent(self, tmp_path):
         """A chain must never see another chain's function."""
         config = LoopConfig(
             model="fake",
-            seeds=(1,),
+            train_seeds=(1,),
+            eval_seeds=(),
             iterations=2,
             chains=2,
             max_pieces=60,
@@ -305,7 +322,8 @@ class TestRunLoop:
     def test_records_the_chain_index(self, tmp_path):
         config = LoopConfig(
             model="fake",
-            seeds=(1,),
+            train_seeds=(1,),
+            eval_seeds=(),
             iterations=1,
             chains=3,
             max_pieces=40,
@@ -319,10 +337,10 @@ class TestRunLoop:
 class TestResume:
     def test_completed_positions_are_read_from_the_log(self, config):
         run_loop(FakeClient([CONSTANT, HOLES_ONLY, GOOD]), config, on_progress=None)
-        assert completed_positions(config.log_path, "fake") == {(1, 0, 0), (1, 0, 1), (1, 0, 2)}
+        assert completed_positions(config.log_path, "fake", (1,)) == {(0, 0), (0, 1), (0, 2)}
 
     def test_a_missing_log_means_nothing_is_done(self, tmp_path):
-        assert completed_positions(tmp_path / "nope.jsonl", "fake") == set()
+        assert completed_positions(tmp_path / "nope.jsonl", "fake", (1,)) == set()
 
     def test_rerunning_makes_no_model_calls(self, config):
         run_loop(FakeClient([CONSTANT, HOLES_ONLY, GOOD]), config, on_progress=None)
@@ -338,7 +356,8 @@ class TestResume:
     def test_a_partial_run_resumes_where_it_stopped(self, tmp_path):
         short = LoopConfig(
             model="fake",
-            seeds=(1,),
+            train_seeds=(1,),
+            eval_seeds=(),
             iterations=1,
             chains=1,
             max_pieces=60,
@@ -358,7 +377,8 @@ class TestResume:
         """The log says where we are; the saved function regenerates feedback."""
         short = LoopConfig(
             model="fake",
-            seeds=(1,),
+            train_seeds=(1,),
+            eval_seeds=(),
             iterations=1,
             chains=1,
             max_pieces=60,
@@ -378,7 +398,7 @@ class TestResume:
 
     def test_a_different_model_does_not_count_as_done(self, config):
         run_loop(FakeClient([CONSTANT, HOLES_ONLY, GOOD]), config, on_progress=None)
-        assert completed_positions(config.log_path, "other") == set()
+        assert completed_positions(config.log_path, "other", (1,)) == set()
 
 
 class TestSnapshotCollector:
@@ -493,7 +513,9 @@ class TestWedgeContainment:
     def test_a_crash_is_visible_in_the_log(self, config):
         from tetris_bench.loop import Outcome, _record
 
-        record = _record(Position(1, 0, 0), config, Outcome(source="x", crashed=True), ModelUsage())
+        record = _record(
+            Position(0, 0), config, Outcome(source="x", crashed=True), ModelUsage(), 1, "train"
+        )
         assert record.as_dict()["sandbox_failures"] >= 1
         assert record.as_dict()["score"] == 0
 
@@ -504,13 +526,13 @@ class TestLogRobustness:
         run_loop(FakeClient([CONSTANT, HOLES_ONLY, GOOD]), config, on_progress=None)
         with config.log_path.open("a") as handle:
             handle.write('{"model": "fake", "mode": "str')
-        assert completed_positions(config.log_path, "fake") == {(1, 0, 0), (1, 0, 1), (1, 0, 2)}
+        assert completed_positions(config.log_path, "fake", (1,)) == {(0, 0), (0, 1), (0, 2)}
         assert len(list(read_records(config.log_path))) == 3
 
     def test_a_logged_position_with_no_saved_function_is_an_explicit_error(self, config):
         """Falling through would append a second row for the same position."""
         run_loop(FakeClient([CONSTANT, HOLES_ONLY, GOOD]), config, on_progress=None)
-        (config.functions_dir / f"{Position(1, 0, 1).stem('fake')}.py").unlink()
+        (config.functions_dir / f"{Position(0, 1).stem('fake')}.py").unlink()
         with pytest.raises(RuntimeError, match="is missing"):
             run_loop(FakeClient([GOOD]), config, on_progress=None)
         # and nothing was appended
@@ -624,3 +646,111 @@ class TestPromptIsAPureInsertion:
 
     def test_one_template_serves_every_iteration(self, config):
         assert config.template == "strategy_v3"
+
+
+class TestTrainEvalSplit:
+    """The curve must be read from sequences the model never informed."""
+
+    @pytest.fixture
+    def split_config(self, tmp_path):
+        return LoopConfig(
+            model="fake",
+            train_seeds=(1, 2),
+            eval_seeds=(1000, 1001, 1002),
+            iterations=2,
+            chains=1,
+            max_pieces=40,
+            log_path=tmp_path / "loop.jsonl",
+            functions_dir=tmp_path / "funcs",
+        )
+
+    def test_both_splits_are_logged(self, split_config):
+        run_loop(FakeClient([HOLES_ONLY, GOOD]), split_config, on_progress=None)
+        rows = list(read_records(split_config.log_path))
+        train = [r for r in rows if r["split"] == "train"]
+        evaluation = [r for r in rows if r["split"] == "eval"]
+        assert len(train) == 2 * 2  # 2 train seeds x 2 iterations
+        assert len(evaluation) == 3 * 2  # 3 eval seeds x 2 iterations
+
+    def test_the_splits_use_disjoint_seeds(self, split_config):
+        run_loop(FakeClient([HOLES_ONLY, GOOD]), split_config, on_progress=None)
+        rows = list(read_records(split_config.log_path))
+        train = {r["seed"] for r in rows if r["split"] == "train"}
+        evaluation = {r["seed"] for r in rows if r["split"] == "eval"}
+        assert train == {1, 2}
+        assert evaluation == {1000, 1001, 1002}
+        assert not train & evaluation
+
+    def test_generation_usage_is_counted_once_per_position(self, split_config):
+        """Repeating it per seed would multiply a position's token count."""
+        run_loop(FakeClient([HOLES_ONLY, GOOD]), split_config, on_progress=None)
+        rows = list(read_records(split_config.log_path))
+        for iteration in (0, 1):
+            calls = sum(
+                r["model_calls"]
+                for r in rows
+                if r["iteration"] == iteration and r["split"] == "train"
+            )
+            assert calls == 1, f"iteration {iteration} counted {calls} calls"
+
+    def test_eval_rows_carry_no_generation_usage(self, split_config):
+        """Evaluation costs no model calls; it replays a saved function."""
+        run_loop(FakeClient([HOLES_ONLY, GOOD]), split_config, on_progress=None)
+        rows = list(read_records(split_config.log_path))
+        assert all(
+            r["model_calls"] == 0 and r["tokens_out"] == 0 for r in rows if r["split"] == "eval"
+        )
+
+    def test_a_position_is_only_done_when_every_train_seed_has_a_row(self, split_config):
+        """A run killed mid-position must not be skipped with games missing."""
+        from tetris_bench.jsonl import append_record
+        from tetris_bench.loop import Outcome, _record
+
+        partial = Outcome(source=GOOD, rejected=True, reason="x")
+        append_record(
+            split_config.log_path,
+            _record(Position(0, 0), split_config, partial, ModelUsage(), 1, "train"),
+        )
+        # only seed 1 of (1, 2) is present
+        assert completed_positions(split_config.log_path, "fake", (1, 2)) == set()
+        append_record(
+            split_config.log_path,
+            _record(Position(0, 0), split_config, partial, ModelUsage(), 2, "train"),
+        )
+        assert completed_positions(split_config.log_path, "fake", (1, 2)) == {(0, 0)}
+
+    def test_feedback_reports_every_training_sequence(self, split_config):
+        from tetris_bench.loop import play_on_seeds
+
+        multi = play_on_seeds(GOOD, split_config.train_seeds, split_config)
+        text = feedback_text(multi, split_config)
+        assert "played 2 games" in text
+        assert "mean score" in text
+        assert "| 1 |" in text
+        assert "| 2 |" in text
+
+    def test_feedback_shows_the_worst_game_s_board(self, split_config):
+        """The failure is most legible where the function did worst."""
+        from tetris_bench.loop import play_on_seeds
+
+        multi = play_on_seeds(CONSTANT, split_config.train_seeds, split_config)
+        text = feedback_text(multi, split_config)
+        assert "your worst game" in text
+        assert "0123456789" in text
+
+    def test_a_rejected_function_is_not_replayed_per_seed(self, split_config):
+        """Validation does not depend on the sequence, so once is enough."""
+        from tetris_bench.loop import play_on_seeds
+
+        multi = play_on_seeds(BROKEN, split_config.train_seeds, split_config)
+        assert multi.rejected
+        assert multi.per_seed == {}
+
+    def test_pooled_diagnostics_sum_across_games(self, split_config):
+        from tetris_bench.loop import play_on_seeds
+
+        multi = play_on_seeds(CONSTANT, split_config.train_seeds, split_config)
+        pooled = multi.diagnostics
+        per_game = [o.diagnostics.moves for o in multi.outcomes]
+        assert pooled.moves == sum(per_game)
+        assert pooled.is_degenerate

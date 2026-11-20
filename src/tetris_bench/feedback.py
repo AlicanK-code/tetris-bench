@@ -185,3 +185,114 @@ def build_feedback(
         sandbox_errors=list(sandbox_errors or []),
         reference_score=reference_score,
     )
+
+
+@dataclass(frozen=True)
+class MultiSeedFeedback:
+    """Feedback aggregated over several piece sequences.
+
+    A single sequence is a noisy estimate of a function's quality -- a fixed,
+    deterministic function varies 85-348% across seeds it has not seen
+    (docs/findings/held-out-seeds.md). Feeding back one game therefore invites a
+    model to tune for that sequence, and the project has already seen a
+    training-seed number (400) that was a function's luckiest case out of
+    twenty-one rather than its typical one.
+
+    Reporting several games makes the signal about the function instead of the
+    sequence. The board snapshots come from the worst game, because that is where
+    the failure is most legible.
+    """
+
+    results: list[GameResult]
+    diagnostics: StrategyDiagnostics
+    snapshots: list[tuple[str, str]] = field(default_factory=list)
+    sandbox_failures: int = 0
+    sandbox_errors: list[str] = field(default_factory=list)
+    reference_score: int | None = None
+
+    @property
+    def worst(self) -> GameResult:
+        """The lowest-scoring game, tie-broken by fewest pieces survived."""
+        return min(self.results, key=lambda r: (r.score, r.pieces_placed))
+
+    def _mean(self, attribute: str) -> float:
+        values = [getattr(r, attribute) for r in self.results]
+        return sum(values) / len(values) if values else 0.0
+
+    def render(self) -> str:
+        sections = [self._outcome(), self._board_quality(), self._mechanics()]
+        sections = [section for section in sections if section]
+        for label, board in self.snapshots:
+            sections.append(f"{label}:\n\n```\n{board}\n```")
+        return "\n\n".join(sections)
+
+    def _outcome(self) -> str:
+        lines = [
+            "## How your function played",
+            "",
+            f"It played {len(self.results)} games, each on a different piece sequence.",
+            "",
+            "| sequence | score | lines | pieces | holes at end | how it ended |",
+            "|---|---:|---:|---:|---:|---|",
+        ]
+        for result in self.results:
+            ending = {
+                "block_out": "stack reached the top",
+                "piece_limit": "survived the budget",
+            }.get(result.cause or "", "did not run")
+            lines.append(
+                f"| {result.seed} | {result.score} | {result.lines_cleared} "
+                f"| {result.pieces_placed} | {result.final_holes} | {ending} |"
+            )
+        lines += [
+            "",
+            f"- mean score: **{self._mean('score'):.0f}**",
+            f"- mean pieces placed: {self._mean('pieces_placed'):.1f}",
+            f"- mean holes at the end: {self._mean('final_holes'):.1f}",
+        ]
+        if self.reference_score is not None:
+            lines.append(
+                f"- for scale, a good scoring function survives the full piece "
+                f"budget and scores around {self.reference_score}"
+            )
+        return "\n".join(lines)
+
+    def _board_quality(self) -> str:
+        worst = self.worst
+        return "\n".join(
+            [
+                f"## The board in your worst game (sequence {worst.seed})",
+                "",
+                f"- holes at the end: **{worst.final_holes}** "
+                f"(average through that game: {worst.avg_holes:.1f})",
+                f"- tallest column at the end: {worst.final_max_height} of 20 "
+                f"(average: {worst.avg_max_height:.1f})",
+                f"- surface unevenness at the end: {worst.final_bumpiness}",
+            ]
+        )
+
+    def _mechanics(self) -> str:
+        """Mechanical facts only, pooled across the games. See Feedback._mechanics."""
+        notes: list[str] = []
+        if self.diagnostics.is_degenerate:
+            notes.append(
+                "- **Your function returned the same score for every candidate move,** "
+                "or a difference too small to change which move was chosen. The engine "
+                "had nothing to choose on, so it played the first legal placement every "
+                "turn. Check that each term you compute actually differs between one "
+                "candidate placement and another, by enough to matter."
+            )
+        elif self.diagnostics.flat_moves:
+            notes.append(
+                f"- on {self.diagnostics.flat_moves} of {self.diagnostics.moves} moves "
+                f"every candidate scored the same, so the choice was arbitrary"
+            )
+        if self.sandbox_failures:
+            notes.append(
+                f"- your function raised or timed out on {self.sandbox_failures} "
+                f"placement(s); those were treated as unplayable"
+            )
+            notes.extend(f"  - {error}" for error in self.sandbox_errors[:3])
+        if not notes:
+            return ""
+        return "\n".join(["## Mechanical notes", "", *notes])

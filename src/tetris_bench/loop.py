@@ -16,6 +16,15 @@ exercise is trying to avoid.
 
 **Feedback is symptoms, not diagnoses** -- see :mod:`tetris_bench.feedback`.
 
+**Training seeds are fed back; evaluation seeds are held out.** A function plays
+every training sequence and the feedback aggregates across them, so the signal is
+about the function rather than one sequence. It is then played on a disjoint set
+of evaluation sequences it never informed, and those rows are what a curve should
+be read from. This matters because a single sequence is a noisy estimate: a fixed
+function varies 85-348% across unseen seeds, and the project has already recorded
+a training-seed score of 400 that turned out to be a function's luckiest case out
+of twenty-one rather than its typical one (held-out mean 110).
+
 **Resumable by replay, with no state file.** Every game appends a record to a
 JSONL log as it finishes, and every function is written to disk. On restart the
 log says which positions are done; the previous function is read back from disk
@@ -40,7 +49,11 @@ from tetris_bench.agents.strategy import (
 from tetris_bench.clients.client import ModelClient
 from tetris_bench.engine.board import Board
 from tetris_bench.engine.game import Game
-from tetris_bench.feedback import SnapshotCollector, build_feedback
+from tetris_bench.feedback import (
+    MultiSeedFeedback,
+    SnapshotCollector,
+    build_feedback,
+)
 from tetris_bench.jsonl import append_record, read_records
 from tetris_bench.metrics import BoardStats
 from tetris_bench.prompts import render
@@ -81,10 +94,16 @@ for you to work out.
 
 @dataclass(frozen=True)
 class LoopConfig:
-    """One sweep: a model, a seed set, and how many iterations and chains."""
+    """One sweep: a model, its seed splits, and how many iterations and chains."""
 
     model: str
-    seeds: tuple[int, ...] = (1,)
+    #: Sequences whose outcomes are fed back to the model. Several, so a revision
+    #: cannot be tuned to one sequence.
+    train_seeds: tuple[int, ...] = (1, 2, 17)
+    #: Sequences the model never sees the results of. The curve is read from
+    #: these. Playing them is free -- under a second per game -- so there is no
+    #: reason to be stingy.
+    eval_seeds: tuple[int, ...] = tuple(range(1000, 1010))
     iterations: int = 6
     #: One chain is right for a reproducible rung; a nondeterministic one needs
     #: several before a difference between iterations is meaningful.
@@ -110,14 +129,17 @@ class LoopConfig:
 
 @dataclass(frozen=True)
 class Position:
-    """One unit of work: a seed, a chain, an iteration."""
+    """One unit of work: a chain and an iteration.
 
-    seed: int
+    No seed: a position now plays every training sequence, so the seed is not
+    part of what identifies a unit of work.
+    """
+
     chain: int
     iteration: int
 
     def stem(self, model: str) -> str:
-        return f"{model}-seed{self.seed}-chain{self.chain}-iter{self.iteration}"
+        return f"{model}-chain{self.chain}-iter{self.iteration}"
 
 
 @dataclass
@@ -140,6 +162,81 @@ class Outcome:
     @property
     def score(self) -> int:
         return self.result.score if self.result else 0
+
+
+@dataclass
+class MultiOutcome:
+    """One function played across several sequences."""
+
+    source: str
+    per_seed: dict[int, Outcome] = field(default_factory=dict)
+    rejected: bool = False
+    crashed: bool = False
+    reason: str = ""
+
+    @property
+    def outcomes(self) -> list[Outcome]:
+        return [self.per_seed[seed] for seed in sorted(self.per_seed)]
+
+    @property
+    def results(self) -> list[GameResult]:
+        return [o.result for o in self.outcomes if o.result is not None]
+
+    @property
+    def mean_score(self) -> float:
+        results = self.results
+        return sum(r.score for r in results) / len(results) if results else 0.0
+
+    @property
+    def worst(self) -> Outcome | None:
+        """The outcome of the lowest-scoring game, where the failure is clearest."""
+        playable = [o for o in self.outcomes if o.result is not None]
+        if not playable:
+            return None
+        return min(playable, key=lambda o: (o.result.score, o.result.pieces_placed))
+
+    @property
+    def diagnostics(self) -> StrategyDiagnostics:
+        """Diagnostics pooled over every game."""
+        pooled = StrategyDiagnostics()
+        for outcome in self.outcomes:
+            pooled.moves += outcome.diagnostics.moves
+            pooled.flat_moves += outcome.diagnostics.flat_moves
+            pooled.unplayable += outcome.diagnostics.unplayable
+            pooled.spread_total += outcome.diagnostics.spread_total
+            pooled.steering_moves += outcome.diagnostics.steering_moves
+        return pooled
+
+    @property
+    def sandbox_failures(self) -> int:
+        return sum(o.sandbox_failures for o in self.outcomes)
+
+    @property
+    def sandbox_errors(self) -> list[str]:
+        errors: list[str] = []
+        for outcome in self.outcomes:
+            errors.extend(outcome.sandbox_errors)
+        return errors[:10]
+
+
+def play_on_seeds(source: str, seeds: tuple[int, ...], config: LoopConfig) -> MultiOutcome:
+    """Play one function on every given sequence.
+
+    A rejection or a crash is a property of the source, not of a sequence, so the
+    first such result short-circuits the rest rather than repeating it.
+    """
+    multi = MultiOutcome(source=source)
+    for seed in seeds:
+        outcome = play_function(source, seed, config)
+        if outcome.rejected or outcome.crashed:
+            return MultiOutcome(
+                source=source,
+                rejected=outcome.rejected,
+                crashed=outcome.crashed,
+                reason=outcome.reason,
+            )
+        multi.per_seed[seed] = outcome
+    return multi
 
 
 def empty_result(agent: str, seed: int) -> GameResult:
@@ -184,8 +281,30 @@ def play_function(source: str, seed: int, config: LoopConfig) -> Outcome:
         return Outcome(source=source, crashed=True, reason=str(error))
 
 
-def feedback_text(outcome: Outcome, config: LoopConfig) -> str:
-    """What the model is shown about its previous attempt."""
+def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
+    """What the model is shown about its previous attempt.
+
+    Accepts a single game (used by the analysis scripts) or a set of games across
+    training sequences (used by the loop).
+    """
+    if isinstance(outcome, MultiOutcome) and not (outcome.rejected or outcome.crashed):
+        worst = outcome.worst
+        collector = worst.collector if worst else None
+        final_board = worst.final_board if worst else None
+        snapshots = (
+            collector.snapshots(final_board)
+            if collector is not None and final_board is not None
+            else []
+        )
+        return MultiSeedFeedback(
+            results=outcome.results,
+            diagnostics=outcome.diagnostics,
+            snapshots=snapshots,
+            sandbox_failures=outcome.sandbox_failures,
+            sandbox_errors=outcome.sandbox_errors,
+            reference_score=config.reference_score,
+        ).render()
+
     if outcome.rejected:
         return (
             "## Your code was rejected before it could run\n\n"
@@ -216,7 +335,7 @@ def feedback_text(outcome: Outcome, config: LoopConfig) -> str:
     ).render()
 
 
-def build_prompt(config: LoopConfig, previous: Outcome | None) -> str:
+def build_prompt(config: LoopConfig, previous: Outcome | MultiOutcome | None) -> str:
     """Render the prompt for one iteration.
 
     Identical at every iteration apart from the feedback block, which is empty
@@ -247,7 +366,10 @@ def build_prompt(config: LoopConfig, previous: Outcome | None) -> str:
 
 
 def generate(
-    client: ModelClient, config: LoopConfig, position: Position, previous: Outcome | None
+    client: ModelClient,
+    config: LoopConfig,
+    position: Position,
+    previous: Outcome | MultiOutcome | None,
 ) -> GeneratedFunction:
     """Ask the model for a function, first attempt or revision alike."""
     from tetris_bench.agents.strategy import extract_code
@@ -264,27 +386,41 @@ def generate(
     )
 
 
-def completed_positions(log_path: Path, model: str) -> set[tuple[int, int, int]]:
-    """Which (seed, chain, iteration) triples this log already holds."""
+def completed_positions(
+    log_path: Path, model: str, train_seeds: tuple[int, ...] = ()
+) -> set[tuple[int, int]]:
+    """Which (chain, iteration) positions this log already holds in full.
+
+    A position counts as done only when every training sequence has a row. A run
+    killed part-way through a position would otherwise be skipped on resume with
+    some of its games missing, and its feedback would then be built from an
+    incomplete set.
+    """
     if not Path(log_path).exists():
         return set()
-    done: set[tuple[int, int, int]] = set()
+    seen: dict[tuple[int, int], set[int]] = {}
     for row in read_records(log_path):
-        if row.get("model") == model and row.get("mode") == "strategy":
-            done.add((row.get("seed", -1), row.get("chain", 0), row.get("iteration", -1)))
-    return done
+        if row.get("model") != model or row.get("mode") != "strategy":
+            continue
+        if row.get("split", "train") != "train":
+            continue
+        key = (row.get("chain", 0), row.get("iteration", -1))
+        seen.setdefault(key, set()).add(row.get("seed", -1))
+    required = set(train_seeds)
+    if not required:
+        return set(seen)
+    return {key for key, seeds in seen.items() if required <= seeds}
 
 
 def positions(config: LoopConfig) -> Iterator[Position]:
     """Every unit of work in the sweep, in execution order.
 
-    Seed-major, then chain, then iteration -- because iterations within a chain
-    are strictly sequential, while chains and seeds are independent.
+    Chain-major, because iterations within a chain are strictly sequential while
+    chains are independent.
     """
-    for seed in config.seeds:
-        for chain in range(config.chains):
-            for iteration in range(config.iterations):
-                yield Position(seed, chain, iteration)
+    for chain in range(config.chains):
+        for iteration in range(config.iterations):
+            yield Position(chain, iteration)
 
 
 def _sha(source: str) -> str:
@@ -292,10 +428,16 @@ def _sha(source: str) -> str:
 
 
 def _record(
-    position: Position, config: LoopConfig, outcome: Outcome, usage: ModelUsage
+    position: Position,
+    config: LoopConfig,
+    outcome: Outcome,
+    usage: ModelUsage,
+    seed: int,
+    split: str,
 ) -> RunRecord:
-    result = outcome.result or empty_result("strategy", position.seed)
+    result = outcome.result or empty_result("strategy", seed)
     return RunRecord(
+        split=split,
         game=result,
         model=config.model,
         mode="strategy",
@@ -330,31 +472,28 @@ def run_loop(
 ) -> None:
     """Run the sweep, appending a record per game and skipping completed work."""
     say = on_progress if callable(on_progress) else (lambda _m: None)
-    done = completed_positions(config.log_path, config.model)
+    done = completed_positions(config.log_path, config.model, config.train_seeds)
 
-    previous: Outcome | None = None
-    current_chain: tuple[int, int] | None = None
+    previous: Outcome | MultiOutcome | None = None
+    current_chain: int | None = None
 
     for position in positions(config):
-        chain_key = (position.seed, position.chain)
-        if chain_key != current_chain:
-            current_chain, previous = chain_key, None
+        if position.chain != current_chain:
+            current_chain, previous = position.chain, None
 
-        if (position.seed, position.chain, position.iteration) in done:
-            # Already played. Replay the saved function so the next iteration has
-            # its feedback, which costs well under a second.
+        if (position.chain, position.iteration) in done:
             path = config.functions_dir / f"{position.stem(config.model)}.py"
             if not path.exists():
-                # Falling through here would append a second record for a
+                # Falling through would append a second set of records for a
                 # position the log already holds, and any per-position analysis
                 # would double-count it. The log and the saved functions have to
                 # agree, so say so plainly instead.
                 raise RuntimeError(
-                    f"{config.log_path} has a record for {position.stem(config.model)} "
+                    f"{config.log_path} has records for {position.stem(config.model)} "
                     f"but {path} is missing, so its feedback cannot be reconstructed. "
                     f"Restore the file, or start a fresh log to re-run from scratch."
                 )
-            previous = play_function(path.read_text(), position.seed, config)
+            previous = play_on_seeds(path.read_text(), config.train_seeds, config)
             say(f"skip  {position.stem(config.model)} (already in the log)")
             continue
 
@@ -362,34 +501,93 @@ def run_loop(
         try:
             generated = generate(client, config, position, previous)
         except StrategyError as error:
-            # CLAUDE.md lists invalid outputs as a per-game metric, so this has
-            # to leave a row behind rather than silently skipping the position.
-            outcome = Outcome(
+            # The reply never arrived as usable Python, so there is nothing for
+            # the model to act on. Log it as an invalid output, then carry the
+            # last function that actually played: replacing `previous` here would
+            # send the next iteration an empty code block while still numbering
+            # it a continuation of this chain.
+            failure = Outcome(
                 source="",
                 rejected=True,
                 reason=f"your reply could not be read as Python: {error}",
             )
-            append_record(config.log_path, _record(position, config, outcome, client.usage))
+            _log_position(config, position, failure, client.usage, "train")
             say(
-                f"iter {position.iteration} seed {position.seed} "
-                f"chain {position.chain}: UNPARSEABLE REPLY"
+                f"iter {position.iteration} chain {position.chain}: "
+                f"UNPARSEABLE REPLY (keeping the previous function)"
             )
-            previous = outcome
+            if previous is None:
+                previous = failure
             continue
 
         generated.save(config.functions_dir, position.stem(config.model))
-        outcome = play_function(generated.source, position.seed, config)
-        append_record(config.log_path, _record(position, config, outcome, client.usage))
+        multi = play_on_seeds(generated.source, config.train_seeds, config)
 
-        if outcome.rejected:
-            say(f"iter {position.iteration} seed {position.seed} chain {position.chain}: REJECTED")
-        elif outcome.crashed:
-            say(f"iter {position.iteration} seed {position.seed} chain {position.chain}: CRASHED")
-        else:
-            say(
-                f"iter {position.iteration} seed {position.seed} "
-                f"chain {position.chain}: score={outcome.score} "
-                f"pieces={outcome.result.pieces_placed if outcome.result else 0} "
-                f"holes={outcome.result.final_holes if outcome.result else 0}"
+        if multi.rejected or multi.crashed:
+            failure = Outcome(
+                source=generated.source,
+                rejected=multi.rejected,
+                crashed=multi.crashed,
+                reason=multi.reason,
             )
-        previous = outcome
+            _log_position(config, position, failure, client.usage, "train")
+            label = "REJECTED" if multi.rejected else "CRASHED"
+            say(f"iter {position.iteration} chain {position.chain}: {label}")
+            previous = multi
+            continue
+
+        _log_multi(config, position, multi, client.usage, "train")
+
+        # Evaluation games cost under a second each and the model never sees
+        # their outcomes, so this is the curve's variable at no generation cost.
+        evaluation = play_on_seeds(generated.source, config.eval_seeds, config)
+        _log_multi(config, position, evaluation, ModelUsage(), "eval")
+
+        say(
+            f"iter {position.iteration} chain {position.chain}: "
+            f"train mean {multi.mean_score:.0f}  "
+            f"eval mean {evaluation.mean_score:.0f}  "
+            f"({len(config.eval_seeds)} held-out seeds)"
+        )
+        previous = multi
+
+
+def _log_position(
+    config: LoopConfig,
+    position: Position,
+    outcome: Outcome,
+    usage: ModelUsage,
+    split: str,
+) -> None:
+    """Log one failed position: a row per training seed, usage counted once."""
+    for index, seed in enumerate(config.train_seeds):
+        append_record(
+            config.log_path,
+            _record(position, config, outcome, usage if index == 0 else ModelUsage(), seed, split),
+        )
+
+
+def _log_multi(
+    config: LoopConfig,
+    position: Position,
+    multi: MultiOutcome,
+    usage: ModelUsage,
+    split: str,
+) -> None:
+    """Log every game of a position.
+
+    The generation's usage is attributed to the first row only. Repeating it on
+    each row would multiply a position's token count by the number of seeds.
+    """
+    for index, seed in enumerate(sorted(multi.per_seed)):
+        append_record(
+            config.log_path,
+            _record(
+                position,
+                config,
+                multi.per_seed[seed],
+                usage if index == 0 else ModelUsage(),
+                seed,
+                split,
+            ),
+        )

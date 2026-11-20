@@ -88,7 +88,8 @@ tetris-bench/
    - **Independent chains.** On a nondeterministic rung, several samples per iteration are needed before a difference means anything — the 30B showed a 1,700-point spread between two runs of the same request. Each chain iterates on its own function and never sees another's, so a rising median across chains cannot be selection bias. Carrying best-of-N forward would manufacture a curve from noise.
    - **Feedback is symptoms, not diagnoses**: score, lines, holes, height, cause of death, board snapshots and the prior function. The model must diagnose its own bug, because that is the ability being measured. The one exception is mechanical: when a function scored every candidate identically, the summary says so, since "you scored 0" cannot distinguish a bad strategy from inert arithmetic.
    - **Resumable by replay, no state file.** Records append as games finish and functions are written to disk; a rerun reads the log, skips completed positions, and replays the saved function to regenerate its feedback in under a second. One source of truth instead of a checkpoint that can drift.
-   - **Chains per rung, not uniform.** `qwen3-14b` is reproducible and needs one; `qwen3-30b` needs several; `qwen3-4b` needs one since its scores are invariant anyway. See `docs/findings/`.
+   - **Training seeds are fed back; evaluation seeds are held out.** A function plays every training sequence and the feedback aggregates across them, so a revision cannot be tuned to one sequence. It is then replayed on a disjoint set of evaluation sequences whose outcomes the model never sees, and **the curve is read from those rows** (`split` in the log). This matters because a single sequence is a noisy estimate: a fixed, deterministic function varies 85–348% across unseen seeds, and a training-seed score of 400 turned out to be a function's luckiest case out of twenty-one (held-out mean 110). Evaluation games cost under a second each, so this is free.
+   - **Chains per rung is not established.** `qwen3-14b` is reproducible on the *iteration-0* prompt but **not** on the revise prompt, which is 1.5× longer — two revisions of the same function gave two different sources, though both scored the same. No rung is text-reproducible for revisions. `chains=1` for the 14B currently rests on score stability from two samples. See `docs/findings/`.
 7. **Direct agent**: baseline mode for comparison (small seed set only, as it is expensive).
 8. **Analysis**: improvement curves per model, the size-ladder gap, tokens and seconds per point, a results table for the README.
 
@@ -123,6 +124,7 @@ uv run tetris-bench models                                   # validate model co
 uv run tetris-bench strategy --model qwen3-4b --seed 1       # model writes a scorer
 uv run tetris-bench loop --model qwen3-14b --iterations 6     # improvement loop
 uv run tetris-bench loop --model qwen3-30b --chains 5        # nondeterministic rung
+uv run python analysis/held_out.py                           # replay on unseen seeds
 ```
 
 ## Conventions

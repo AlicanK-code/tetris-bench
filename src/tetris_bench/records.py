@@ -141,6 +141,12 @@ class RunRecord:
     #: this a rejection looks like a flawless game in a dataframe: zero holes,
     #: zero height, zero score.
     played: bool = True
+    #: "train" if this game's outcome was fed back to the model, "eval" if the
+    #: seed was held out. The curve must be reported on eval rows: a function
+    #: revised against a sequence has been selected against it, and the project
+    #: has already seen a training-seed score that was a function's luckiest case
+    #: out of twenty-one rather than its typical one.
+    split: str = "train"
 
     def as_dict(self) -> dict[str, Any]:
         """Flatten to a single-level JSON object for JSONL."""
@@ -155,6 +161,7 @@ class RunRecord:
             "mean_spread": self.mean_spread,
             "steering_moves": self.steering_moves,
             "played": self.played,
+            "split": self.split,
             **self.game.as_dict(),
             **asdict(self.usage),
         }
