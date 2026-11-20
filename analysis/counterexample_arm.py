@@ -30,6 +30,7 @@ import argparse
 import hashlib
 import statistics
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from tetris_bench.agents.strategy import StrategyAgent, extract_code
@@ -53,14 +54,19 @@ def trace_block(boards: list[tuple[str, Board]]) -> str:
     Reports what the engine measures and nothing about what the function got
     wrong. The model has to trace its own code against this.
     """
+    # The first version of this block showed two boards and instructed the model
+    # to "work out what your own code computes for these same boards, and
+    # compare". That induced over twenty minutes of generation -- it attempted to
+    # hand-trace a nested loop across 400 cells -- and timed out. The data is the
+    # counterexample; demanding an exhaustive trace is not part of it, and the
+    # shorter block also keeps the prompt-length difference from the control
+    # smaller.
     parts = [
-        "## Measured values for two specific boards",
+        "## Measured values for one specific board",
         "",
-        "These are the values the engine computes for the boards below. Column"
+        "For the board below, these are the values the engine computes. Column"
         " heights are measured from the floor, so an empty column is 0 and a"
         " column whose topmost filled cell is in row 0 is 20.",
-        "",
-        "Work out what your own code computes for these same boards, and compare.",
     ]
     for label, board in boards:
         parts += [
@@ -98,7 +104,7 @@ class BoardSampler:
 
 def sample_boards(source: str, seed: int, config: LoopConfig) -> list[tuple[str, Board]]:
     """Replay a function and grab a few structurally varied boards."""
-    sampler = BoardSampler(at=(8, 16, 24))
+    sampler = BoardSampler(at=(16,))
     with ScoringSandbox(source) as sandbox:
         agent = StrategyAgent(sandbox)
         play_game(Game(seed=seed, max_pieces=config.max_pieces), agent, on_step=sampler)
@@ -110,7 +116,7 @@ def sample_boards(source: str, seed: int, config: LoopConfig) -> list[tuple[str,
             continue
         seen.add(board)
         chosen.append((f"after {pieces} pieces", board))
-    return chosen[:2]
+    return chosen[:1]
 
 
 def build_counterexample_prompt(
@@ -158,9 +164,22 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--max-pieces", type=int, default=500)
     parser.add_argument("--function", type=Path, default=None, help="the function to revise")
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=2400.0,
+        help="per-call budget; this prompt can generate far longer than iteration 0",
+    )
     args = parser.parse_args()
 
-    config = load_model_config(args.config, args.model)
+    # Retries are disabled deliberately. A local generation that exceeds its
+    # budget will exceed it again, and the first attempt at this experiment spent
+    # 60 of its 80 minutes on three pointless retries after a timeout.
+    config = replace(
+        load_model_config(args.config, args.model),
+        timeout_seconds=args.timeout,
+        max_retries=0,
+    )
     loop_config = LoopConfig(
         model=config.name, train_seeds=(args.seed,), max_pieces=args.max_pieces
     )
