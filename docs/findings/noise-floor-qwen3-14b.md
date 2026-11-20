@@ -29,6 +29,13 @@ This is a stronger result than "zero score variance". On `qwen3-4b`, scores were
 also identical across runs, but because several *different* functions all played
 the same degenerate game. Here the generation itself is reproducible.
 
+> **Later correction.** This result is **prompt-specific**. The revise prompt,
+> 1.5x longer, is *not* reproducible on this rung: two revisions of the same
+> function produced two different sources, though both scored the same. See
+> [first-revision-reweights-not-debugs.md](first-revision-reweights-not-debugs.md).
+> No rung is text-reproducible for revisions, and the `chains=1` policy for the
+> 14B now rests on score stability from two samples rather than on this result.
+
 **Determinism is model-specific, not a property of the setup.** `qwen3-4b`
 diverges; `qwen3-14b` does not. Likely because the 4B produces longer traces
 (~9,000 tokens vs 7,498) and is less decisive, so it encounters more near-ties
