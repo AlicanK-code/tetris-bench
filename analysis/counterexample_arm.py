@@ -161,6 +161,12 @@ def main() -> None:
     parser.add_argument("--model", default="qwen3-14b")
     parser.add_argument("--config", type=Path, default=Path("configs/models.yaml"))
     parser.add_argument("--runs", type=int, default=2)
+    parser.add_argument(
+        "--start-index",
+        type=int,
+        default=1,
+        help="first artifact number; raise it so a replication does not overwrite earlier runs",
+    )
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--max-pieces", type=int, default=500)
     parser.add_argument("--function", type=Path, default=None, help="the function to revise")
@@ -207,7 +213,7 @@ def main() -> None:
     out_dir = Path("runs/functions/counterexample")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    for index in range(1, args.runs + 1):
+    for index in range(args.start_index, args.start_index + args.runs):
         client = ModelClient(config)
         started = time.monotonic()
         response = client.complete([{"role": "user", "content": prompt}])

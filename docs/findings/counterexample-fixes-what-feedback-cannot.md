@@ -108,11 +108,45 @@ test as much as the model.
 
 ---
 
+## 4b. Replication: 3 runs, 2 distinct functions, all fixed the bug
+
+| run | source hash | output tokens | held-out score | hole bug fixed |
+|---:|---|---:|---:|---|
+| 1 | `1c739477c25a` | 8,495 | 2,540 | yes |
+| 2 | `1c739477c25a` | 8,495 | 2,540 | yes |
+| 3 | `0559210d9a42` | 7,401 | 2,540 | yes |
+
+Runs 1 and 2 are byte-identical, so they are one sample rather than two. Run 3 is
+a genuinely different generation: different variable names, reordered blocks, and
+**all four weights scaled by exactly 10×**
+(`1000/100/50/20` against `100/10/5/2`).
+
+Uniform positive scaling cannot change an argmax, so the two are behaviourally
+identical. Verified rather than assumed: across all 17 candidates for one board
+the score ratio is exactly `{10.0}` and both pick the same placement — which is
+why their held-out numbers agree to the digit.
+
+So this is **2 independent generations, both of which derived the correct hole
+count and the same relative weighting**. That is a real replication of the
+qualitative result, and a stronger one than three identical samples would have
+been.
+
+Two incidental findings:
+
+- The counterexample prompt is **reproducible** on this rung where the revise
+  prompt is not: two of three generations came out byte-identical, and the third
+  differed only by a scale factor. The revise prompt gave two different functions
+  from two runs. A sharper constraint appears to produce more decisive token
+  choices, so fewer near-ties for numerical noise to flip.
+- The model converged on the same relative weighting twice from independent
+  generations, which suggests the weighting is being derived rather than guessed.
+
 ## 5. Calibration
 
-- **n=1** for this arm against n=2 for the control. It needs replication before
-  the effect size (23×) is quotable; the qualitative result — bug fixed vs bug
-  untouched — is cleaner than the magnitude.
+- **n=2 independent generations** for this arm against n=2 for the control. The
+  qualitative result — bug fixed in 2/2 distinct functions versus untouched in
+  2/2 controls — is solid. The effect size (23×) rests on a single behaviour,
+  since both distinct functions play identically.
 - **One rung, one iteration.** The 4B may lack the capability regardless, and the
   30B already produced a correct hole count unaided at iteration 0.
 - The counterexample is **not** a diagnosis: it never says the hole count is
@@ -125,8 +159,13 @@ test as much as the model.
 
 ## 6. What it changes
 
-1. **Replicate before quoting the number.** Two or three more counterexample runs
-   on the 14B, and one on the 4B and the 30B.
+1. **Vary the trace content, not just re-roll the prompt.** All three runs used
+   the identical prompt, so they probe generation variance, not robustness to
+   *which* board the counterexample shows. If the effect only works for the board
+   at piece 16, the result is much weaker. Same cost as what has been run.
+2. **Try the other rungs.** The 4B may lack the capability regardless; the 30B
+   already produced a correct hole count unaided at iteration 0, so it may have
+   nothing to gain.
 2. **This should probably become a loop variant, not the default.** An arm that
    supplies feature-level traces measures something different from one that
    supplies outcomes — and both are worth running, as the contrast *is* the
