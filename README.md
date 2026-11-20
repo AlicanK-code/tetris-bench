@@ -79,7 +79,7 @@ LLM agents get measured against.
 |-------|--------------|-----------:|------------:|
 | random | uniform over legal placements | 0 | 24 |
 | naive | drops each piece as deep as it will go | 1,675 | 83 |
-| heuristic | El-Tetris weights, 1-ply | **21,450** | **500** |
+| heuristic | Lee's 2013 weights, 1-ply | **21,450** | **500** |
 
 Per seed:
 
@@ -135,8 +135,13 @@ sharing the game's piece RNG would let the agent's draws shift the piece
 sequence, so two agents would face different games and the premise that every
 model plays identical seeds would fail silently.
 
-**Weights are a frozen dataclass**, defaulting to the published El-Tetris values,
-so weight sets can be compared in one run without editing source.
+**Weights are a frozen dataclass**, defaulting to the values published by Yiyuan
+Lee in ["Tetris AI - The (Near) Perfect
+Bot"](https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/)
+(2013), found with a genetic algorithm. They are used unmodified so the baseline
+does not move. Note Lee tuned them for a 10x22 board with one lookahead piece, so
+they are optimised for a near neighbour of this engine's rules rather than for it
+exactly -- a reference ceiling, not a published optimum here.
 
 ## Prompt rendering
 

@@ -23,7 +23,11 @@ from tetris_bench.prompts import available, load, render
 from tetris_bench.runner import play_game
 from tetris_bench.sandbox import ScoringSandbox
 
-EL_TETRIS = """
+#: The reference scoring function, using Yiyuan Lee's 2013 genetic-algorithm
+#: weights (aggregate height, complete lines, holes, bumpiness), expressed
+#: through the sandbox's plain-data API. See agents/heuristic.py for the
+#: citation and the caveat about the rules they were tuned for.
+LEE_SCORER = """
 def score(board, placement):
     height = len(board)
     width = len(board[0])
@@ -212,13 +216,13 @@ class TestGeneratedFunctionSave:
 
 class TestStrategyAgent:
     def test_plays_a_full_game(self):
-        with ScoringSandbox(EL_TETRIS) as sandbox:
+        with ScoringSandbox(LEE_SCORER) as sandbox:
             result = play_game(Game(seed=1, max_pieces=60), StrategyAgent(sandbox))
         assert result.pieces_placed == 60
         assert result.cause == "piece_limit"
 
     def test_is_named_for_logging(self):
-        with ScoringSandbox(EL_TETRIS) as sandbox:
+        with ScoringSandbox(LEE_SCORER) as sandbox:
             assert StrategyAgent(sandbox).name == "strategy"
 
     def test_matches_the_native_heuristic_exactly(self):
@@ -231,7 +235,7 @@ class TestStrategyAgent:
         from tetris_bench.agents.heuristic import heuristic_agent
 
         native = play_game(Game(seed=1, max_pieces=200), heuristic_agent())
-        with ScoringSandbox(EL_TETRIS) as sandbox:
+        with ScoringSandbox(LEE_SCORER) as sandbox:
             sandboxed = play_game(Game(seed=1, max_pieces=200), StrategyAgent(sandbox))
         assert sandboxed.score == native.score
         assert sandboxed.lines_cleared == native.lines_cleared
@@ -255,7 +259,7 @@ class TestStrategyAgent:
 
     def test_a_function_broken_on_some_boards_still_plays_well(self):
         """One bad branch costs moves, not the game."""
-        source = EL_TETRIS.replace(
+        source = LEE_SCORER.replace(
             "    bumpiness = 0",
             "    if placement['column'] == 3:\n        raise ValueError('bad branch')\n"
             "    bumpiness = 0",
@@ -269,7 +273,7 @@ class TestStrategyAgent:
     def test_refuses_to_choose_when_the_game_is_over(self):
         game = Game(seed=1, max_pieces=1)
         game.step(game.legal_placements()[0])
-        with ScoringSandbox(EL_TETRIS) as sandbox:
+        with ScoringSandbox(LEE_SCORER) as sandbox:
             agent = StrategyAgent(sandbox)
             game.board = type(game.board).from_strings(["X" * 10] * 20)
             with pytest.raises(ValueError, match="no legal placements"):
@@ -307,7 +311,7 @@ class TestStrategyDiagnostics:
         assert diagnostics.is_degenerate
 
     def test_a_real_function_is_not_flagged(self):
-        diagnostics, _, _ = self.run(EL_TETRIS, pieces=60)
+        diagnostics, _, _ = self.run(LEE_SCORER, pieces=60)
         assert diagnostics.flat_moves == 0
         assert diagnostics.mean_spread > 0
         assert not diagnostics.is_degenerate
@@ -349,12 +353,12 @@ class TestStrategyDiagnostics:
         assert diagnostics.is_degenerate
 
     def test_a_real_function_steers_on_nearly_every_move(self):
-        diagnostics, _, _ = self.run(EL_TETRIS, pieces=60)
+        diagnostics, _, _ = self.run(LEE_SCORER, pieces=60)
         assert diagnostics.steering_fraction > 0.8
         assert not diagnostics.is_degenerate
 
     def test_summary_is_quiet_when_the_function_works(self):
-        diagnostics, _, _ = self.run(EL_TETRIS, pieces=20)
+        diagnostics, _, _ = self.run(LEE_SCORER, pieces=20)
         assert "never changed a choice" not in diagnostics.summary()
         assert "moves had score variation" in diagnostics.summary()
 

@@ -13,6 +13,7 @@ from tetris_bench.jsonl import read_records
 from tetris_bench.loop import (
     LoopConfig,
     Position,
+    build_prompt,
     completed_positions,
     empty_result,
     feedback_text,
@@ -553,3 +554,73 @@ def test_a_game_that_never_ran_renders_a_sentence_not_none():
     text = feedback.render()
     assert "how it ended: the game did not run" in text
     assert "None" not in text
+
+
+class TestPromptIsAPureInsertion:
+    """The iteration 0 -> 1 step must change the feedback and nothing else.
+
+    Previously iteration 0 used `strategy_v2` and later ones `revise_v1`, which
+    differed in several ways simultaneously: the measurement vocabulary appeared
+    for the first time, the board-orientation note was dropped, and the worked
+    example went away. A rise at that step was therefore unattributable. Now one
+    template serves every iteration and the feedback block is simply empty on the
+    first, so the only delta is the feedback.
+    """
+
+    def prompts(self, config):
+        first = build_prompt(config, None)
+        second = build_prompt(config, play_function(CONSTANT, 1, config))
+        return first, second
+
+    def test_nothing_is_removed_when_feedback_is_added(self, config):
+        first, second = self.prompts(config)
+        head, tail = 0, 0
+        f, s = first.splitlines(), second.splitlines()
+        while head < min(len(f), len(s)) and f[head] == s[head]:
+            head += 1
+        while tail < min(len(f), len(s)) - head and f[-1 - tail] == s[-1 - tail]:
+            tail += 1
+        assert len(f) - head - tail == 0, "iteration 0 has lines the revision drops"
+        assert len(s) - head - tail > 0, "no feedback was inserted"
+
+    def test_the_orientation_note_survives_into_the_revision(self, config):
+        """Every rung so far has got the row direction wrong; revise_v1 dropped it."""
+        first, second = self.prompts(config)
+        note = "Row 0 is the top of the board"
+        assert note in first
+        assert note in second
+
+    def test_the_placement_key_table_survives(self, config):
+        first, second = self.prompts(config)
+        assert "lines_cleared" in first
+        assert "`cells`" in second
+
+    def test_the_measurement_vocabulary_is_present_at_iteration_zero(self, config):
+        """Otherwise iteration 1 hands over a vocabulary the model lacked.
+
+        The 4B's iteration-0 trace never mentioned surface shape at all, so this
+        was a real confound rather than a hypothetical one.
+        """
+        first, _ = self.prompts(config)
+        for quantity in ("holes", "tallest column", "how uneven"):
+            assert quantity in first
+
+    def test_the_declaration_names_quantities_without_defining_them(self, config):
+        """Naming what is measured is not the same as explaining what it means."""
+        from tetris_bench.loop import MEASUREMENT_DECLARATION
+
+        assert "holes" in MEASUREMENT_DECLARATION
+        # the definition every rung has got wrong must not be given away
+        assert "covered" not in MEASUREMENT_DECLARATION.lower()
+        assert "above" not in MEASUREMENT_DECLARATION.lower()
+        assert "for you to work out" in MEASUREMENT_DECLARATION
+
+    def test_the_declaration_can_be_disabled_for_an_ablation(self, config):
+        import dataclasses
+
+        bare = dataclasses.replace(config, declare_metrics=False)
+        assert "How your function will be judged" not in build_prompt(bare, None)
+        assert "How your function will be judged" in build_prompt(config, None)
+
+    def test_one_template_serves_every_iteration(self, config):
+        assert config.template == "strategy_v3"

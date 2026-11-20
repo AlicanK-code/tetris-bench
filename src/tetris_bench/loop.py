@@ -36,7 +36,6 @@ from tetris_bench.agents.strategy import (
     StrategyAgent,
     StrategyDiagnostics,
     StrategyError,
-    request_scoring_function,
 )
 from tetris_bench.clients.client import ModelClient
 from tetris_bench.engine.board import Board
@@ -54,8 +53,30 @@ from tetris_bench.sandbox import (
     ScoringSandbox,
 )
 
-INITIAL_TEMPLATE = "strategy_v2"
-REVISE_TEMPLATE = "revise_v1"
+TEMPLATE = "strategy_v3"
+
+#: Named at EVERY iteration, including the first. These quantities are what the
+#: feedback summary reports, and if they were introduced only at iteration 1 then
+#: the first step of every curve would confound "the model learned from its
+#: failure" with "the model was handed a vocabulary it did not have". The 4B's
+#: iteration-0 trace never mentioned surface shape at all, so that confound was
+#: real rather than hypothetical. Declaring the vocabulary up front makes it a
+#: constant treatment instead of a step change.
+#:
+#: Note what this names and what it does not: the *quantities* are named, their
+#: *definitions* are not. A model still has to work out what a hole is -- which
+#: is the thing every rung has so far got wrong.
+MEASUREMENT_DECLARATION = """\
+## How your function will be judged
+
+It will play one game, and you will be told: the score, lines cleared, pieces
+placed, how the game ended, the number of holes left on the board, the height of
+the tallest column, and how uneven the surface was. You will also be shown the
+board at the end and at its worst point.
+
+Those are the quantities measured. What they mean, and which of them matter, is
+for you to work out.
+"""
 
 
 @dataclass(frozen=True)
@@ -70,8 +91,17 @@ class LoopConfig:
     chains: int = 1
     max_pieces: int = 500
     per_call_seconds: float = 1.0
-    initial_template: str = INITIAL_TEMPLATE
-    revise_template: str = REVISE_TEMPLATE
+    #: One template for every iteration. The feedback block is empty at
+    #: iteration 0 and populated afterwards, so the feedback is the *only*
+    #: difference between the first prompt and the second. Previously iteration 0
+    #: used `strategy_v2` and later ones `revise_v1`, which differed in several
+    #: ways at once -- including dropping the board-orientation note that every
+    #: rung has struggled with -- so the direction of the prompt change was
+    #: unknown and tangled up with the measured effect.
+    template: str = TEMPLATE
+    #: Name the measured quantities at iteration 0 as well. See
+    #: MEASUREMENT_DECLARATION.
+    declare_metrics: bool = True
     log_path: Path = Path("runs/loop.jsonl")
     functions_dir: Path = Path("runs/functions")
     #: Shown to the model for scale. The heuristic reference on these seeds.
@@ -186,6 +216,54 @@ def feedback_text(outcome: Outcome, config: LoopConfig) -> str:
     ).render()
 
 
+def build_prompt(config: LoopConfig, previous: Outcome | None) -> str:
+    """Render the prompt for one iteration.
+
+    Identical at every iteration apart from the feedback block, which is empty
+    on the first. That is the whole point: if the template also changed, a rise
+    from iteration 0 to 1 could not be attributed to the feedback.
+    """
+    if previous is None:
+        feedback_section = ""
+    else:
+        feedback_section = (
+            "## How your last attempt went\n\n"
+            f"{feedback_text(previous, config)}\n\n"
+            "## The function you wrote\n\n"
+            f"```python\n{previous.source}```\n\n"
+            "Write an improved version below. You may keep whatever worked, "
+            "change whatever did not, and restructure freely.\n"
+        )
+
+    return render(
+        config.template,
+        width=10,
+        height=20,
+        last_row=19,
+        per_call_seconds=config.per_call_seconds,
+        measurement_section=MEASUREMENT_DECLARATION if config.declare_metrics else "",
+        feedback_section=feedback_section,
+    )
+
+
+def generate(
+    client: ModelClient, config: LoopConfig, position: Position, previous: Outcome | None
+) -> GeneratedFunction:
+    """Ask the model for a function, first attempt or revision alike."""
+    from tetris_bench.agents.strategy import extract_code
+
+    prompt = build_prompt(config, previous)
+    response = client.complete([{"role": "user", "content": prompt}])
+    return GeneratedFunction(
+        source=extract_code(response.text),
+        model=response.model,
+        prompt=prompt,
+        raw_reply=response.text,
+        reasoning=response.reasoning,
+        iteration=position.iteration,
+    )
+
+
 def completed_positions(log_path: Path, model: str) -> set[tuple[int, int, int]]:
     """Which (seed, chain, iteration) triples this log already holds."""
     if not Path(log_path).exists():
@@ -282,15 +360,7 @@ def run_loop(
 
         client.reset_usage()
         try:
-            if previous is None:
-                generated = request_scoring_function(
-                    client,
-                    per_call_seconds=config.per_call_seconds,
-                    template=config.initial_template,
-                    iteration=position.iteration,
-                )
-            else:
-                generated = _request_revision(client, config, position, previous)
+            generated = generate(client, config, position, previous)
         except StrategyError as error:
             # CLAUDE.md lists invalid outputs as a per-game metric, so this has
             # to leave a row behind rather than silently skipping the position.
@@ -323,29 +393,3 @@ def run_loop(
                 f"holes={outcome.result.final_holes if outcome.result else 0}"
             )
         previous = outcome
-
-
-def _request_revision(
-    client: ModelClient, config: LoopConfig, position: Position, previous: Outcome
-) -> GeneratedFunction:
-    """Ask for a revision, given how the previous attempt played."""
-    prompt = render(
-        config.revise_template,
-        feedback=feedback_text(previous, config),
-        previous_source=previous.source,
-        width=10,
-        height=20,
-        last_row=19,
-        per_call_seconds=config.per_call_seconds,
-    )
-    response = client.complete([{"role": "user", "content": prompt}])
-    from tetris_bench.agents.strategy import extract_code
-
-    return GeneratedFunction(
-        source=extract_code(response.text),
-        model=response.model,
-        prompt=prompt,
-        raw_reply=response.text,
-        reasoning=response.reasoning,
-        iteration=position.iteration,
-    )

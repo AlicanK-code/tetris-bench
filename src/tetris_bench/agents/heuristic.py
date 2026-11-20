@@ -4,9 +4,25 @@ This is the reference strong player. It exists to sanity-check the engine (a
 sensible heuristic should comfortably beat random) and to give the LLMs something
 meaningful to be measured against.
 
-The weights are the well-known El-Tetris values. They are published and
-unmodified on purpose: tuning them ourselves would make the baseline a moving
-target, and the point of a baseline is that it does not move.
+The weights come from Yiyuan Lee, "Tetris AI - The (Near) Perfect Bot" (2013),
+where they were found with a genetic algorithm:
+https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/
+
+They are used unmodified on purpose: tuning them ourselves would make the
+baseline a moving target, and the point of a baseline is that it does not move.
+
+One caveat on calling this *the* reference. Lee tuned these weights for a 10x22
+board with one lookahead piece under SRS rotation, and his post notes the results
+"may or may not be the same for a different set of rules". This engine is 10x20,
+has no lookahead, and deduplicates rotation states, so these are weights
+optimised for a near neighbour of our game rather than for our game. Empirically
+it hardly matters -- the agent still reaches the piece cap -- but it is a
+reference ceiling, not a published optimum for these rules.
+
+(Not to be confused with El-Tetris, Islam El-Ashi's 2011 algorithm, which is a
+modification of Dellacherie's and uses six different features -- landing height,
+rows eliminated, row transitions, column transitions, holes and well sums -- with
+entirely different weight values.)
 
 One subtlety drives the whole design. The features are measured on the board the
 move *would produce* -- after the piece is locked in and after any completed rows
@@ -27,7 +43,7 @@ from tetris_bench.metrics import aggregate_height, bumpiness, holes
 
 @dataclass(frozen=True)
 class HeuristicWeights:
-    """Weights for the four features, defaulting to the El-Tetris values.
+    """Weights for the four features, defaulting to Lee's 2013 values.
 
     Negative weights are penalties. Frozen and constructible so weight sets can
     be compared within a single run -- useful for showing a deliberately weaker

@@ -36,7 +36,7 @@ iteration gets compared against.
 
 | player | score | pieces | ended by |
 |---|---:|---:|---|
-| heuristic (El-Tetris weights) | 21,600 | 500 | piece_limit |
+| heuristic (Lee's 2013 weights) | 21,600 | 500 | piece_limit |
 | naive (drop deepest) | 2,100 | 95 | block_out |
 | **qwen3-4b iteration 0** | **0** | **22** | **block_out** |
 | random | 0 | 23 | block_out |
@@ -233,7 +233,7 @@ agent is not choosing badly; it is not choosing at all.
 - The sandbox executed ~750 calls with zero failures.
 - The 500-piece game ran in under a second.
 - The artifact and full reasoning trace were saved before the game played.
-- Separately verified: El-Tetris weights expressed through the sandbox's
+- Separately verified: the reference weights expressed through the sandbox's
   plain-data API score **byte-identically** to the in-process heuristic
   (21,600 / 21,200 on seeds 1 / 2), so the sandbox introduces no distortion.
 
@@ -295,7 +295,8 @@ Two fixes, both aimed at §6.4 — the harness could not see this failure mode.
    at all. A function that is flat on 95% or more of its moves is reported as
    `is_degenerate`, and the CLI prints an explicit note that a zero score means a
    dead function rather than a bad strategy. Verified on this exact function:
-   `0/22 moves had score variation` versus El-Tetris's `500/500, mean spread 6.83`.
+   `0/22 moves had score variation` versus the reference heuristic's
+   `500/500, mean spread 6.83`.
 
 2. **Prompt `strategy_v2`.** `strategy_v1` is kept on disk so this run's prompt
    stays readable. v2 adds two things, both about mechanics rather than Tetris:

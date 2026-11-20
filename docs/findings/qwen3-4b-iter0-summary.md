@@ -64,7 +64,7 @@ bumpiness, surface shape or overhangs at all.
 ## What it establishes
 
 1. **The harness is sound.** Zero sandbox failures, nothing wrongly rejected, and
-   El-Tetris through the same sandbox scores byte-identically to the in-process
+   the reference heuristic through the same sandbox scores byte-identically to the in-process
    heuristic. The 0 is the model's.
 2. **Geometry-only was right.** The gap from 0 to 21,600 is the headroom an
    improvement curve needs; precomputed features would have flattened it.
@@ -95,7 +95,8 @@ Two fixes, both aimed at §6.4 — the harness could not see this failure mode.
    at all. A function that is flat on 95% or more of its moves is reported as
    `is_degenerate`, and the CLI prints an explicit note that a zero score means a
    dead function rather than a bad strategy. Verified on this exact function:
-   `0/22 moves had score variation` versus El-Tetris's `500/500, mean spread 6.83`.
+   `0/22 moves had score variation` versus the reference heuristic's `500/500,
+   mean spread 6.83`.
 
 2. **Prompt `strategy_v2`.** `strategy_v1` is kept on disk so this run's prompt
    stays readable. v2 adds two things, both about mechanics rather than Tetris:

@@ -140,7 +140,7 @@ class TestHeuristicScorer:
         score = heuristic_scorer(inverted)
         assert score(board, upright) > score(board, flat)
 
-    def test_default_weights_are_the_el_tetris_values(self):
+    def test_default_weights_are_lees_published_values(self):
         assert (
             HeuristicWeights(
                 aggregate_height=-0.510066,

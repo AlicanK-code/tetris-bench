@@ -73,7 +73,8 @@ def score(board, placement):
 
 This is recognisably the right shape: four features, sensible signs, a weighted
 sum. It is the first function on the ladder that actually discriminates —
-**35/35 moves had score variation, mean spread 6.89**, against El-Tetris's 6.83.
+**35/35 moves had score variation, mean spread 6.89**, against the reference
+heuristic's 6.83.
 It cleared 4 lines for 400 points.
 
 ### 2.1 But it dies at 35 pieces with 96 holes

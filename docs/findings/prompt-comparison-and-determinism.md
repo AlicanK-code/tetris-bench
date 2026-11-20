@@ -279,3 +279,72 @@ Options, not yet decided:
    discrimination and no worse on outcome, but the difference is within what
    nondeterminism could explain, so the comparison does not justify a preference
    either way.
+
+
+---
+
+## 7. Addendum: the iteration 0 to 1 confound, and what was fixed (2026-11-20)
+
+A methodology review identified four things changing simultaneously between
+iteration 0 and iteration 1, which made the first and largest step of any curve
+unattributable. Three are now removed; one is not.
+
+### Fixed: the template changed, not just the feedback
+
+Iteration 0 used `strategy_v2` and later iterations `revise_v1`. Those differed
+in several ways at once, and not all in the same direction: `revise_v1` **dropped**
+the board-orientation note ("a column is tall when filled cells reach a low row
+index") and the placement key table, while adding feedback. Orientation is
+precisely what every rung has got wrong, so the prompt change may have hurt at
+the same moment the feedback was supposed to help. Net sign unknown.
+
+Now one template (`strategy_v3`) serves every iteration, with a feedback block
+that is empty on the first. Verified mechanically: the iteration-0 prompt has
+**zero lines absent from the iteration-1 prompt**. The step is a pure insertion
+of 54 lines of feedback, and `tests/test_loop.py::TestPromptIsAPureInsertion`
+pins it.
+
+### Fixed: the measurement vocabulary appeared for the first time at iteration 1
+
+The feedback reports holes, tallest column and surface unevenness. The 4B's
+iteration-0 reasoning trace mentioned surface shape **zero** times (§4.3 of
+`qwen3-4b-iter0-detailed.md`), so iteration 1 was handing it a concept it did not
+have. That is vocabulary transfer, not learning.
+
+The quantities are now named at iteration 0 as well, so the vocabulary is a
+constant treatment rather than a step change. Note what is named and what is not:
+the *quantities* are listed, their *definitions* are withheld. A model still has
+to work out what a hole is, which is the thing every rung has so far got wrong.
+`declare_metrics=False` disables it for an ablation.
+
+Cost of this fix, stated plainly: the observation that the 14B "derived height,
+holes and bumpiness unprompted" is no longer reproducible under the default
+configuration, because the quantities are now named up front. That finding stands
+on its recorded artifacts and the ablation flag, and uniform treatment is worth
+more to the headline claim than a clean single data point.
+
+### Fixed indirectly: the floor effect
+
+Score is bounded below at 0 with many observations exactly on the bound, so any
+perturbation has non-negative expected change and a curve rising off zero is what
+pure noise does. `held-out-seeds.md` establishes `pieces_placed` as the better
+curve variable on separate grounds; it also has no pile-up at the floor (22
+pieces, not 0).
+
+### NOT fixed: the feedback contains ground-truth labels
+
+The summary pairs the **rendered board** with the engine's **correct hole count**.
+That is a labelled (input, label) example for exactly the definition the prompt
+refuses to state. A model shown that board and told "96 holes" can in principle
+reverse-engineer "covered empty cell" from it.
+
+This cannot be removed without gutting the feedback: dropping the number leaves
+the model to count holes on a board it may be miscounting, and dropping the board
+removes the most informative signal there is. It is now the **only** thing that
+changes at the 0 to 1 step besides the numbers themselves, which is a much
+narrower confound than four simultaneous changes.
+
+Consequence for the claim: "the model derived the right features unprompted"
+holds at iteration 0 only. From iteration 1 the loop supplies supervision for the
+hole concept, and the honest framing of the headline is improvement *given
+outcome feedback that includes measured board statistics*, not unaided discovery.
