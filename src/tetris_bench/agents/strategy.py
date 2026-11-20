@@ -156,6 +156,12 @@ class StrategyDiagnostics:
     flat_moves: int = 0
     unplayable: int = 0
     spread_total: float = 0.0
+    #: Moves where the chosen placement was NOT the first in the list. This is
+    #: the decision-relevant measure: a function can produce a non-zero spread
+    #: and still never change a choice, in which case it is tie-breaking by list
+    #: order rather than steering. Measuring whether spread *exists* misses that;
+    #: measuring whether it ever *moves the argmax* does not.
+    steering_moves: int = 0
 
     @property
     def flat_fraction(self) -> float:
@@ -168,23 +174,40 @@ class StrategyDiagnostics:
         return self.spread_total / self.moves if self.moves else 0.0
 
     @property
-    def is_degenerate(self) -> bool:
-        """Whether the function essentially never discriminated.
+    def steering_fraction(self) -> float:
+        """Share of moves where the function chose something other than the first.
 
-        The threshold is generous on purpose: a function that separates
-        candidates on only a handful of moves out of hundreds is not strategising,
-        it is tie-breaking by list order.
+        With ~34 candidates, a function choosing at random would land on the
+        first about 3% of the time, so a real strategy sits near 1.0 and an inert
+        one sits at 0.0.
         """
-        return self.moves > 0 and self.flat_fraction >= 0.95
+        return self.steering_moves / self.moves if self.moves else 0.0
+
+    @property
+    def is_degenerate(self) -> bool:
+        """Whether the function never actually made a decision.
+
+        Two ways to fail, and the second was originally missed. A function can be
+        flat on almost every move; or it can produce a visible spread that is far
+        too small to outweigh a constant term, so the argmax never moves off the
+        first candidate. The 4B's second attempt was the latter: 4 of 22 moves had
+        variation -- a flat fraction of 0.82, under the old 0.95 threshold -- with
+        a mean spread of 0.9 against a constant of ~1,960. Decision-equivalent to
+        constant, and not flagged.
+        """
+        if not self.moves:
+            return False
+        return self.flat_fraction >= 0.95 or self.steering_moves == 0
 
     def summary(self) -> str:
         """One line fit for a terminal or a feedback summary."""
         if not self.moves:
             return "no moves scored"
-        verdict = " (function is effectively constant)" if self.is_degenerate else ""
+        verdict = " (function never changed a choice)" if self.is_degenerate else ""
         return (
             f"{self.moves - self.flat_moves}/{self.moves} moves had score variation, "
-            f"mean spread {self.mean_spread:.3g}{verdict}"
+            f"mean spread {self.mean_spread:.3g}, "
+            f"steered {self.steering_moves}/{self.moves}{verdict}"
         )
 
 
@@ -210,13 +233,15 @@ class StrategyAgent:
             raise ValueError("no legal placements: the game is over and should not be stepped")
 
         scores = self.sandbox.score(build_items(game.board, placements))
-        self._record(scores)
         best = max(range(len(placements)), key=lambda index: scores[index])
+        self._record(scores, best)
         return placements[best]
 
-    def _record(self, scores: list[float]) -> None:
+    def _record(self, scores: list[float], chosen: int) -> None:
         """Note how much the function separated this move's candidates."""
         self.diagnostics.moves += 1
+        if chosen != 0:
+            self.diagnostics.steering_moves += 1
         self.diagnostics.unplayable += sum(1 for value in scores if value == UNPLAYABLE)
 
         playable = [value for value in scores if value != UNPLAYABLE]

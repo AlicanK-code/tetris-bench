@@ -87,6 +87,11 @@ It cleared 4 lines for 400 points.
 
 Better than random, still well below the naive floor.
 
+> **Later correction.** 400 is this function's *best* case, not its typical one.
+> On 20 held-out seeds it averages **110**, with 400 as the maximum — seed 1 was
+> the luckiest of the twenty-one sequences it has now played. See
+> [held-out-seeds.md](held-out-seeds.md).
+
 ### 2.2 Why: `heights` is a fill count, not a height
 
 ```python
@@ -161,8 +166,10 @@ against the 14B at one seed before any full sweep.
 
 ## 5. Open questions
 
-1. Is `qwen3-8b` reproducible? Is `qwen3:30b-a3b`? The MoE rung is the one to
-   check before trusting it.
+1. Is `qwen3-8b` reproducible? **The 30B is not** — see
+   [noise-floor-qwen3-30b.md](noise-floor-qwen3-30b.md): two runs, two different
+   functions, scoring 0 and 1,700. Determinism is not monotonic in size, and the
+   14B is so far the only reproducible rung.
 2. Does the 4B's nondeterminism matter in practice, given its scores are
    invariant anyway? Possibly not, which would mean the problem is confined to a
    rung whose curve is flat at zero regardless.

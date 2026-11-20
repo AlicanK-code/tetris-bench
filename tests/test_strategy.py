@@ -330,11 +330,32 @@ class TestStrategyDiagnostics:
 
     def test_summary_names_the_problem(self):
         diagnostics, _, _ = self.run(CONSTANT, pieces=10)
-        assert "effectively constant" in diagnostics.summary()
+        assert "never changed a choice" in diagnostics.summary()
+
+    def test_a_spread_too_small_to_move_the_argmax_is_degenerate(self):
+        """The case the original 0.95-flatness threshold missed.
+
+        A tiny varying term against a huge constant produces visible spread and
+        still never changes a decision. Measuring whether spread exists misses
+        this; measuring whether it moves the argmax does not.
+        """
+        source = (
+            "def score(board, placement):\n"
+            "    empty = sum(1 for row in board for cell in row if not cell)\n"
+            "    return float(empty * 1000 + placement['column'] * 0.0)\n"
+        )
+        diagnostics, _, _ = self.run(source, pieces=20)
+        assert diagnostics.steering_moves == 0
+        assert diagnostics.is_degenerate
+
+    def test_a_real_function_steers_on_nearly_every_move(self):
+        diagnostics, _, _ = self.run(EL_TETRIS, pieces=60)
+        assert diagnostics.steering_fraction > 0.8
+        assert not diagnostics.is_degenerate
 
     def test_summary_is_quiet_when_the_function_works(self):
         diagnostics, _, _ = self.run(EL_TETRIS, pieces=20)
-        assert "effectively constant" not in diagnostics.summary()
+        assert "never changed a choice" not in diagnostics.summary()
         assert "moves had score variation" in diagnostics.summary()
 
     def test_empty_diagnostics_do_not_divide_by_zero(self):

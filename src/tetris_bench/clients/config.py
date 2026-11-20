@@ -73,12 +73,13 @@ class ModelConfig:
     # Zero by default: a benchmark wants the same answer for the same prompt, and
     # sampling noise would show up as improvement that is not there.
     temperature: float = 0.0
-    # Temperature 0 alone is not enough. Observed: the same prompt at temperature
-    # 0 produced different functions across runs, diverging ~7,300 characters in.
-    # Short replies were stable, long ones were not, which is what you get if the
-    # server still samples from a sharpened distribution: for most tokens the
-    # argmax dominates, but over thousands of tokens a near-tie eventually gets
-    # decided by an unseeded RNG. A fixed seed removes that.
+    # A seed removes one source of variance but NOT the operative one. Measured:
+    # two runs of a byte-identical prompt at temperature 0 *with* seed 1 still
+    # produced different functions. The seed is honoured (proven at temperature
+    # 1.0, where it gives bit-identical output), so sampling is not the cause;
+    # floating-point non-associativity in parallel reductions is, and no seed
+    # removes that. Reproducibility is a property of the (model, prompt) pair and
+    # has to be measured per rung -- see docs/findings/.
     seed: int | None = None
     max_tokens: int | None = None
     timeout_seconds: float = 120.0

@@ -1,9 +1,18 @@
 """Tests for the sandbox that runs model-written scoring functions.
 
-Two layers get tested separately and on purpose. The validation tests prove the
-AST allowlist refuses dangerous source; the containment tests pass
-``validate=False`` to prove the subprocess holds *on its own*, so the layering is
-real rather than decorative.
+The two layers are tested separately, but note what each set actually
+establishes. :class:`TestValidateRefuses` covers the AST allowlist.
+:class:`TestContainment` passes ``validate=False`` and covers what the *worker*
+enforces by itself: that dangerous builtins are absent from its namespace, that
+boards are immutable, that return values are checked, and that a call exceeding
+its time budget is interrupted.
+
+It does **not** show that the subprocess alone would contain everything the AST
+check refuses. The worker does no attribute gating at all, so dunder-traversal
+source is blocked by layer 1 only. The layers are complementary, not redundant,
+and the honest description is the one in :mod:`tetris_bench.sandbox`: the static
+check exists so a bad function fails instantly with a readable reason, not
+because the subprocess could not otherwise limit the damage.
 """
 
 import pytest
@@ -141,7 +150,9 @@ class TestBuildItems:
         """Nothing of this project may cross into the sandbox."""
         import json
 
-        json.dumps(items)  # raises if anything is not plain data
+        # Round-tripping also catches a type that serialises lossily, which a
+        # bare dumps() would let through.
+        assert json.loads(json.dumps(items)) == items
 
 
 class TestScoring:

@@ -13,11 +13,11 @@
 # Local models are free, which is a fact about them, not a missing value --
 # which is why the headline cost measures are tokens and wall-clock, not dollars.
 #
-# `seed` is required for reproducibility, not optional. Temperature 0 alone was
-# not enough: the same prompt produced different functions across runs, diverging
-# thousands of tokens in. A fixed seed makes a generation repeatable, which the
-# improvement curve depends on -- without it, run-to-run noise is indistinguishable
-# from a model learning or regressing.
+# `seed` removes one source of variance, but it does NOT make a generation
+# repeatable. Measured: two runs of a byte-identical prompt at temperature 0 with
+# this seed still produced different functions on the 4B and the 30B. The seed is
+# honoured; the cause is numerics, not sampling. Reproducibility must be measured
+# per rung: the 14B is reproducible, the 4B and 30B are not. See docs/findings/.
 #
 # `timeout_seconds` is generous because these are thinking models: Qwen3 emits a
 # long chain of thought before its answer, and on this prompt even the 4B rung

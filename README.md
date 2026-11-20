@@ -17,8 +17,9 @@ zero, so the headline cost measures are tokens and wall-clock seconds.
 
 ## Status
 
-Milestones 1-4 of 8 complete: the game engine, the baseline agents, rendering and
-run records, and the model client, with 351 unit tests.
+Milestones 1-6 of 8 complete: the engine, baseline agents, rendering and run
+records, the model client, the sandboxed strategy agent, and the improvement
+loop, with 502 unit tests.
 
 | # | Milestone | State |
 |---|-----------|-------|
@@ -26,8 +27,8 @@ run records, and the model client, with 351 unit tests.
 | 2 | Baselines (random + hand-written heuristic agent) | **done** |
 | 3 | Rendering + metrics | **done** |
 | 4 | Model client (OpenAI-compatible, local + cloud) | **done** |
-| 5 | Strategy agent + sandbox | not started |
-| 6 | Improvement loop | not started |
+| 5 | Strategy agent + sandbox | **done** |
+| 6 | Improvement loop | **done** |
 | 7 | Direct agent | not started |
 | 8 | Analysis (curves, ladder gap, tokens/seconds per point) | not started |
 
@@ -253,8 +254,14 @@ local models declare zero. Since a run must be reproducible from its config and
 seed list, and prices change, a cost logged months ago stays explainable by the
 file that produced it.
 
-**Temperature defaults to 0.** Sampling noise would otherwise show up as
-improvement that is not there.
+**Temperature defaults to 0, and a seed is set -- but neither makes generation
+reproducible.** Measured: two runs of a byte-identical prompt at temperature 0
+with a fixed seed produced different functions on the 4B and on the 30B, where
+the two scored 0 and 1,700. The seed is honoured, so sampling is not the cause;
+floating-point non-associativity is, and no seed removes it. The 14B *is*
+reproducible. Reproducibility is a property of the (model, prompt) pair and is
+measured per rung -- see [docs/findings/](docs/findings/). The engine itself is
+provably deterministic; this is entirely model-side.
 
 **Transient failures are retried in the client**, with exponential backoff capped
 at 30s, so callers only handle *semantic* failures: output that will not parse, a

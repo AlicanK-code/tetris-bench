@@ -192,6 +192,47 @@ functions near some competence threshold could show much larger score variance.
 The noise floor therefore has to be measured on a rung that actually produces
 varying scores, not on this one.
 
+### 4.3b Measured: token margins, and why the evidence is only partial
+
+Nondeterminism can only surface where the top two candidate tokens are close
+enough that a last-bit logit shift flips which is larger. Measured over the first
+1,200 tokens of the same `strategy_v2` prompt, with `logprobs`:
+
+| top-1 vs top-2 margin | qwen3:4b | qwen3:14b |
+|---|---:|---:|
+| < 1e-6 | 0 | 0 |
+| < 1e-4 | 0 | 0 |
+| < 1e-3 | 1 (0.08%) | 1 (0.08%) |
+| < 1e-2 | 6 (0.50%) | 1 (0.08%) |
+| < 1e-1 | 44 (3.67%) | 13 (1.09%) |
+| **median margin** | **2.09** | **4.39** |
+
+The 14B is clearly the more decisive model: its median margin is 2.1x larger, and
+it has 6x fewer tokens under 0.01. That is consistent with it being robust to a
+numerical wobble the 4B is not.
+
+**But the measurement does not settle it**, for two reasons worth recording:
+
+1. At the threshold that actually matters -- margins tight enough for
+   floating-point noise to flip, plausibly below ~1e-3 -- both models show
+   exactly **one** token in 1,200. A sample of one cannot distinguish them.
+2. The sample covers the first 1,200 tokens. The 4B's observed divergence
+   occurred around character 7,336 of ~35,000, roughly token 1,800-2,000 --
+   **just outside the window measured.** The sample does not include the event
+   being explained.
+
+So the mechanism is supported directionally and remains the best explanation, but
+it is not demonstrated. Resolving it would need margins over the full generations
+rather than a prefix.
+
+### 4.3c Consequence: margin screening is not yet a substitute for testing
+
+The appealing shortcut would be to screen a rung by its median margin instead of
+running five full generations. On two models with one known outcome each, that
+threshold cannot be calibrated. **The honest minimum test for a new rung is to
+generate twice and compare hashes** -- about 40 minutes on the 30B, against 90 for
+five runs.
+
 ### 4.4 What this requires
 
 The noise floor has to be measured before any improvement can be claimed: run

@@ -69,6 +69,7 @@ tetris-bench/
 │   ├── prompts/        # versioned prompt templates + loader
 │   ├── sandbox.py      # AST validation + host side of the sandbox
 │   ├── sandbox_worker.py  # the isolated child; stdlib only, run by path
+│   ├── feedback.py     # finished game -> feedback summary (symptoms only)
 │   ├── loop.py         # improvement loop orchestration
 │   └── cli.py          # entry points
 ├── runs/               # outputs: JSONL logs, generated functions (gitignored)
@@ -83,7 +84,11 @@ tetris-bench/
 3. **Rendering + metrics**: text grid output and per-game stats.
 4. **Model client**: one OpenAI-compatible client and config for local (Ollama/LM Studio) and cloud providers. Track tokens, latency and cost per call.
 5. **Strategy agent + sandbox**: prompt the model for a scoring function, run it safely, play a game. *Done.*
-6. **Improvement loop**: feedback summary → revised function → replay, for N iterations over a fixed seed set.
+6. **Improvement loop**: feedback summary → revised function → replay, for N iterations over a fixed seed set. *Done.*
+   - **Independent chains.** On a nondeterministic rung, several samples per iteration are needed before a difference means anything — the 30B showed a 1,700-point spread between two runs of the same request. Each chain iterates on its own function and never sees another's, so a rising median across chains cannot be selection bias. Carrying best-of-N forward would manufacture a curve from noise.
+   - **Feedback is symptoms, not diagnoses**: score, lines, holes, height, cause of death, board snapshots and the prior function. The model must diagnose its own bug, because that is the ability being measured. The one exception is mechanical: when a function scored every candidate identically, the summary says so, since "you scored 0" cannot distinguish a bad strategy from inert arithmetic.
+   - **Resumable by replay, no state file.** Records append as games finish and functions are written to disk; a rerun reads the log, skips completed positions, and replays the saved function to regenerate its feedback in under a second. One source of truth instead of a checkpoint that can drift.
+   - **Chains per rung, not uniform.** `qwen3-14b` is reproducible and needs one; `qwen3-30b` needs several; `qwen3-4b` needs one since its scores are invariant anyway. See `docs/findings/`.
 7. **Direct agent**: baseline mode for comparison (small seed set only, as it is expensive).
 8. **Analysis**: improvement curves per model, the size-ladder gap, tokens and seconds per point, a results table for the README.
 
@@ -116,7 +121,8 @@ uv run tetris-bench play --agent random --show-state --log runs/baseline.jsonl
 uv sync --extra llm                                          # model client deps
 uv run tetris-bench models                                   # validate model config
 uv run tetris-bench strategy --model qwen3-4b --seed 1       # model writes a scorer
-uv run tetris-bench loop --config configs/local-small.yaml   # not built yet
+uv run tetris-bench loop --model qwen3-14b --iterations 6     # improvement loop
+uv run tetris-bench loop --model qwen3-30b --chains 5        # nondeterministic rung
 ```
 
 ## Conventions

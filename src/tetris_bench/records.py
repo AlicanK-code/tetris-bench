@@ -121,6 +121,26 @@ class RunRecord:
     mode: str
     iteration: int
     usage: ModelUsage = field(default_factory=ModelUsage)
+    #: Which independent chain this belongs to. Chains never see each other's
+    #: functions, so a rising median across chains cannot be selection bias.
+    chain: int = 0
+    #: Hash of the scoring function played, so a row ties back to its artifact.
+    function_sha: str = ""
+    #: How many of the game's moves the function failed to separate. A function
+    #: that discriminated on nothing scored zero for a mechanical reason rather
+    #: than a strategic one, and the analysis has to be able to tell them apart.
+    flat_moves: int = 0
+    scored_moves: int = 0
+    #: Mean gap between the best and worst candidate, and how often the choice
+    #: was not simply the first candidate. Both were computed and discarded
+    #: before; without them the decision-relevance question cannot be asked of
+    #: an existing log.
+    mean_spread: float = 0.0
+    steering_moves: int = 0
+    #: False when the function was rejected or crashed, so no game ran. Without
+    #: this a rejection looks like a flawless game in a dataframe: zero holes,
+    #: zero height, zero score.
+    played: bool = True
 
     def as_dict(self) -> dict[str, Any]:
         """Flatten to a single-level JSON object for JSONL."""
@@ -128,6 +148,13 @@ class RunRecord:
             "model": self.model,
             "mode": self.mode,
             "iteration": self.iteration,
+            "chain": self.chain,
+            "function_sha": self.function_sha,
+            "flat_moves": self.flat_moves,
+            "scored_moves": self.scored_moves,
+            "mean_spread": self.mean_spread,
+            "steering_moves": self.steering_moves,
+            "played": self.played,
             **self.game.as_dict(),
             **asdict(self.usage),
         }

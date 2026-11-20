@@ -40,16 +40,25 @@ def append_record(path: Path | str, record: Record) -> None:
 
 
 def read_records(path: Path | str) -> Iterator[dict[str, Any]]:
-    """Read records back, skipping blank lines.
+    """Read records back, skipping blank and unparseable lines.
 
     Yields plain dicts rather than reconstructing dataclasses: the analysis layer
     wants a dataframe, and the schema on disk is allowed to outlive any one
     version of the code that wrote it.
+
+    Unparseable lines are skipped rather than raising, because that is the whole
+    reason for choosing JSONL: a run killed mid-write leaves a truncated final
+    line, and every completed record before it must still be readable. Raising
+    there would throw away the property the format was chosen for.
     """
     with Path(path).open(encoding="utf-8") as handle:
         for line in handle:
-            if line.strip():
+            if not line.strip():
+                continue
+            try:
                 yield json.loads(line)
+            except ValueError:
+                continue
 
 
 class JsonlWriter:

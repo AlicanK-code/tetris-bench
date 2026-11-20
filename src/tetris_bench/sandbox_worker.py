@@ -100,8 +100,16 @@ SAFE_BUILTINS = {
 }
 
 
-class CallTimeout(Exception):
-    """Raised inside the sandbox when one call exceeds its time budget."""
+class CallTimeout(BaseException):
+    """Raised inside the sandbox when one call exceeds its time budget.
+
+    Derives from :class:`BaseException`, not :class:`Exception`, and that is
+    load-bearing. A scoring function containing a broad ``except Exception:``
+    inside a loop -- an ordinary defensive pattern -- would otherwise swallow its
+    own timeout. ``signal.setitimer`` is one-shot, so no second alarm fires, and
+    the function would then spin until the host's batch deadline killed the
+    worker and aborted the whole run.
+    """
 
 
 def _on_alarm(_signum: int, _frame: object) -> None:
@@ -151,6 +159,11 @@ def score_items(function: object, items: list, per_call_seconds: float) -> tuple
                 raise ValueError("returned NaN")
             scores.append(value)
             errors.append(None)
+        except CallTimeout as error:
+            # Handled explicitly: it is a BaseException precisely so that model
+            # code cannot catch it, which means we must.
+            scores.append(None)
+            errors.append(f"CallTimeout: {error}")
         except Exception as error:
             scores.append(None)
             errors.append(f"{type(error).__name__}: {error}")

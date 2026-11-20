@@ -80,6 +80,8 @@ examples:
   tetris-bench play --agent heuristic --seed 1 --log runs/baseline.jsonl
   tetris-bench models --config configs/models.yaml
   tetris-bench strategy --model qwen3-4b --seed 1
+  tetris-bench loop --model qwen3-14b --iterations 6
+  tetris-bench loop --model qwen3-30b --chains 5 --seeds 1 2 3
 """
 
 
@@ -172,6 +174,22 @@ def build_parser() -> argparse.ArgumentParser:
     strategy.add_argument(
         "--template", default=None, help="prompt template name (default: the current version)"
     )
+
+    loop = sub.add_parser("loop", help="run the improvement loop: feedback, revise, replay, repeat")
+    loop.add_argument("--model", required=True, help="a name from the model config")
+    loop.add_argument("--config", type=Path, default=DEFAULT_MODEL_CONFIG)
+    loop.add_argument("--seeds", type=int, nargs="+", default=[1])
+    loop.add_argument("--iterations", type=positive_int, default=6)
+    loop.add_argument(
+        "--chains",
+        type=positive_int,
+        default=1,
+        help="independent chains per seed; use 1 for a reproducible rung, more otherwise",
+    )
+    loop.add_argument("--max-pieces", type=positive_int, default=DEFAULT_MAX_PIECES)
+    loop.add_argument("--per-call-seconds", type=float, default=1.0)
+    loop.add_argument("--log", type=Path, default=Path("runs/loop.jsonl"))
+    loop.add_argument("--save-dir", type=Path, default=Path("runs/functions"))
     return parser
 
 
@@ -204,6 +222,37 @@ def main() -> None:
 
     elif args.command == "strategy":
         run_strategy(args)
+
+    elif args.command == "loop":
+        run_improvement_loop(args)
+
+
+def run_improvement_loop(args: argparse.Namespace) -> None:
+    """Run the improvement loop. Imported lazily, like `strategy`."""
+    from tetris_bench.clients.client import ModelClient
+    from tetris_bench.clients.config import load_model_config
+    from tetris_bench.loop import LoopConfig, run_loop
+
+    config = load_model_config(args.config, args.model)
+    client = ModelClient(config)
+    loop_config = LoopConfig(
+        model=config.name,
+        seeds=tuple(args.seeds),
+        iterations=args.iterations,
+        chains=args.chains,
+        max_pieces=args.max_pieces,
+        per_call_seconds=args.per_call_seconds,
+        log_path=args.log,
+        functions_dir=args.save_dir,
+    )
+    total = len(loop_config.seeds) * loop_config.chains * loop_config.iterations
+    print(
+        f"{config.name} ({config.model}): {total} generations "
+        f"({len(loop_config.seeds)} seed(s) x {loop_config.chains} chain(s) "
+        f"x {loop_config.iterations} iterations)"
+    )
+    print(f"log {loop_config.log_path} - rerun the same command to resume\n")
+    run_loop(client, loop_config)
 
 
 def run_strategy(args: argparse.Namespace) -> None:
