@@ -530,3 +530,108 @@ class TestPerChainModelSeed:
         config = loop_module.LoopConfig(model="m")
         loop_module.generate(client, config, loop_module.Position(2, 0), None)
         assert client.seeds == [None]
+
+
+class TestAFailedCallDoesNotKillTheRun:
+    """A timeout used to propagate out of ``generate`` and abort everything.
+
+    That is the worst available outcome. Positions already finished stay on
+    disk, but the tokens and seconds just spent vanish, nothing records why the
+    run stopped, and a resume has to rediscover the failure. One rung burned 80
+    minutes and three attempts this way.
+    """
+
+    def failing_client(self, fail_on: set[int]):  # noqa: ANN201
+        """A client whose ``complete`` raises for the listed call numbers."""
+        from tetris_bench.clients.transport import ModelError
+
+        class Client:
+            def __init__(self) -> None:
+                self.calls = 0
+                self.usage = ModelUsage(model_calls=1, tokens_in=10, tokens_out=20)
+                self.config = SimpleNamespace(name="m", model="m")
+
+            def reset_usage(self) -> None:
+                self.usage = ModelUsage(model_calls=1, tokens_in=10, tokens_out=20)
+
+            def complete(self, messages, seed=None):  # noqa: ANN001, ANN202
+                self.calls += 1
+                if self.calls in fail_on:
+                    raise ModelError("timed out after 2400s")
+
+                class Response:
+                    text = f"```python\n{FLAT}\n```"
+                    reasoning = ""
+                    model = "m"
+
+                return Response()
+
+        return Client()
+
+    def config(self, tmp_path: Path, **kwargs) -> LoopConfig:  # noqa: ANN003
+        return LoopConfig(
+            model="m",
+            train_seeds=(1,),
+            eval_seeds=(),
+            iterations=kwargs.pop("iterations", 3),
+            chains=kwargs.pop("chains", 1),
+            log_path=tmp_path / "loop.jsonl",
+            functions_dir=tmp_path / "functions",
+            **kwargs,
+        )
+
+    def rows(self, config: LoopConfig) -> list[dict]:
+        from tetris_bench.jsonl import read_records
+
+        return list(read_records(config.log_path))
+
+    def test_the_run_continues_past_a_failed_call(self, tmp_path: Path) -> None:
+        config = self.config(tmp_path)
+        client = self.failing_client(fail_on={2})
+        loop_module.run_loop(client, config, on_progress=lambda _m: None)
+
+        # Three iterations were asked for and three were attempted, rather than
+        # the run dying at the second.
+        assert client.calls == 3
+        assert len(self.rows(config)) == 3
+
+    def test_the_failed_position_is_logged_with_its_usage(self, tmp_path: Path) -> None:
+        """The tokens are spent whether or not the call returned, so they count."""
+        config = self.config(tmp_path)
+        loop_module.run_loop(self.failing_client(fail_on={2}), config, on_progress=lambda _m: None)
+
+        failed = [r for r in self.rows(config) if r["iteration"] == 1]
+        assert len(failed) == 1
+        assert failed[0]["played"] is False
+        assert failed[0]["invalid_outputs"] == 1
+        assert failed[0]["tokens_out"] == 20
+
+    def test_a_failure_at_iteration_zero_does_not_abort(self, tmp_path: Path) -> None:
+        """With no previous function to keep, the loop must still carry on."""
+        config = self.config(tmp_path)
+        client = self.failing_client(fail_on={1})
+        loop_module.run_loop(client, config, on_progress=lambda _m: None)
+
+        assert client.calls == 3
+        assert [r["iteration"] for r in self.rows(config)] == [0, 1, 2]
+
+    def test_every_call_failing_leaves_a_complete_log_rather_than_nothing(
+        self, tmp_path: Path
+    ) -> None:
+        """The old behaviour wrote nothing at all; now the run is explainable."""
+        config = self.config(tmp_path)
+        loop_module.run_loop(
+            self.failing_client(fail_on={1, 2, 3}), config, on_progress=lambda _m: None
+        )
+
+        rows = self.rows(config)
+        assert len(rows) == 3
+        assert all(r["played"] is False for r in rows)
+        assert all("failed" in (r["cause"] or "") or r["cause"] is None for r in rows)
+
+    def test_the_reason_reaches_the_next_prompt_as_feedback(self, tmp_path: Path) -> None:
+        """A failed call is a symptom the model should see, not a silent gap."""
+        config = self.config(tmp_path, iterations=2)
+        client = self.failing_client(fail_on={1})
+        loop_module.run_loop(client, config, on_progress=lambda _m: None)
+        assert client.calls == 2

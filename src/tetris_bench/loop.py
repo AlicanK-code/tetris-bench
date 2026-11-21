@@ -47,6 +47,7 @@ from tetris_bench.agents.strategy import (
     StrategyError,
 )
 from tetris_bench.clients.client import ModelClient
+from tetris_bench.clients.transport import ModelError
 from tetris_bench.engine.board import Board
 from tetris_bench.engine.game import DEFAULT_MAX_PIECES, Game
 from tetris_bench.feedback import (
@@ -649,6 +650,34 @@ def run_loop(
         client.reset_usage()
         try:
             generated = generate(client, config, position, previous)
+        except ModelError as error:
+            # The call itself never came back -- a timeout, or a provider error
+            # the client gave up on. Previously this propagated and killed the
+            # run, which is the worst available outcome: every position already
+            # finished stays on disk, but the tokens and seconds just spent are
+            # lost, nothing records *why* the run stopped, and a resume has to
+            # rediscover it. One rung burned 80 minutes and three attempts this
+            # way before `max_tokens` was capped to make a runaway generation
+            # return instead of hang.
+            #
+            # So treat it the same as an unusable reply: log the position as a
+            # failure with its usage, keep the last function that played, and
+            # carry on to the next position. `max_retries` has already been
+            # exhausted inside the client by this point, so there is nothing
+            # left to retry here.
+            failure = Outcome(
+                source="",
+                rejected=True,
+                reason=f"the model call failed: {error}",
+            )
+            _log_position(config, position, failure, client.usage, "train")
+            say(
+                f"iter {position.iteration} chain {position.chain}: "
+                f"CALL FAILED ({error}) (keeping the previous function)"
+            )
+            if previous is None:
+                previous = failure
+            continue
         except StrategyError as error:
             # The reply never arrived as usable Python, so there is nothing for
             # the model to act on. Log it as an invalid output, then carry the
