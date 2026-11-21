@@ -256,6 +256,9 @@ def run_improvement_loop(args: argparse.Namespace) -> None:
         chains=args.chains,
         max_pieces=args.max_pieces,
         per_call_seconds=args.per_call_seconds,
+        # Chain k generates under `seed + k`, so chains are independent samples
+        # rather than identical copies. Chain 0 keeps the configured seed.
+        model_seed=config.seed,
         log_path=args.log,
         functions_dir=args.save_dir,
     )

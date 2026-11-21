@@ -62,7 +62,7 @@ class FakeClient:
         self.reasoning = reasoning
         self.prompts = []
 
-    def complete(self, messages):
+    def complete(self, messages, seed=None):
         self.prompts.append(messages[-1]["content"])
 
         class Response:

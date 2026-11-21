@@ -121,6 +121,12 @@ class LoopConfig:
     #: Name the measured quantities at iteration 0 as well. See
     #: MEASUREMENT_DECLARATION.
     declare_metrics: bool = True
+    #: Base model seed for chain 0; chain k generates under ``model_seed + k``.
+    #: ``None`` leaves every chain on whatever the client is configured with,
+    #: which is the old behaviour and is what the fakes in the test suite use.
+    #: The CLI fills this in from the model config, so a real sweep always gets
+    #: independent chains. See :func:`model_seed_for`.
+    model_seed: int | None = None
     log_path: Path = Path("runs/loop.jsonl")
     functions_dir: Path = Path("runs/functions")
     #: Shown to the model for scale. The heuristic reference on these seeds.
@@ -406,7 +412,8 @@ def generate(
     from tetris_bench.agents.strategy import extract_code
 
     prompt = build_prompt(config, previous)
-    response = client.complete([{"role": "user", "content": prompt}])
+    seed = model_seed_for(config.model_seed, position.chain)
+    response = client.complete([{"role": "user", "content": prompt}], seed=seed)
     return GeneratedFunction(
         source=extract_code(response.text),
         model=response.model,
@@ -501,6 +508,27 @@ def positions(config: LoopConfig) -> Iterator[Position]:
     for chain in range(config.chains):
         for iteration in range(config.iterations):
             yield Position(chain, iteration)
+
+
+def model_seed_for(base: int | None, chain: int) -> int | None:
+    """The model seed chain ``chain`` generates under.
+
+    Chains exist so that a rising median across independent samples cannot be
+    selection bias. At temperature 0 with one seed that premise is false: every
+    chain sends an identical request and gets an identical function back, which
+    was measured -- chain 0 and chain 1 produced byte-identical hashes, and
+    `chain_spread` was exactly 0. Several chains then cost several times the GPU
+    hours and buy one sample.
+
+    Offsetting by the chain index fixes that without giving up reproducibility:
+    each chain is still deterministic and still reproducible from the config, and
+    chain 0 keeps the configured seed, so a single-chain run is bit-for-bit what
+    it was before this existed.
+
+    A model configured with no seed keeps none, since offsetting nothing is
+    nothing.
+    """
+    return None if base is None else base + chain
 
 
 def _sha(source: str) -> str:

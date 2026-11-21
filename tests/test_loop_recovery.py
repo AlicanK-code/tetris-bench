@@ -9,6 +9,7 @@ evaluation seeds, which is why they survived the existing suite.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from tetris_bench import loop as loop_module
 from tetris_bench.engine.game import Game
@@ -468,3 +469,64 @@ class TestRunLoopIntegration:
         assert "How your last attempt went" in client.prompts[1]
         assert "How your last attempt went" not in client.prompts[2]
         assert "How your last attempt went" in client.prompts[3]
+
+
+class TestPerChainModelSeed:
+    """Chains must be independent samples, or several chains buy one sample."""
+
+    def test_chain_zero_keeps_the_configured_seed(self):
+        """A single-chain run must be bit-for-bit what it was before this existed."""
+        assert loop_module.model_seed_for(1, 0) == 1
+
+    def test_later_chains_are_offset(self):
+        assert loop_module.model_seed_for(1, 1) == 2
+        assert loop_module.model_seed_for(1, 4) == 5
+
+    def test_no_configured_seed_stays_none(self):
+        """Offsetting nothing is nothing; don't invent a seed a rung never had."""
+        assert loop_module.model_seed_for(None, 3) is None
+
+    def test_every_chain_gets_a_distinct_seed(self):
+        seeds = [loop_module.model_seed_for(7, c) for c in range(5)]
+        assert len(set(seeds)) == 5
+
+    def test_generate_sends_the_chain_seed_to_the_client(self):
+        """The rule is useless if `generate` does not actually pass it on."""
+
+        class Recorder:
+            def __init__(self):
+                self.seeds = []
+
+            def complete(self, messages, seed=None):
+                self.seeds.append(seed)
+                return SimpleNamespace(
+                    text="```python\ndef score(board, placement):\n    return 0.0\n```",
+                    model="m",
+                    reasoning="",
+                )
+
+        client = Recorder()
+        config = loop_module.LoopConfig(model="m", model_seed=1)
+        for chain in (0, 1, 2):
+            loop_module.generate(client, config, loop_module.Position(chain, 0), None)
+        assert client.seeds == [1, 2, 3]
+
+    def test_an_unseeded_sweep_sends_no_override(self):
+        """`model_seed=None` must leave the client's own seed alone, not send 0."""
+
+        class Recorder:
+            def __init__(self):
+                self.seeds = []
+
+            def complete(self, messages, seed=None):
+                self.seeds.append(seed)
+                return SimpleNamespace(
+                    text="```python\ndef score(board, placement):\n    return 0.0\n```",
+                    model="m",
+                    reasoning="",
+                )
+
+        client = Recorder()
+        config = loop_module.LoopConfig(model="m")
+        loop_module.generate(client, config, loop_module.Position(2, 0), None)
+        assert client.seeds == [None]

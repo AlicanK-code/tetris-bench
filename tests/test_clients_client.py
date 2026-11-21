@@ -281,3 +281,26 @@ class TestUsage:
         client.complete(MESSAGES)
         assert before.model_calls == 0
         assert client.usage.model_calls == 1
+
+
+class TestSeedOverride:
+    """Sampling generation noise means varying the seed per call, not per client."""
+
+    def test_the_override_reaches_the_transport(self):
+        config = ModelConfig(name="local", provider="ollama", model="m", seed=1)
+        client, transport = build_client(config=config)
+        client.complete([{"role": "user", "content": "hi"}], seed=9)
+        assert transport.calls[0]["seed"] == 9
+
+    def test_without_an_override_the_configured_seed_is_used(self):
+        config = ModelConfig(name="local", provider="ollama", model="m", seed=1)
+        client, transport = build_client(config=config)
+        client.complete([{"role": "user", "content": "hi"}])
+        assert transport.calls[0]["seed"] == 1
+
+    def test_seed_zero_is_an_override_not_a_default(self):
+        """0 is falsy; `if seed` instead of `if seed is None` would silently drop it."""
+        config = ModelConfig(name="local", provider="ollama", model="m", seed=1)
+        client, transport = build_client(config=config)
+        client.complete([{"role": "user", "content": "hi"}], seed=0)
+        assert transport.calls[0]["seed"] == 0

@@ -76,7 +76,7 @@ class FakeClient:
     def reset_usage(self):
         self._usage = ModelUsage()
 
-    def complete(self, messages):
+    def complete(self, messages, seed=None):
         self.prompts.append(messages[-1]["content"])
         source = self.sources.pop(0) if self.sources else GOOD
         self._usage = ModelUsage(model_calls=1, tokens_in=100, tokens_out=500)

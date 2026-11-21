@@ -99,12 +99,17 @@ class ModelClient:
         """Zero the tally, so one game's usage can be recorded on its own."""
         self._usage = ModelUsage()
 
-    def complete(self, messages: list[dict[str, str]]) -> ChatResponse:
+    def complete(self, messages: list[dict[str, str]], seed: int | None = None) -> ChatResponse:
         """Send one chat request, retrying transient failures.
 
         Raises the last :class:`ModelError` if every attempt fails. The usage
         tally is still updated in that case: a run's cost includes the calls that
         did not work.
+
+        ``seed`` overrides the configured one for this call. Needed because at
+        temperature 0 the seed is the *only* thing that distinguishes two
+        requests for the same prompt, so sampling a model's generation noise
+        means varying it per call rather than per client.
         """
         started = self._clock()
         attempts = self.config.max_retries + 1
@@ -119,7 +124,7 @@ class ModelClient:
                     temperature=self.config.temperature,
                     max_tokens=self.config.max_tokens,
                     timeout=self.config.timeout_seconds,
-                    seed=self.config.seed,
+                    seed=self.config.seed if seed is None else seed,
                     frequency_penalty=self.config.frequency_penalty,
                 )
             except PermanentModelError:
