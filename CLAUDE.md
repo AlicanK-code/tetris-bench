@@ -141,9 +141,3 @@ uv run python analysis/null_arm.py --runs 0                  # build prompts, no
 - Never commit API keys; read them from environment variables (`.env` is gitignored).
 - Every experiment run is reproducible from its config file + seed list.
 - Keep prompts in versioned template files, not inline strings, so prompt changes are traceable.
-
-## Working with me
-
-- I'm building Python fluency, so explain non-obvious design choices briefly and prefer clear code over clever code.
-- Propose a plan before large changes; keep commits small and focused per milestone.
-- Ask before adding new dependencies.

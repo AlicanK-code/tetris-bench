@@ -6,6 +6,10 @@ __pycache__/
 # Secrets
 .env
 
+# Local instructions to Claude Code: the working-style preferences that used
+# to live in CLAUDE.md, kept out of the public repo but still read here.
+CLAUDE.local.md
+
 # Run outputs: JSONL logs and model-generated scoring functions.
 #
 # `runs/*` rather than `runs/`, because git does not descend into an excluded

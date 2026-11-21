@@ -428,5 +428,12 @@ the generated functions as artifacts:
   a full arm: a model call per turn at ~500 turns per game is enormous for a
   result the prior work already reports, so one short game to show the failure
   mode and the cost ratio is the whole value.
-- A `runs/` directory is gitignored, so the artifacts the findings cite are not
-  in this repo yet.
+The artifacts behind every finding above *are* in the repo, under
+[`runs/published/`](runs/published/) -- the generated functions plus the prompt,
+reasoning trace and raw reply that produced each one, so the claims can be
+checked rather than taken on trust. Working output stays gitignored.
+
+## Licence
+
+[MIT](LICENSE). The heuristic baseline weights are from Yiyuan Lee's 2013 post,
+credited in [Agent design notes](#agent-design-notes).
