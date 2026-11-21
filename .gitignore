@@ -9,6 +9,11 @@ __pycache__/
 # Run outputs: JSONL logs and model-generated scoring functions
 runs/
 
+# Generated figures. Reproducible from a log with `analysis/plots.py`, so the
+# PNGs are an output of the run rather than a source of it; committing them also
+# risks a figure drawn from a synthetic or stale log outliving its data.
+analysis/figures/
+
 # Tooling caches
 .pytest_cache/
 .ruff_cache/
