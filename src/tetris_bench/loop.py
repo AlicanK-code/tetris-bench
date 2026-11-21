@@ -222,19 +222,28 @@ class MultiOutcome:
 def play_on_seeds(source: str, seeds: tuple[int, ...], config: LoopConfig) -> MultiOutcome:
     """Play one function on every given sequence.
 
-    A rejection or a crash is a property of the source, not of a sequence, so the
-    first such result short-circuits the rest rather than repeating it.
+    A **rejection** is a property of the source: the AST validator refuses it
+    without reference to any board, so the first rejection short-circuits the
+    rest rather than repeating a verdict that cannot change.
+
+    A **crash** is not. The host's batch deadline depends on how many placements
+    a board offers and how long the function takes on them, so a wedge is
+    board-dependent and therefore sequence-dependent. This used to discard every
+    game already played, which did two bad things: it logged a function that had
+    played two sequences well as a row of zeroes, and it told the model "no game
+    could be completed and there are no results to report" -- untrue, and it
+    withheld the only evidence available for diagnosing a board-dependent wedge.
+    So a crash now stops the remaining sequences but keeps what finished.
     """
     multi = MultiOutcome(source=source)
     for seed in seeds:
         outcome = play_function(source, seed, config)
-        if outcome.rejected or outcome.crashed:
-            return MultiOutcome(
-                source=source,
-                rejected=outcome.rejected,
-                crashed=outcome.crashed,
-                reason=outcome.reason,
-            )
+        if outcome.rejected:
+            return MultiOutcome(source=source, rejected=True, reason=outcome.reason)
+        if outcome.crashed:
+            multi.crashed = True
+            multi.reason = outcome.reason
+            break
         multi.per_seed[seed] = outcome
     return multi
 
@@ -287,7 +296,10 @@ def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
     Accepts a single game (used by the analysis scripts) or a set of games across
     training sequences (used by the loop).
     """
-    if isinstance(outcome, MultiOutcome) and not (outcome.rejected or outcome.crashed):
+    # Report the games that finished whenever there are any, even if a later
+    # sequence then wedged. Only a rejection -- where nothing ran at all -- has
+    # no results to show. The crash is appended as a note below.
+    if isinstance(outcome, MultiOutcome) and outcome.results and not outcome.rejected:
         worst = outcome.worst
         collector = worst.collector if worst else None
         final_board = worst.final_board if worst else None
@@ -296,7 +308,7 @@ def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
             if collector is not None and final_board is not None
             else []
         )
-        return MultiSeedFeedback(
+        rendered = MultiSeedFeedback(
             results=outcome.results,
             diagnostics=outcome.diagnostics,
             snapshots=snapshots,
@@ -304,6 +316,18 @@ def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
             sandbox_errors=outcome.sandbox_errors,
             reference_score=config.reference_score,
         ).render()
+        if outcome.crashed:
+            # Still a symptom, not a diagnosis: it says the run stopped and on
+            # which sequence, not why. That a wedge happened on some boards and
+            # not others is information the model needs and can act on.
+            rendered += (
+                "\n\n## One sequence stopped early\n\n"
+                f"- after the games above, your function stopped responding and "
+                f"that game was abandoned: {outcome.reason}\n"
+                "- the remaining sequences were not played, so the table above "
+                "is shorter than usual"
+            )
+        return rendered
 
     if outcome.rejected:
         return (
@@ -345,11 +369,18 @@ def build_prompt(config: LoopConfig, previous: Outcome | MultiOutcome | None) ->
     if previous is None:
         feedback_section = ""
     else:
+        # An unparseable reply leaves no source to show. Printing the heading
+        # with an empty code block under it tells the model it wrote something
+        # blank, which is both false and unactionable.
+        wrote = (
+            f"## The function you wrote\n\n```python\n{previous.source}```\n\n"
+            if previous.source.strip()
+            else ""
+        )
         feedback_section = (
             "## How your last attempt went\n\n"
             f"{feedback_text(previous, config)}\n\n"
-            "## The function you wrote\n\n"
-            f"```python\n{previous.source}```\n\n"
+            f"{wrote}"
             "Write an improved version below. You may keep whatever worked, "
             "change whatever did not, and restructure freely.\n"
         )
@@ -410,6 +441,55 @@ def completed_positions(
     if not required:
         return set(seen)
     return {key for key, seeds in seen.items() if required <= seeds}
+
+
+def unplayed_positions(log_path: Path, model: str) -> set[tuple[int, int]]:
+    """Positions the log holds whose function never played a game.
+
+    An unparseable reply is logged as an invalid output and the loop moves on
+    *without* saving a ``.py`` file, because the reply contained no Python to
+    save. On resume such a position counts as complete but has no artifact, and
+    the skip branch's replay would raise ``RuntimeError`` -- bricking the resume
+    of a multi-hour run until someone hand-edited the JSONL. These positions
+    need skipping without a replay, which matches the live branch: nothing
+    played, so there is nothing to carry forward.
+
+    The genuine log/artifact disagreement that ``RuntimeError`` was written for
+    is still an error; this only excuses the case the log itself explains.
+    """
+    if not Path(log_path).exists():
+        return set()
+    played: dict[tuple[int, int], bool] = {}
+    for row in read_records(log_path):
+        if row.get("model") != model or row.get("mode") != "strategy":
+            continue
+        key = (row.get("chain", 0), row.get("iteration", -1))
+        played[key] = played.get(key, False) or bool(row.get("played", True))
+    return {key for key, ever_played in played.items() if not ever_played}
+
+
+def logged_eval_seeds(log_path: Path, model: str) -> dict[tuple[int, int], set[int]]:
+    """Which evaluation sequences each position already has rows for.
+
+    ``completed_positions`` counts only training rows, so a run killed between
+    the training and evaluation writes leaves a position marked done with its
+    held-out games missing or half-written. That is permanent: resume skips it
+    and never fills the gap, and the curve -- which is read from evaluation rows
+    -- then carries either an unmarked zero or a mean over three seeds pooled
+    with means over ten. Replaying the saved function to top up the missing
+    seeds costs under a second and needs no model call.
+    """
+    if not Path(log_path).exists():
+        return {}
+    seeds: dict[tuple[int, int], set[int]] = {}
+    for row in read_records(log_path):
+        if row.get("model") != model or row.get("mode") != "strategy":
+            continue
+        if row.get("split") != "eval":
+            continue
+        key = (row.get("chain", 0), row.get("iteration", -1))
+        seeds.setdefault(key, set()).add(row.get("seed", -1))
+    return seeds
 
 
 def positions(config: LoopConfig) -> Iterator[Position]:
@@ -473,6 +553,8 @@ def run_loop(
     """Run the sweep, appending a record per game and skipping completed work."""
     say = on_progress if callable(on_progress) else (lambda _m: None)
     done = completed_positions(config.log_path, config.model, config.train_seeds)
+    unplayed = unplayed_positions(config.log_path, config.model)
+    have_eval = logged_eval_seeds(config.log_path, config.model)
 
     previous: Outcome | MultiOutcome | None = None
     current_chain: int | None = None
@@ -482,19 +564,56 @@ def run_loop(
             current_chain, previous = position.chain, None
 
         if (position.chain, position.iteration) in done:
+            key = (position.chain, position.iteration)
             path = config.functions_dir / f"{position.stem(config.model)}.py"
+
+            # The artifact decides, not the `played` flag. A *rejected* or
+            # *crashed* position has every row flagged unplayed and yet has a
+            # saved file, because the source is written before it is played. An
+            # earlier version checked `unplayed` first and so skipped the replay
+            # for those, leaving the next iteration to be built from a stale
+            # `previous` -- or from `None`, which sends a bare iteration-0 prompt
+            # numbered as a later iteration. The same chain then produced a
+            # different prompt depending on whether it had been resumed, which
+            # is the confound f840a10 was written to remove.
             if not path.exists():
-                # Falling through would append a second set of records for a
-                # position the log already holds, and any per-position analysis
-                # would double-count it. The log and the saved functions have to
-                # agree, so say so plainly instead.
+                if key in unplayed:
+                    # An unparseable reply held no Python to save, so the log
+                    # itself explains the missing file. Nothing played, so leave
+                    # `previous` alone, exactly as the live branch does.
+                    say(f"skip  {position.stem(config.model)} (logged as an invalid output)")
+                    continue
+                # A genuine log/artifact disagreement. Falling through would
+                # append a second set of records for a position the log already
+                # holds, and any per-position analysis would double-count it.
                 raise RuntimeError(
                     f"{config.log_path} has records for {position.stem(config.model)} "
                     f"but {path} is missing, so its feedback cannot be reconstructed. "
                     f"Restore the file, or start a fresh log to re-run from scratch."
                 )
-            previous = play_on_seeds(path.read_text(), config.train_seeds, config)
-            say(f"skip  {position.stem(config.model)} (already in the log)")
+            source = path.read_text()
+            previous = play_on_seeds(source, config.train_seeds, config)
+
+            # Top up any held-out games the log is missing. A kill between the
+            # training and evaluation writes would otherwise leave this position
+            # permanently short, and the curve is read from these rows.
+            missing = tuple(s for s in config.eval_seeds if s not in have_eval.get(key, set()))
+            if missing:
+                replayed = play_on_seeds(source, missing, config)
+                _log_multi(config, position, replayed, ModelUsage(), "eval")
+                # The count of games actually recovered, not of games attempted.
+                # A function that wedges on a particular sequence wedges on it
+                # every time, so a top-up can legitimately recover nothing and
+                # must not claim otherwise on each resume.
+                recovered = len(replayed.per_seed)
+                note = (
+                    f"recovered {recovered} of {len(missing)} missing held-out game(s)"
+                    if recovered
+                    else f"could not recover {len(missing)} held-out game(s): {replayed.reason}"
+                )
+                say(f"skip  {position.stem(config.model)} (already in the log; {note})")
+            else:
+                say(f"skip  {position.stem(config.model)} (already in the log)")
             continue
 
         client.reset_usage()
@@ -523,7 +642,7 @@ def run_loop(
         generated.save(config.functions_dir, position.stem(config.model))
         multi = play_on_seeds(generated.source, config.train_seeds, config)
 
-        if multi.rejected or multi.crashed:
+        if multi.rejected or (multi.crashed and not multi.per_seed):
             failure = Outcome(
                 source=generated.source,
                 rejected=multi.rejected,
@@ -538,10 +657,38 @@ def run_loop(
 
         _log_multi(config, position, multi, client.usage, "train")
 
+        if multi.crashed:
+            # Some sequences finished and a later one wedged. Logging the whole
+            # position as zeros -- which is what this did -- discarded real
+            # games and left the log contradicting the feedback the model was
+            # shown, which truthfully reported them. So the finished games are
+            # logged above and only the sequences that never ran are zeroed
+            # here, and the held-out games below still get played.
+            stopped = Outcome(source=generated.source, crashed=True, reason=multi.reason)
+            for seed in config.train_seeds:
+                if seed not in multi.per_seed:
+                    append_record(
+                        config.log_path,
+                        _record(position, config, stopped, ModelUsage(), seed, "train"),
+                    )
+            say(
+                f"iter {position.iteration} chain {position.chain}: CRASHED after "
+                f"{len(multi.per_seed)} of {len(config.train_seeds)} sequences - {multi.reason}"
+            )
+
         # Evaluation games cost under a second each and the model never sees
         # their outcomes, so this is the curve's variable at no generation cost.
         evaluation = play_on_seeds(generated.source, config.eval_seeds, config)
         _log_multi(config, position, evaluation, ModelUsage(), "eval")
+        if len(evaluation.results) < len(config.eval_seeds):
+            # The curve is read from these rows, so a short set has to be
+            # visible rather than averaged quietly. A rerun tops it up from the
+            # saved artifact; see logged_eval_seeds.
+            say(
+                f"      WARNING: {len(evaluation.results)} of "
+                f"{len(config.eval_seeds)} held-out games logged"
+                f"{' - ' + evaluation.reason if evaluation.reason else ''}"
+            )
 
         say(
             f"iter {position.iteration} chain {position.chain}: "
