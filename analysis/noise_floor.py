@@ -95,7 +95,32 @@ def one_run(
     return row
 
 
-def report(rows: list[dict]) -> None:
+def reference_line(seed: int, max_pieces: int) -> str:
+    """Play the reference agents on this exact game, rather than quote a literal.
+
+    This used to be a hardcoded string, `heuristic 21600 / naive 2100 /
+    random 0`, and both halves rotted: the piece budget changed from 500 to
+    2000, which moved the heuristic's score by a factor of four, and no `naive`
+    agent was ever implemented -- the number survived only in print statements
+    like this one. A reference that is computed cannot drift away from the run
+    it is printed beside, and these games cost a second or two of CPU with no
+    model involved.
+    """
+    from tetris_bench.agents.heuristic import heuristic_agent
+    from tetris_bench.agents.random_agent import RandomAgent
+
+    scores = {}
+    for name, agent in (("heuristic", heuristic_agent()), ("random", RandomAgent(seed=0))):
+        outcome = play_game(Game(seed=seed, max_pieces=max_pieces), agent)
+        capped = " (censored)" if outcome.cause == "piece_limit" else ""
+        scores[name] = f"{outcome.score:,}{capped}"
+    return (
+        f"reference on seed {seed} at {max_pieces} pieces: "
+        f"heuristic {scores['heuristic']} / random {scores['random']}"
+    )
+
+
+def report(rows: list[dict], seed: int, max_pieces: int) -> None:
     """Summarise the spread."""
     print(f"\n{'=' * 72}\nnoise floor\n{'=' * 72}")
 
@@ -148,7 +173,7 @@ def report(rows: list[dict]) -> None:
     print(f"generation seconds   {[round(r['generation_seconds']) for r in rows]}")
     print(f"output tokens        {[r['tokens_out'] for r in rows]}")
     print()
-    print("reference, same game seed: heuristic 21600 / naive 2100 / random 0")
+    print(reference_line(seed, max_pieces))
 
 
 def main() -> None:
@@ -176,7 +201,7 @@ def main() -> None:
         one_run(index, config, args.template, args.seed, args.max_pieces, args.save_dir)
         for index in range(1, args.runs + 1)
     ]
-    report(rows)
+    report(rows, args.seed, args.max_pieces)
 
 
 if __name__ == "__main__":

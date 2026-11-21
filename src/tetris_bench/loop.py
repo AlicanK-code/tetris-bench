@@ -535,6 +535,18 @@ def model_seed_for(base: int | None, chain: int) -> int | None:
 
 
 def _sha(source: str) -> str:
+    """Short digest of a generated function, or `""` when there is no function.
+
+    The empty case is not hypothetical: a position whose reply could not be
+    parsed, or whose call failed outright, is logged with `source=""`. Hashing
+    that returns `e3b0c44298fc` -- the digest of the empty string -- which looks
+    exactly like a real function id in the log, is identical across every such
+    row, and would make two unrelated failures appear to share a function.
+    `""` is what the field already defaults to for "no function", so it says
+    the right thing and needs no schema change.
+    """
+    if not source:
+        return ""
     return hashlib.sha256(source.encode()).hexdigest()[:12]
 
 

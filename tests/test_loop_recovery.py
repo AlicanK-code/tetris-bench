@@ -635,3 +635,22 @@ class TestAFailedCallDoesNotKillTheRun:
         client = self.failing_client(fail_on={1})
         loop_module.run_loop(client, config, on_progress=lambda _m: None)
         assert client.calls == 2
+
+
+class TestFunctionShaOfNothing:
+    """A failed position has no function, and must not be given one."""
+
+    def test_a_missing_function_gets_no_sha(self) -> None:
+        """`e3b0c44298fc` is the digest of the empty string, not a function id."""
+        assert loop_module._sha("") == ""
+
+    def test_two_unrelated_failures_do_not_appear_to_share_a_function(self) -> None:
+        """Hashing "" gave every failed row the same plausible-looking id."""
+        assert loop_module._sha("") == loop_module._sha("")
+        assert loop_module._sha("") != "e3b0c44298fc"
+
+    def test_a_real_function_still_hashes(self) -> None:
+        first = loop_module._sha("def score(b, p):\n    return 1.0\n")
+        second = loop_module._sha("def score(b, p):\n    return 2.0\n")
+        assert len(first) == 12
+        assert first != second
