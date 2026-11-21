@@ -28,13 +28,20 @@ packages = ["src/tetris_bench"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-# Two kinds of Markdown hold Python that must not be reformatted:
-#   - prompt templates are data a model reads, and rewriting the code in their
+# Three places hold Python that must not be reformatted, all for one reason:
+# it is data, not source.
+#   - prompt templates are read by a model, and rewriting the code in their
 #     fences silently changes the instructions it is given;
 #   - findings documents quote model-written code as evidence, so reformatting it
-#     misrepresents what the model actually produced.
-# `ruff format` rewrites Python inside Markdown fences, so both are excluded.
-extend-exclude = ["src/tetris_bench/prompts/", "docs/"]
+#     misrepresents what the model actually produced;
+#   - runs/ holds the model-written functions themselves, published as the
+#     evidence behind those documents. They are verbatim output and must stay
+#     byte-for-byte as generated. `uv run ruff format .` is in the README's
+#     setup block, so without this exclusion a routine format run would quietly
+#     rewrite the artifacts -- and linting them produces nothing but noise,
+#     since a model is not asked for type annotations or a 100-column limit.
+# `ruff format` rewrites Python inside Markdown fences too, hence the first two.
+extend-exclude = ["src/tetris_bench/prompts/", "docs/", "runs/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
