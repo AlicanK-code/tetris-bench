@@ -17,9 +17,10 @@ zero, so the headline cost measures are tokens and wall-clock seconds.
 
 ## Status
 
-Milestones 1-6 of 8 complete: the engine, baseline agents, rendering and run
-records, the model client, the sandboxed strategy agent, and the improvement
-loop, with 502 unit tests.
+The engine, baseline agents, rendering and run records, the model client, the
+sandboxed strategy agent, the improvement loop and the analysis all work, under
+591 unit tests. What is not finished is the measurement: see
+[Results](#results) for what is established and what is still running.
 
 | # | Milestone | State |
 |---|-----------|-------|
@@ -29,8 +30,8 @@ loop, with 502 unit tests.
 | 4 | Model client (OpenAI-compatible, local + cloud) | **done** |
 | 5 | Strategy agent + sandbox | **done** |
 | 6 | Improvement loop | **done** |
-| 7 | Direct agent | not started |
-| 8 | Analysis (curves, ladder gap, tokens/seconds per point) | not started |
+| 7 | Direct agent | cut to a demonstration, see [Results](#results) |
+| 8 | Analysis (curves, ladder gap, tokens/seconds per point) | **done**; the ladder has no data yet |
 
 ## Setup
 
@@ -38,12 +39,15 @@ Requires [uv](https://docs.astral.sh/uv/); uv supplies Python itself, pinned to
 3.13 in `.python-version`.
 
 ```bash
-uv sync
+uv sync --all-extras
 uv run pytest
 uv run ruff check . && uv run ruff format .
 ```
 
-Milestone 8 needs the analysis extras: `uv sync --extra analysis`.
+**Use `--all-extras`, not one extra at a time.** `uv sync` resolves the
+environment to exactly what is asked for, so `uv sync --extra analysis`
+*uninstalls* the `llm` extra and leaves the model client missing. Both are
+needed on the same machine, because a run is played and then plotted.
 
 ## Engine design notes
 
@@ -62,52 +66,68 @@ additive to undo later.
   match SRS numbering. The payoff is that a model is never offered the same move
   twice as if it were a real choice.
 - **A piece budget, not a time limit.** A game ends on `block_out` (the next
-  piece has nowhere to land) or `piece_limit`, default 500. A competent
-  heuristic stacks cleanly more or less forever, so without a cap a run would
-  never finish; capping pieces rather than wall-clock time also keeps every
-  model's game the same length.
+  piece has nowhere to land) or `piece_limit`, default 2000. A competent
+  heuristic stacks cleanly for a very long time -- the reference one averages
+  10,467 pieces and varies by more than its own mean -- so without a cap a run
+  takes an unpredictable length of time; capping pieces rather than wall-clock
+  time also keeps every model's game the same length. The budget makes `score` a
+  **censored** measure, which matters more than it sounds -- see
+  [Reference baselines](#reference-baselines).
 
 Line scores are the classic 100 / 300 / 500 / 800 for 1-4 rows, with no level
 multiplier since there is no gravity to speed up.
 
 ## Reference baselines
 
-Three reference players, all at the default 500-piece budget. These are what the
-LLM agents get measured against.
+Two reference players, on the 20 held-out seeds the improvement curve is read
+from, at the default 2000-piece budget.
 
-| agent | what it does | mean score | mean pieces |
-|-------|--------------|-----------:|------------:|
-| random | uniform over legal placements | 0 | 24 |
-| naive | drops each piece as deep as it will go | 1,675 | 83 |
-| heuristic | Lee's 2013 weights, 1-ply | **21,450** | **500** |
+| agent | what it does | mean score | mean pieces | points/piece | lines/piece | censored |
+|-------|--------------|-----------:|------------:|-------------:|------------:|---------:|
+| random | uniform over legal placements | 10 | 26 | 0.4 | 0.00 | 0/20 |
+| heuristic | Lee's 2013 weights, 1-ply | 76,040 | 1,762 | **43.2** | **0.40** | 14/20 |
 
-Per seed:
+**The heuristic's total score is nearly unmeasurable, and that changes how
+everything else gets quoted.** Run it to exhaustion -- a 50,000-piece budget,
+where it dies on its own on all 20 seeds -- and it averages 454,900 points over
+10,467 pieces with a standard deviation of **470,079**. A coefficient of
+variation above 100% means a single game says almost nothing, and pinning the
+mean to even 10% would take hundreds of games.
 
-| agent | seed | pieces | lines | score | final holes | avg height | ended by |
-|-------|-----:|-------:|------:|------:|------------:|-----------:|----------|
-| random | 1 | 23 | 0 | 0 | 81 | 11.6 | block_out |
-| random | 2 | 25 | 0 | 0 | 91 | 14.1 | block_out |
-| random | 17 | 25 | 0 | 0 | 88 | 13.2 | block_out |
-| random | 123 | 25 | 0 | 0 | 93 | 13.3 | block_out |
-| naive | 1 | 95 | 21 | 2,100 | - | - | block_out |
-| naive | 2 | 55 | 5 | 500 | - | - | block_out |
-| naive | 17 | 111 | 28 | 2,800 | - | - | block_out |
-| naive | 123 | 72 | 12 | 1,300 | - | - | block_out |
-| heuristic | 1 | 500 | 197 | 21,600 | 2 | 6.9 | piece_limit |
-| heuristic | 2 | 500 | 198 | 21,200 | 1 | 4.0 | piece_limit |
-| heuristic | 17 | 500 | 195 | 21,200 | 4 | 4.8 | piece_limit |
-| heuristic | 123 | 500 | 194 | 21,800 | 5 | 5.3 | piece_limit |
+Its *rate*, meanwhile, is 43.5 points per piece, and holds at 43.2-43.5 across
+every budget tried: 500, 2,000, 20,000, 50,000. One of these two numbers is a
+usable comparator and the other is not.
 
-The random agent never clears a single line before dying, which makes it a floor
-rather than a competitor. The heuristic reaches the piece budget on every seed
-with 1-5 holes and an average stack height under 7 -- it is not dying, it is
-being stopped by the cap, so the cap is what bounds the score.
+At the 2000-piece budget runs actually use, the heuristic is censored on 14 of
+20 seeds, so its total there is a lower bound and "beat 21,600" was really "beat
+the 500-piece budget". A censored agent also looks *more* consistent than it is,
+because the cap truncates exactly the games that would have run long -- which is
+why the +/- 21,065 at the 2000-piece budget understates the +/- 470,079 that is
+really there.
 
-Reproduce any row with:
+So the benchmark reports two separable things and declines to collapse them:
+
+- **survival** -- does the agent die, and after how many pieces?
+- **rate** -- points and lines per piece *while alive*, the only figure that
+  survives a change of budget.
+
+That separation is what makes the headline in [Results](#results) legible: the
+best model-written function reached 92% of the heuristic's *rate* while dying
+after 626 pieces. Those are two different failures, and the ratio of two
+truncated totals hid both.
 
 ```bash
+uv run python analysis/baseline_ceiling.py
+uv run python analysis/baseline_ceiling.py --max-pieces 20000 --seeds 5
 uv run tetris-bench play --agent heuristic --seed 1
 ```
+
+The random agent never clears a line on most seeds, which makes it a floor
+rather than a competitor. Earlier revisions of this table carried a third
+"naive" row -- drop each piece as deep as it will go, ~1,675 points. It is gone
+because no such agent exists in the codebase, so the row could not be reproduced
+from this repo; a few `analysis/` scripts still print the figure as a hardcoded
+reference literal.
 
 ## Agent design notes
 
@@ -231,7 +251,7 @@ the provider is configuration rather than code and swapping a 30B local model fo
 a frontier one is a config edit.
 
 ```bash
-uv sync --extra llm
+uv sync --all-extras
 uv run tetris-bench models
 ```
 
@@ -263,10 +283,22 @@ file that produced it.
 reproducible.** Measured: two runs of a byte-identical prompt at temperature 0
 with a fixed seed produced different functions on the 4B and on the 30B, where
 the two scored 0 and 1,700. The seed is honoured, so sampling is not the cause;
-floating-point non-associativity is, and no seed removes it. The 14B *is*
-reproducible. Reproducibility is a property of the (model, prompt) pair and is
-measured per rung -- see [docs/findings/](docs/findings/). The engine itself is
-provably deterministic; this is entirely model-side.
+floating-point non-associativity is, and no seed removes it. Reproducibility is
+a property of the (model, prompt) pair and is measured per rung -- see
+[docs/findings/](docs/findings/). The engine itself is provably deterministic;
+this is entirely model-side.
+
+**The temperature-0 default is also why `--chains` needs overriding.** Greedy
+decoding takes the argmax at every step and never draws from the RNG, so a
+per-chain seed has no random number to index: measured, three seeds at
+temperature 0 return one byte-identical generation, and at 1.0 return three
+different ones. A multi-chain sweep at temperature 0 therefore draws **one**
+sample and pays N times for it -- which a five-chain run discovered the
+expensive way, with four of its five chains byte-identical. The `qwen3-14b`
+entry sets `temperature: 0.7` for this reason, and the cost is smaller than it
+looks: a *fixed* seed still gives bit-identical output there, so reproducibility
+moves from `prompt -> output` to `(prompt, seed) -> output`, and the former was
+already unavailable on this rung regardless.
 
 **Transient failures are retried in the client**, with exponential backoff capped
 at 30s, so callers only handle *semantic* failures: output that will not parse, a
@@ -297,4 +329,104 @@ features are unavailable through a compatibility layer.
 
 ## Results
 
-To follow, once there are any.
+All figures below are `qwen3:14b` in `strategy` mode, read from **held-out**
+seeds the model never saw outcomes for, at zero dollars.
+
+### The improvement curve exists, and so does the regression
+
+One chain, six iterations, mean score over 10 unseen seeds:
+
+| iteration | held-out score | pieces | what changed |
+|----------:|---------------:|-------:|--------------|
+| 0 | 20 | 15 | first attempt, inverted height signs |
+| 1 | 2,290 | 98 | reweighted, did not debug |
+| 2 | 2,130 | 93 | reweighted again |
+| 3 | 470 | 52 | inverted heights *and* minus signs |
+| 4 | **25,180** | **626** | flipped the signs to plus |
+| 5 | 6,850 | 185 | "fixed" the definition, broke three terms |
+
+20 to 25,180 over four revisions is a real gain, and so is the 73% fall that
+follows the peak. Whole run: 51,627 tokens, 4,121 seconds, **$0**.
+
+**Read this curve with the caveat the tooling prints itself.** It is one chain,
+so it cannot see generation noise, and `curves.py` says so: *"one chain cannot
+see generation noise, so the bar above is known to be too lenient."* Generation
+noise is demonstrably large -- two runs of an identical iteration-0 prompt
+scored 1,580 and 20. A five-chain sweep is what settles whether "this model
+improves" is a claim this benchmark can make; until it finishes, the defensible
+results are the mechanisms below.
+
+### The strongest result is a credit-assignment failure
+
+Verified by replaying the saved functions, not inferred from the scores:
+
+1. Iteration 3 measured column height as a **row index** on a board whose row 0
+   is the top, then subtracted it -- rewarding tall stacks. Score 470.
+2. Iteration 4 flipped those signs to plus. Behaviourally correct, and it
+   worked: 25,180. But the definition was still wrong; only the sign was fixed.
+3. Iteration 5 corrected the *definition* instead, counting filled cells
+   downward from row 0 with a `break`. On any board with an empty top row that
+   returns 0 for every column, zeroing three of five terms. Score 6,850, and it
+   blocked out on all ten seeds.
+
+So the model fixed its bug by accident and then broke it again by correcting the
+accident. Given only outcome feedback it never located the actual defect, and
+that is the ability this benchmark set out to measure.
+
+### Rate versus survival
+
+Iteration 4 against the hand-written heuristic, on the same held-out seeds:
+
+| | points/piece | pieces survived |
+|---|---:|---:|
+| heuristic (Lee 2013) | 43.5 | 10,467 |
+| best model function | 40.2 | 626 |
+
+**About 92% of the heuristic's scoring rate, and 6% of its survival.** The model
+learned to clear lines about as efficiently as a tuned hand-written heuristic
+and never learned to stay alive. Quoting totals alone would have called this
+"69% of the heuristic" and hidden both halves -- see
+[Reference baselines](#reference-baselines).
+
+```bash
+uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
+```
+
+### Findings with their own write-ups
+
+Each of these is a separate experiment in [docs/findings/](docs/findings/), with
+the generated functions as artifacts:
+
+- **The first revision reweights instead of debugging.** Two independent
+  revisions kept a broken hole count character-for-character and changed only
+  weights. Held-out performance flat.
+- **A feature-level counterexample fixed what outcome feedback could not** --
+  on one trace board in three, so it does not generalise, and the write-up says
+  so.
+- **Held-out seeds are mandatory.** A fixed, deterministic function varies
+  85-348% across unseen seeds. One training-seed score of 400 turned out to be
+  that function's luckiest case out of 21, with a held-out mean of 110.
+- **Greedy decoding makes a reasoning loop permanent.** The 14B failed to
+  terminate on three consecutive attempts, emitting 22,223 tokens with context
+  to spare, because Ollama ships temperature 0 with every anti-repetition
+  sampler off. In that configuration a loop is *absorbing* and a longer timeout
+  just buys a longer loop. A frequency penalty cut the same generation to 7,152
+  tokens.
+- **At temperature 0 a per-chain seed is inert**, so a five-chain run was four
+  copies of one sample.
+- **Noise floors** for two rungs, and a **null arm** showing what the curve
+  looks like with no feedback at all.
+
+### Not done
+
+- **The five-chain sweep** that decides whether the curve survives generation
+  noise. Running.
+- **The capability ladder.** Only the 14B has ever been through the loop; 4B, 8B
+  and 30B are configured and unrun, so the "does a small model close on a large
+  one" question has no data.
+- **Milestone 7, the direct agent**, cut to a planned demonstration rather than
+  a full arm: a model call per turn at ~500 turns per game is enormous for a
+  result the prior work already reports, so one short game to show the failure
+  mode and the cost ratio is the whole value.
+- A `runs/` directory is gitignored, so the artifacts the findings cite are not
+  in this repo yet.

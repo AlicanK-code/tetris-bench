@@ -5,11 +5,17 @@ had better mean something. It turns out the obvious way to quote it does not.
 
 **Score is a censored measure.** A game stops at the piece budget, so an agent
 that survives the budget does not report how good it is -- it reports how long
-it was allowed to play. The heuristic baseline is the extreme case: it survives
-20,000 pieces for 876,000 points with no sign of dying, so there is no cap at
-which it yields a finite ceiling. "The heuristic scores 21,600" is really "the
-heuristic scores 21,600 *per 500 pieces*", and raising the budget raises the
-number without the agent having changed at all.
+it was allowed to play. "The heuristic scores 21,600" is really "the heuristic
+scores 21,600 *per 500 pieces*", and raising the budget raises the number
+without the agent having changed at all.
+
+**And uncensoring it does not rescue the total.** Run the heuristic to
+exhaustion -- 50,000 pieces, where it dies on its own on all 20 held-out seeds
+-- and it averages 454,900 points with a standard deviation of 470,079. A
+coefficient of variation above 100% means one game says almost nothing and the
+mean would need hundreds of games to pin down. Its rate over the same seeds is
+43.5 points per piece, and holds between 43.2 and 43.5 at every budget from 500
+to 50,000. The total is real but useless; the rate is the comparator.
 
 So this script reports two separable things, and refuses to collapse them:
 
@@ -23,9 +29,9 @@ of cap.
 Keeping them apart matters for the headline. Measured at the time of writing,
 the best function the loop has produced scores 40.2 points per piece against
 the heuristic's 43.5 -- about 92% of the rate -- while dying after 626 pieces
-where the heuristic is effectively immortal. Quoting totals alone would have
-called that "69% of the heuristic" and buried the actual finding, which is that
-the model matched the heuristic's scoring efficiency and failed entirely at
+against the heuristic's 10,467, about 6%. Quoting totals alone would have called
+that "69% of the heuristic" and buried the actual finding, which is that the
+model matched the heuristic's scoring efficiency and failed almost entirely at
 staying alive.
 
     uv run python analysis/baseline_ceiling.py

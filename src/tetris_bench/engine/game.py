@@ -39,9 +39,14 @@ DEFAULT_MAX_PIECES = 2000
 An agent that survives the budget has its score decided by the budget rather
 than by its own quality: it stops at the cap with points still on the table, and
 the number recorded is a lower bound. The classic heuristic baseline is the
-clear case -- it survives 20,000 pieces for 876,000 points and shows no sign of
-dying, so no cap gives it a finite "ceiling" at all. Its total is `budget x
-rate`, nothing more.
+clear case -- at this cap it is censored on 14 of 20 held-out seeds, so its
+total there is `budget x rate` and not a measure of the agent.
+
+Raising the cap far enough does uncensor it (it dies on its own by 50,000
+pieces, averaging 10,467) but does not make the total useful: the spread is
++/- 470,079 around a mean of 454,900, so one game says almost nothing. Its rate
+holds at 43.2-43.5 points per piece at every budget from 500 to 50,000. That is
+why `analysis/baseline_ceiling.py` reports survival and rate separately.
 
 2000 rather than 500 because 500 was censoring the one result worth having. The
 best function the loop has produced was cut off on 5 of 10 held-out seeds, and
