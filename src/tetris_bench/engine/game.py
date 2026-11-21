@@ -32,7 +32,30 @@ learns to build for multi-line clears instead of chipping away one row at a time
 """
 
 DEFAULT_PREVIEW = 5
-DEFAULT_MAX_PIECES = 500
+
+DEFAULT_MAX_PIECES = 2000
+"""Pieces before a game is cut short, which makes `score` a **censored** measure.
+
+An agent that survives the budget has its score decided by the budget rather
+than by its own quality: it stops at the cap with points still on the table, and
+the number recorded is a lower bound. The classic heuristic baseline is the
+clear case -- it survives 20,000 pieces for 876,000 points and shows no sign of
+dying, so no cap gives it a finite "ceiling" at all. Its total is `budget x
+rate`, nothing more.
+
+2000 rather than 500 because 500 was censoring the one result worth having. The
+best function the loop has produced was cut off on 5 of 10 held-out seeds, and
+replaying it uncensored moved its mean from 14,860 to 25,180 -- the cap was
+hiding 41% of it. Measured by replaying every saved function from the clean
+six-iteration run at both caps: iteration 4 was the only one affected, it dies
+on its own at 2000 on all ten seeds (mean 626 pieces), and raising the cap to
+5000 gives bit-identical results, so this is sufficient headroom and not a
+guess.
+
+The cost is negligible, because games are cheap next to generation: ten
+held-out games went from 4.0s to 6.7s. Dying agents are unaffected either way --
+a function that blocks out at 20 pieces never sees the cap.
+"""
 
 
 class Game:

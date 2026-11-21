@@ -48,7 +48,7 @@ from tetris_bench.agents.strategy import (
 )
 from tetris_bench.clients.client import ModelClient
 from tetris_bench.engine.board import Board
-from tetris_bench.engine.game import Game
+from tetris_bench.engine.game import DEFAULT_MAX_PIECES, Game
 from tetris_bench.feedback import (
     MultiSeedFeedback,
     SnapshotCollector,
@@ -108,7 +108,9 @@ class LoopConfig:
     #: One chain is right for a reproducible rung; a nondeterministic one needs
     #: several before a difference between iterations is meaningful.
     chains: int = 1
-    max_pieces: int = 500
+    #: Deferred to the engine's default rather than restated, so the budget has
+    #: one definition. See the note there on why score is a censored measure.
+    max_pieces: int = DEFAULT_MAX_PIECES
     per_call_seconds: float = 1.0
     #: One template for every iteration. The feedback block is empty at
     #: iteration 0 and populated afterwards, so the feedback is the *only*

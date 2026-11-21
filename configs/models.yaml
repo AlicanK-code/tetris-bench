@@ -84,6 +84,30 @@ models:
     max_tokens: 14000
     seed: 1
 
+    # Above zero, and that is a deliberate break with the project's default.
+    #
+    # The reason is that `chains` does not work without it. At temperature 0 the
+    # sampler takes the argmax at every step and never draws from the RNG, so
+    # the per-chain seed has no random number to index: measured, three seeds at
+    # temperature 0 return one byte-identical generation. The first five-chain
+    # run proved it the expensive way -- chains 1-4 came back byte-identical,
+    # four copies of one sample at four times the price.
+    #
+    # It costs less reproducibility than it appears to. A *fixed* seed still
+    # gives bit-identical output here (verified at both 0.7 and 1.0), so
+    # reproducibility moves from `prompt -> output` to `(prompt, seed) ->
+    # output`, and chain k stays replayable from `seed + k`. The former was
+    # already unavailable on this rung anyway: two byte-identical prompts at
+    # temperature 0 produced different functions, from floating-point
+    # non-associativity in parallel GPU reductions.
+    #
+    # 0.7 rather than 1.0 to diverge the chains while distorting code less.
+    # Caveat: the repeat test used 120-token generations, and floating-point
+    # divergence accumulates with length, so per-chain reproducibility at the
+    # ~9,000 tokens a real generation takes is untested.
+    # See docs/findings/seed-is-inert-at-temperature-zero.md.
+    temperature: 0.7
+
   # Mixture-of-experts: 30B total, ~3B active, so it runs far faster than its
   # size suggests and fits comfortably in 32GB at 4-bit.
   - name: qwen3-30b
