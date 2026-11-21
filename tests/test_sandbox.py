@@ -298,3 +298,41 @@ class TestLifecycle:
                 sandbox.score(items)
             assert sandbox.failures > 10
             assert len(sandbox.errors) == 10
+
+
+class TestPureBuiltinsAreAvailable:
+    """A missing pure builtin does not fail safe; it fails as an unplayable strategy.
+
+    `ord` was absent, a model used `ord(placement["kind"])` as a tie-breaker, and
+    every scoring call raised NameError. The engine played the first legal
+    placement every turn and four iterations of a six-iteration run collapsed
+    from a held-out 1,580 to 10 -- while looking like a plausible strategy that
+    simply played badly.
+    """
+
+    def test_a_tie_breaker_using_ord_scores_normally(self) -> None:
+        source = (
+            "def score(board, placement):\n"
+            "    return float(placement['lines_cleared']) + ord(placement['kind']) * 0.001\n"
+        )
+        game = Game(seed=1, max_pieces=50)
+        items = build_items(game.board, game.legal_placements())
+        with ScoringSandbox(source) as sandbox:
+            scores = sandbox.score(items)
+        assert sandbox.failures == 0
+        assert all(s != UNPLAYABLE for s in scores)
+
+    def test_the_pure_builtins_a_scoring_function_might_reach_for_all_exist(self) -> None:
+        for call in ("ord('A')", "chr(65)", "str(1)", "hash(1)", "bin(2)", "hex(2)", "abs(-1)"):
+            source = f"def score(board, placement):\n    return float(len(str({call})))\n"
+            game = Game(seed=1, max_pieces=20)
+            items = build_items(game.board, game.legal_placements())
+            with ScoringSandbox(source) as sandbox:
+                scores = sandbox.score(items[:1])
+            assert sandbox.failures == 0, f"{call} failed: {sandbox.errors}"
+            assert scores[0] != UNPLAYABLE
+
+    def test_mro_is_refused_so_the_type_hierarchy_stays_out_of_reach(self) -> None:
+        """Defence in depth: `__subclasses__` is already blocked as a dunder."""
+        with pytest.raises(SandboxValidationError, match="mro"):
+            validate_source("def score(board, placement):\n    return float(len(str.mro()))\n")

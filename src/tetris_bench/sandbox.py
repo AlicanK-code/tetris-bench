@@ -92,14 +92,47 @@ class SandboxLimits:
     """Time budgets for model-written code.
 
     ``per_call_seconds`` bounds one placement, enforced inside the worker by
-    ``SIGALRM``. ``per_batch_seconds`` is the host's own deadline on a whole
-    piece's worth of placements, which catches a worker that has stopped
-    answering altogether rather than merely looping in one call.
+    ``SIGALRM``. ``per_batch_seconds`` is the **floor** on the host's own
+    deadline for a whole piece's worth of placements, which catches a worker
+    that has stopped answering altogether rather than merely looping in one
+    call.
+
+    A floor rather than a fixed value, because the two budgets were previously
+    inconsistent: a piece can offer ~34 placements, so ``per_call_seconds`` of
+    1.0 permits the worker up to 34 seconds that a flat 30-second host deadline
+    then refused. A function merely *slow* on every placement therefore lost its
+    whole game to a host-side crash, when the design is that an individual
+    placement comes back as unplayable and the game continues. See
+    :meth:`batch_deadline`.
     """
 
     per_call_seconds: float = 1.0
     per_batch_seconds: float = 30.0
     load_seconds: float = 10.0
+    #: Slack for process round-trip and JSON encoding on top of the per-call
+    #: budgets. Generous because overshooting the deadline costs a whole game.
+    batch_overhead_seconds: float = 10.0
+
+    def batch_deadline(self, items: int) -> float:
+        """Host deadline for a batch of ``items`` placements.
+
+        At least what the per-call budget permits the worker to spend on every
+        placement, plus overhead -- otherwise the host kills a worker that is
+        behaving exactly as allowed.
+        """
+        return max(
+            self.per_batch_seconds,
+            self.per_call_seconds * items + self.batch_overhead_seconds,
+        )
+
+
+#: Attribute names that are not dunders but still reach the type hierarchy.
+#: ``int.mro()`` returns ``[int, object]``, and the allowlist has always
+#: contained type constructors (`int`, `list`, `dict`, `set`, `tuple`), so `mro`
+#: is the one non-dunder step from a value to `object`. The next step --
+#: `__subclasses__` -- is already refused as a dunder, so this is defence in
+#: depth rather than a hole being closed. No scoring function needs it.
+BLOCKED_ATTRIBUTES = frozenset({"mro"})
 
 
 class _Validator(ast.NodeVisitor):
@@ -126,6 +159,11 @@ class _Validator(ast.NodeVisitor):
             self.problems.append(
                 f"line {node.lineno}: attribute {node.attr!r} is not allowed "
                 f"(private and dunder attributes are blocked)"
+            )
+        elif node.attr in BLOCKED_ATTRIBUTES:
+            self.problems.append(
+                f"line {node.lineno}: attribute {node.attr!r} is not allowed "
+                f"(it reaches the type hierarchy)"
             )
         self.generic_visit(node)
 
@@ -295,7 +333,7 @@ class ScoringSandbox:
             return []
         reply = self._exchange(
             {"op": "score", "items": list(items)},
-            timeout=self.limits.per_batch_seconds,
+            timeout=self.limits.batch_deadline(len(items)),
         )
         if not reply.get("ok"):
             raise SandboxCrashed(reply.get("error", "scoring failed"))

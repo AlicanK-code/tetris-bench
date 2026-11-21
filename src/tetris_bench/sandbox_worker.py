@@ -49,11 +49,37 @@ FUNCTION_NAME = "score"
 # Everything the function is allowed to reach. Anything absent from this mapping
 # does not exist inside the sandbox, which is a stronger guarantee than trying to
 # forbid it after the fact.
+#
+# The rule for admitting a name: it must be a pure value-level operation that
+# cannot reach outside the process. `ord` qualifies; `getattr`, `type`, `vars`,
+# `dir`, `globals`, `eval`, `open` and `__import__` do not and never will, since
+# each is a step towards an object graph that leads out.
+#
+# Being stingy here is not free. `ord` was missing, a model used
+# `ord(placement["kind"])` as a tie-breaker -- a reasonable thing to write -- and
+# every scoring call raised `NameError`. The engine fell back to the first legal
+# placement every turn, and four iterations of a six-iteration run collapsed from
+# a held-out 1,580 to 10. An omission here does not fail safe: it fails as a
+# plausible-looking strategy that cannot play, and it costs hours of GPU time to
+# discover. So a pure builtin a scoring function might plausibly reach for
+# belongs in this list.
 SAFE_BUILTINS = {
     "abs": abs,
     "all": all,
     "any": any,
+    "bin": bin,
     "bool": bool,
+    "chr": chr,
+    "format": format,
+    "frozenset": frozenset,
+    "hash": hash,
+    "hex": hex,
+    "iter": iter,
+    "next": next,
+    "oct": oct,
+    "ord": ord,
+    "repr": repr,
+    "str": str,
     "dict": dict,
     "divmod": divmod,
     "enumerate": enumerate,
