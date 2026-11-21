@@ -9,7 +9,7 @@ with a correct count and a bad weight.
 
 This arm tests whether the bottleneck is **credit assignment** rather than
 capability. It gives the identical outcome feedback the control received, plus
-one extra block: for two specific boards, the values the engine measures. The
+one extra block: for one specific board, the values the engine measures. The
 model then has labelled data at the level its bug lives at, and has to notice
 that its own code disagrees.
 
@@ -21,7 +21,14 @@ fix it was handed.
 Control, already collected: runs/functions/revise/qwen3-14b-revise{1,2}.py,
 held-out 130 and 85 against iteration 0's 110.
 
+Three runs on the board at piece 16 gave two distinct functions, both of which
+fixed the bug -- but all three used the *identical* prompt, so they measure
+generation variance, not whether the effect survives a different board. If the
+fix only appears for one board, what was measured is "this board localises this
+bug" rather than "a feature-level trace localises bugs". `--trace-at` varies it.
+
     uv run python analysis/counterexample_arm.py --model qwen3-14b
+    uv run python analysis/counterexample_arm.py --trace-at 8 --runs 1
 """
 
 from __future__ import annotations
@@ -38,7 +45,13 @@ from tetris_bench.clients.client import ModelClient
 from tetris_bench.clients.config import load_model_config
 from tetris_bench.engine.board import Board
 from tetris_bench.engine.game import Game
-from tetris_bench.loop import LoopConfig, Outcome, feedback_text, play_function
+from tetris_bench.loop import (
+    MEASUREMENT_DECLARATION,
+    LoopConfig,
+    Outcome,
+    feedback_text,
+    play_function,
+)
 from tetris_bench.metrics import holes
 from tetris_bench.prompts import render
 from tetris_bench.render import render_board
@@ -61,10 +74,12 @@ def trace_block(boards: list[tuple[str, Board]]) -> str:
     # counterexample; demanding an exhaustive trace is not part of it, and the
     # shorter block also keeps the prompt-length difference from the control
     # smaller.
+    noun = "one specific board" if len(boards) == 1 else f"{len(boards)} specific boards"
+    subject = "the board below" if len(boards) == 1 else "each board below"
     parts = [
-        "## Measured values for one specific board",
+        f"## Measured values for {noun}",
         "",
-        "For the board below, these are the values the engine computes. Column"
+        f"For {subject}, these are the values the engine computes. Column"
         " heights are measured from the floor, so an empty column is 0 and a"
         " column whose topmost filled cell is in row 0 is 20.",
     ]
@@ -102,9 +117,11 @@ class BoardSampler:
             self.boards[game.pieces_placed] = game.board
 
 
-def sample_boards(source: str, seed: int, config: LoopConfig) -> list[tuple[str, Board]]:
-    """Replay a function and grab a few structurally varied boards."""
-    sampler = BoardSampler(at=(16,))
+def sample_boards(
+    source: str, seed: int, config: LoopConfig, at: tuple[int, ...] = (16,)
+) -> list[tuple[str, Board]]:
+    """Replay a function and grab the boards at the chosen piece counts."""
+    sampler = BoardSampler(at=at)
     with ScoringSandbox(source) as sandbox:
         agent = StrategyAgent(sandbox)
         play_game(Game(seed=seed, max_pieces=config.max_pieces), agent, on_step=sampler)
@@ -116,13 +133,29 @@ def sample_boards(source: str, seed: int, config: LoopConfig) -> list[tuple[str,
             continue
         seen.add(board)
         chosen.append((f"after {pieces} pieces", board))
-    return chosen[:1]
+    return chosen[: len(at)]
 
 
 def build_counterexample_prompt(
     config: LoopConfig, previous: Outcome, boards: list[tuple[str, Board]]
 ) -> str:
-    """The control's prompt, plus the trace block. Everything else identical."""
+    """The control's prompt, plus the trace block. Everything else identical.
+
+    It was not always so, and the first five generations collected with this
+    script predate the fix. This function used to pass ``measurement_section=""``
+    while the control's ``build_prompt`` passes ``MEASUREMENT_DECLARATION``, so
+    the "counterexample" prompt also silently *dropped* a 418-character block --
+    the one that names the measured quantities at every iteration, added in
+    f840a10 precisely to stop a prompt change confounding a measured effect.
+    Measured: 418 characters removed, 560 added, 978 characters differing, for a
+    net of +142. Reporting that net as "a 142-char difference" made a two-block
+    manipulation look like one addition.
+
+    Keeping the declaration makes the contrast a single block again. A
+    replication will therefore not reproduce the five collected generations
+    byte-for-byte, and that is the correct trade: reproducing them exactly would
+    mean preserving the confound.
+    """
 
     feedback_section = (
         "## How your last attempt went\n\n"
@@ -139,7 +172,7 @@ def build_counterexample_prompt(
         height=20,
         last_row=19,
         per_call_seconds=config.per_call_seconds,
-        measurement_section="",
+        measurement_section=MEASUREMENT_DECLARATION if config.declare_metrics else "",
         feedback_section=feedback_section,
     )
 
@@ -168,6 +201,15 @@ def main() -> None:
         help="first artifact number; raise it so a replication does not overwrite earlier runs",
     )
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument(
+        "--trace-at",
+        type=int,
+        nargs="+",
+        default=[16],
+        help="piece counts whose boards go in the trace block. Vary this: three runs on"
+        " the same board probe generation variance, not whether the effect depends on"
+        " which board is shown",
+    )
     parser.add_argument("--max-pieces", type=int, default=500)
     parser.add_argument("--function", type=Path, default=None, help="the function to revise")
     parser.add_argument(
@@ -200,7 +242,13 @@ def main() -> None:
         flush=True,
     )
 
-    boards = sample_boards(path.read_text(), args.seed, loop_config)
+    trace_at = tuple(args.trace_at)
+    boards = sample_boards(path.read_text(), args.seed, loop_config, at=trace_at)
+    if len(boards) != len(trace_at):
+        raise SystemExit(
+            f"asked for boards at {trace_at} but the game only reached "
+            f"{len(boards)} of them; the function blocks out early"
+        )
     print("trace boards: " + ", ".join(label for label, _ in boards), flush=True)
     prompt = build_counterexample_prompt(loop_config, previous, boards)
     control = len(feedback_text(previous, loop_config))
@@ -212,6 +260,10 @@ def main() -> None:
 
     out_dir = Path("runs/functions/counterexample")
     out_dir.mkdir(parents=True, exist_ok=True)
+    # The board goes in the filename, because which board the trace showed is the
+    # independent variable. The first three runs predate this and are named
+    # `-counterexample{1,2,3}.py`; they all used piece 16.
+    tag = "_".join(str(piece) for piece in trace_at)
 
     for index in range(args.start_index, args.start_index + args.runs):
         client = ModelClient(config)
@@ -224,15 +276,22 @@ def main() -> None:
             print(f"run {index}: UNPARSEABLE ({error})", flush=True)
             continue
 
-        (out_dir / f"{config.name}-counterexample{index}.py").write_text(source)
+        (out_dir / f"{config.name}-counterexample-p{tag}-{index}.py").write_text(source)
         digest = hashlib.sha256(source.encode()).hexdigest()[:12]
         score, pieces, hole_count = held_out(source, args.max_pieces)
-        # Did it touch the computation, or only the weights?
-        changed = "heights[col] > row" not in source
+        # Whether the *original* broken line survived -- which is all a string
+        # test can establish. It deliberately no longer reads "fixed": the
+        # piece-8 run replaced that line with a differently broken hole count
+        # that scans the wrong way (161 where the engine counts 17), and a
+        # string test reported it as a change. Correctness has to be read from
+        # the measured holes column beside it, where a working hole count drives
+        # the held-out average down from ~86 and a broken one does not.
+        survived = "heights[col] > row" in source
         print(
             f"run {index}: {digest}  {elapsed:.0f}s  out={client.usage.tokens_out}\n"
             f"         held-out: score {score:.0f} pieces {pieces:.1f} holes {hole_count:.1f}\n"
-            f"         hole condition changed: {changed}",
+            f"         original hole line survived: {survived}  "
+            f"(a change is not a fix; read the holes column)",
             flush=True,
         )
 
