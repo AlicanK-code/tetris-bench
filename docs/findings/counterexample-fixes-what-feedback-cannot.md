@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-20 · **Model:** `qwen3:14b` · **Training seed:** 1
 **Script:** `analysis/counterexample_arm.py`
-**Artifacts:** `runs/functions/counterexample/qwen3-14b-counterexample{1,2,3}.py`
+**Artifacts:** `runs/published/counterexample/qwen3-14b-counterexample{1,2,3}.py`
 (trace board at 16 pieces) and `-counterexample-p{8,24}-1.py` (the varied boards)
 
 The title records what the arm was built to test. §4c records that it does not

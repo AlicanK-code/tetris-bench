@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-19 · **Model:** `qwen3:4b` · **Seed:** 1 · **Temperature:** 0
 **Script:** `analysis/compare_prompts.py`
-**Artifacts:** `runs/functions/qwen3-4b-seed1-strategy_v{1,2}.{py,json}`
+**Artifacts:** `runs/published/qwen3-4b-iter0/qwen3-4b-seed1-strategy_v{1,2}.{py,json}`
 
 Context: [`qwen3-4b-iter0-detailed.md`](qwen3-4b-iter0-detailed.md) recorded a
 first run in which the model wrote a constant scoring function. `strategy_v2` was

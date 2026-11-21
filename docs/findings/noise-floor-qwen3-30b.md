@@ -3,7 +3,7 @@
 **Date:** 2026-11-19 · **Model:** `qwen3:30b-a3b` (MoE, ~3B active)
 **Template:** `strategy_v2` · **Game seed:** 1 · **Model seed:** 1
 **Temperature:** 0 · **Runs:** 2 · **Script:** `analysis/noise_floor.py`
-**Artifacts:** `runs/functions/noise/qwen3-30b-noise{1,2}.{py,json}`
+**Artifacts:** `runs/published/noise-floor/qwen3-30b-noise{1,2}.{py,json}`
 
 Companion to [the 14B result](noise-floor-qwen3-14b.md), which was fully
 reproducible. This rung is not, and unlike `qwen3-4b` the nondeterminism reaches

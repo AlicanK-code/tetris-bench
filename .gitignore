@@ -6,8 +6,13 @@ __pycache__/
 # Secrets
 .env
 
-# Run outputs: JSONL logs and model-generated scoring functions
-runs/
+# Run outputs: JSONL logs and model-generated scoring functions.
+#
+# `runs/*` rather than `runs/`, because git does not descend into an excluded
+# directory -- a negation inside one is never reached. Excluding the contents
+# instead leaves the directory itself traversable, so the exception below works.
+runs/*
+!runs/published/
 
 # Generated figures. Reproducible from a log with `analysis/plots.py`, so the
 # PNGs are an output of the run rather than a source of it; committing them also

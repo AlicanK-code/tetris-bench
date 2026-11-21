@@ -3,7 +3,7 @@
 **Date:** 2026-11-20 · **Model:** `qwen3:14b` · **Template:** `strategy_v3`
 **Training seed:** 1 · **Runs:** 2 independent revisions of the same function
 **Script:** `analysis/revise_reproducibility.py`
-**Artifacts:** `runs/functions/revise/qwen3-14b-revise{1,2}.{py,json}`
+**Artifacts:** `runs/published/revise/qwen3-14b-revise{1,2}.py`
 
 This is the project's first evidence on its own headline question. It was
 collected as a side effect of testing something else, and it is a negative

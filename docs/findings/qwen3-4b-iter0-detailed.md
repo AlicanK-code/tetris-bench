@@ -4,7 +4,7 @@
 **Model:** `qwen3:4b` via Ollama 0.40.16, OpenAI-compatible endpoint
 **Prompt:** `strategy_v1`
 **Seed:** 1 · **Piece budget:** 500 · **Per-call budget:** 1.0s
-**Artifacts:** `runs/functions/qwen3-4b-seed1-iter0.py`, `.json`
+**Artifacts:** `runs/published/qwen3-4b-iter0/qwen3-4b-seed1-iter0.py`, `.json`
 
 This is the first real model-written scoring function the benchmark has run. It
 is recorded in full because it turns out to be a clean, measurable example of a

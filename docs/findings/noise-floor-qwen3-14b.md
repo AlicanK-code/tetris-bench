@@ -3,7 +3,7 @@
 **Date:** 2026-11-19 · **Model:** `qwen3:14b` · **Template:** `strategy_v2`
 **Game seed:** 1 · **Model seed:** 1 · **Temperature:** 0 · **Runs:** 5
 **Script:** `analysis/noise_floor.py`
-**Artifacts:** `runs/functions/noise/qwen3-14b-noise{1..5}.{py,json}`
+**Artifacts:** `runs/published/noise-floor/qwen3-14b-noise{1..5}.{py,json}`
 
 Purpose: measure how much the score varies across repeated identical requests,
 since [the determinism finding](prompt-comparison-and-determinism.md) showed

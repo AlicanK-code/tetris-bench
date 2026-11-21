@@ -2,9 +2,9 @@
 
 **Date:** 2026-11-21 · **Model:** `qwen3:14b`
 **Scripts:** `analysis/seed_probe.py`, `analysis/repeat_probe.py`
-**Run:** `runs/loop.jsonl` — 5 chains × 1 iteration, the intended
+**Run:** `runs/published/seed-inert/loop.jsonl` — 5 chains × 1 iteration, the intended
 iteration-0 variance measurement
-**Artifacts:** `runs/functions/qwen3-14b-chain{0,1,2,3,4}-iter0.py`
+**Artifacts:** `runs/published/seed-inert/functions/qwen3-14b-chain{0,1,2,3,4}-iter0.py`
 
 The measurement this run was built to make did not happen, and the reason is
 mechanical. It is recorded because the same mistake is easy to make again, and
