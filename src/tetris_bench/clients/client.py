@@ -106,10 +106,16 @@ class ModelClient:
         tally is still updated in that case: a run's cost includes the calls that
         did not work.
 
-        ``seed`` overrides the configured one for this call. Needed because at
-        temperature 0 the seed is the *only* thing that distinguishes two
-        requests for the same prompt, so sampling a model's generation noise
-        means varying it per call rather than per client.
+        ``seed`` overrides the configured one for this call, so that several
+        samples of a model's generation noise can be drawn through one client.
+
+        It only does anything **above temperature 0**. Greedy decoding takes the
+        argmax at every step and never draws from the RNG, so there is no random
+        number for a seed to index: measured, three seeds at temperature 0 give
+        one byte-identical generation, and at temperature 1.0 give three
+        different ones. A sweep that varies this while ``temperature`` is 0 pays
+        N times for one sample -- which is what the first five-chain run did.
+        See ``docs/findings/seed-is-inert-at-temperature-zero.md``.
         """
         started = self._clock()
         attempts = self.config.max_retries + 1

@@ -73,14 +73,12 @@ class ModelConfig:
     api_key_env: str | None = None
     # Zero by default: a benchmark wants the same answer for the same prompt, and
     # sampling noise would show up as improvement that is not there.
+    #
+    # Note the cost of that default, because it is not free: at temperature 0 the
+    # seed below is *inert*, so a multi-chain run draws one sample and pays for N.
+    # Any rung meant to be sampled across chains needs this above zero -- see
+    # docs/findings/seed-is-inert-at-temperature-zero.md.
     temperature: float = 0.0
-    # A seed removes one source of variance but NOT the operative one. Measured:
-    # two runs of a byte-identical prompt at temperature 0 *with* seed 1 still
-    # produced different functions. The seed is honoured (proven at temperature
-    # 1.0, where it gives bit-identical output), so sampling is not the cause;
-    # floating-point non-associativity in parallel reductions is, and no seed
-    # removes that. Reproducibility is a property of the (model, prompt) pair and
-    # has to be measured per rung -- see docs/findings/.
     # Discourages the model from repeating tokens it has already emitted. Off by
     # default, and needed on at least one rung: `qwen3-14b` generating its fifth
     # revision ran to 22,223 tokens without terminating, three attempts in a row,
@@ -98,6 +96,17 @@ class ModelConfig:
     # whose cycle is longer than 64 tokens is therefore invisible to it, so this
     # is a partial defence and `max_tokens` is the backstop.
     frequency_penalty: float | None = None
+    # A seed removes one source of variance but NOT the operative one. Measured:
+    # two runs of a byte-identical prompt at temperature 0 *with* seed 1 still
+    # produced different functions. The seed is honoured (proven at temperature
+    # 1.0, where a fixed seed gives bit-identical output), so sampling is not the
+    # cause; floating-point non-associativity in parallel reductions is, and no
+    # seed removes that. Reproducibility is a property of the (model, prompt) pair
+    # and has to be measured per rung -- see docs/findings/.
+    #
+    # What it is honoured *for* is narrower than it looks: a fixed seed repeats,
+    # but two *different* seeds diverge only above temperature 0. See the note on
+    # `temperature` above.
     seed: int | None = None
     max_tokens: int | None = None
     timeout_seconds: float = 120.0
