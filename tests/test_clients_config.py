@@ -107,6 +107,17 @@ class TestParse:
         (config,) = self.parse("models:\n  - {name: a, provider: ollama, model: m}\n")
         assert config.temperature == 0.0
 
+    def test_frequency_penalty_defaults_to_none(self):
+        """Off unless a rung asks for it, so no rung's sampling changes silently."""
+        (config,) = self.parse("models:\n  - {name: a, provider: ollama, model: m}\n")
+        assert config.frequency_penalty is None
+
+    def test_frequency_penalty_is_read(self):
+        (config,) = self.parse(
+            "models:\n  - {name: a, provider: ollama, model: m, frequency_penalty: 0.5}\n"
+        )
+        assert config.frequency_penalty == 0.5
+
     def test_full_entry(self):
         (config,) = self.parse(
             """

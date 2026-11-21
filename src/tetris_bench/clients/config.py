@@ -39,6 +39,7 @@ ALLOWED_KEYS = {
     "base_url",
     "api_key_env",
     "temperature",
+    "frequency_penalty",
     "seed",
     "max_tokens",
     "timeout_seconds",
@@ -80,6 +81,23 @@ class ModelConfig:
     # floating-point non-associativity in parallel reductions is, and no seed
     # removes that. Reproducibility is a property of the (model, prompt) pair and
     # has to be measured per rung -- see docs/findings/.
+    # Discourages the model from repeating tokens it has already emitted. Off by
+    # default, and needed on at least one rung: `qwen3-14b` generating its fifth
+    # revision ran to 22,223 tokens without terminating, three attempts in a row,
+    # because Ollama applies greedy decoding (temperature 0) with every
+    # anti-repetition sampler disabled -- `repeat_penalty` at 1.0, DRY at 0.0. In
+    # that configuration a reasoning loop is *absorbing*: the next token is a
+    # deterministic function of the context, so once the trace re-enters a state
+    # it has already visited it cycles through it forever, and raising the
+    # timeout only buys a longer loop.
+    #
+    # A penalty keeps decoding deterministic, so reproducibility survives, while
+    # making an already-emitted token progressively less attractive. Caveat worth
+    # knowing: llama.cpp applies it over `penalty_last_n` tokens, 64 by default,
+    # and that window is not settable through the OpenAI-compatible API. A loop
+    # whose cycle is longer than 64 tokens is therefore invisible to it, so this
+    # is a partial defence and `max_tokens` is the backstop.
+    frequency_penalty: float | None = None
     seed: int | None = None
     max_tokens: int | None = None
     timeout_seconds: float = 120.0
@@ -132,6 +150,7 @@ def _parse_entry(entry: dict[str, Any], source: str, index: int) -> ModelConfig:
         base_url=entry.get("base_url"),
         api_key_env=entry.get("api_key_env"),
         temperature=entry.get("temperature", 0.0),
+        frequency_penalty=entry.get("frequency_penalty"),
         seed=entry.get("seed"),
         max_tokens=entry.get("max_tokens"),
         timeout_seconds=entry.get("timeout_seconds", 120.0),

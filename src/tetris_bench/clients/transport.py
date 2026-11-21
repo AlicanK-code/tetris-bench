@@ -61,6 +61,7 @@ class Transport(Protocol):
         max_tokens: int | None,
         timeout: float,
         seed: int | None = None,
+        frequency_penalty: float | None = None,
     ) -> RawCompletion:
         """Perform one request, raising a :class:`ModelError` on failure."""
         ...
@@ -96,6 +97,7 @@ class OpenAITransport:
         max_tokens: int | None,
         timeout: float,
         seed: int | None = None,
+        frequency_penalty: float | None = None,
     ) -> RawCompletion:
         import openai
 
@@ -109,6 +111,8 @@ class OpenAITransport:
             request["max_tokens"] = max_tokens
         if seed is not None:
             request["seed"] = seed
+        if frequency_penalty is not None:
+            request["frequency_penalty"] = frequency_penalty
 
         try:
             completion = self._client.chat.completions.create(**request)

@@ -34,6 +34,21 @@ class FakeTransport:
         return result
 
 
+class TestSamplingConfigReachesTheTransport:
+    """The config is useless if `complete` drops it on the floor."""
+
+    def test_frequency_penalty_is_forwarded(self):
+        config = ModelConfig(name="local", provider="ollama", model="m", frequency_penalty=0.5)
+        client, transport = build_client(config=config)
+        client.complete([{"role": "user", "content": "hi"}])
+        assert transport.calls[0]["frequency_penalty"] == 0.5
+
+    def test_none_is_forwarded_as_none(self):
+        client, transport = build_client()
+        client.complete([{"role": "user", "content": "hi"}])
+        assert transport.calls[0]["frequency_penalty"] is None
+
+
 class FakeClock:
     """Advances a fixed amount every time it is read."""
 

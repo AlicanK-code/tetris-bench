@@ -57,6 +57,41 @@ def call(transport: OpenAITransport):
     )
 
 
+class TestRequestAssembly:
+    """What actually reaches the SDK, since an ignored field fixes nothing."""
+
+    def captured(self, **extra):
+        seen = {}
+
+        def create(**kwargs):
+            seen.update(kwargs)
+            return completion()
+
+        transport = OpenAITransport(base_url="http://x/v1", api_key="x")
+        transport._client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+        )
+        transport.chat(
+            model="m",
+            messages=[{"role": "user", "content": "hi"}],
+            temperature=0.0,
+            max_tokens=None,
+            timeout=5.0,
+            **extra,
+        )
+        return seen
+
+    def test_frequency_penalty_is_omitted_when_unset(self):
+        """An explicit 0.0 and "not set" are different requests; don't conflate them."""
+        assert "frequency_penalty" not in self.captured()
+
+    def test_frequency_penalty_is_sent_when_set(self):
+        assert self.captured(frequency_penalty=0.5)["frequency_penalty"] == 0.5
+
+    def test_a_zero_penalty_is_still_sent(self):
+        assert self.captured(frequency_penalty=0.0)["frequency_penalty"] == 0.0
+
+
 class TestToRaw:
     def test_extracts_text_and_tokens(self):
         raw = call(transport_returning(completion()))

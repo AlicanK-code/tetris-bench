@@ -50,7 +50,38 @@ models:
     provider: ollama
     model: qwen3:14b
     pricing: {input_per_million: 0, output_per_million: 0}
-    timeout_seconds: 1200
+    # 2400s, and no retry at all. Measured on this rung: generation runs at
+    # 8.9-11.5 output tokens/sec, so 1200s was a ceiling of only ~10,700-13,800
+    # tokens against a longest-observed generation of 9,369 -- 1.1x to 1.5x
+    # headroom on a thinking model whose trace length varies by a factor of two.
+    # Iteration 4 of the first six-iteration run exceeded it twice and aborted
+    # the run.
+    #
+    # Dropping the retry keeps the worst case per position at 2400s, exactly
+    # what `1200s x 2 attempts` already permitted, while giving each generation
+    # twice the room. A retry buys little here anyway: the request is identical
+    # at temperature 0, so a generation that overran once will very likely
+    # overrun again, having already cost 20 minutes to find out.
+    timeout_seconds: 2400
+    max_retries: 0
+
+    # This rung loops. Iteration 4 of the first six-iteration run did not
+    # terminate on three consecutive attempts (1200s, 1200s, 2400s), emitting
+    # 22,223 tokens on the last one with 8,869 tokens of context still unused --
+    # so nothing was forcing it to stop and nothing was going to. See the note on
+    # `frequency_penalty` in clients/config.py for why greedy decoding makes a
+    # loop permanent.
+    frequency_penalty: 0.5
+
+    # The backstop, and the reason this is not just a second guess at the
+    # timeout. 14,000 tokens is 1.5x the longest generation that ever completed
+    # here (9,369), and at the measured 8.9-11.5 tokens/sec it is reached in
+    # 1,220-1,570s -- comfortably inside the 2400s deadline. So a generation that
+    # still runs away now *returns*, truncated, and is recorded as an invalid
+    # output with its token count, instead of raising and aborting the run with
+    # nothing written. Three attempts have already cost 80 minutes of GPU and
+    # produced no rows at all; that is the failure mode being fixed.
+    max_tokens: 14000
     seed: 1
 
   # Mixture-of-experts: 30B total, ~3B active, so it runs far faster than its

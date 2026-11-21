@@ -120,6 +120,7 @@ class ModelClient:
                     max_tokens=self.config.max_tokens,
                     timeout=self.config.timeout_seconds,
                     seed=self.config.seed,
+                    frequency_penalty=self.config.frequency_penalty,
                 )
             except PermanentModelError:
                 # No point trying again; record the attempt and surface it.
