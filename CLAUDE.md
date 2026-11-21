@@ -113,18 +113,25 @@ Estimated cost stays in the schema and will read zero for every local run; it is
 
 ## Commands (update as they become real)
 
+**Install with `--all-extras`.** `uv sync` resolves the environment to exactly
+what is asked for, so `uv sync --extra analysis` **uninstalls** the `llm` extra —
+following the two extras as separate lines leaves the model client missing and
+the loop failing at import. Both extras are needed on the same machine, because
+a run is played and then plotted.
+
 ```bash
-uv sync                         # install deps
+uv sync --all-extras            # install everything; see the note above
 uv run pytest                   # run tests
 uv run ruff check . && uv run ruff format .
 uv run tetris-bench play --agent heuristic --seed 1
 uv run tetris-bench play --agent random --show-state --log runs/baseline.jsonl
-uv sync --extra llm                                          # model client deps
 uv run tetris-bench models                                   # validate model config
 uv run tetris-bench strategy --model qwen3-4b --seed 1       # model writes a scorer
-uv run tetris-bench loop --model qwen3-14b --iterations 6     # improvement loop
-uv run tetris-bench loop --model qwen3-30b --chains 5        # nondeterministic rung
+uv run tetris-bench loop --model qwen3-14b --iterations 6 --chains 3   # the loop
+uv run python analysis/curves.py                             # improvement curves
+uv run python analysis/plots.py                              # figures
 uv run python analysis/held_out.py                           # replay on unseen seeds
+uv run python analysis/null_arm.py --runs 0                  # build prompts, no GPU
 ```
 
 ## Conventions
