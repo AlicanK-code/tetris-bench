@@ -183,8 +183,35 @@ class TestFeedbackText:
         assert "How your function played" not in text
 
     def test_gives_the_reference_score_for_scale(self, config):
+        """Measured at this config's budget, not quoted from a fixed era.
+
+        The literal this used to assert, 21600, was the heuristic's score at a
+        500-piece budget, while this fixture plays 120 -- so the prompt claimed
+        a target four times what the run could reach.
+        """
+        from tetris_bench.loop import heuristic_reference
+
+        expected = heuristic_reference(config.train_seeds, config.max_pieces)
         text = feedback_text(play_function(GOOD, 1, config), config)
-        assert "21600" in text
+        assert str(expected) in text
+        assert "21600" not in text
+
+    def test_an_explicit_reference_still_overrides(self, config):
+        """Measuring is the default, not a removal of the knob."""
+        from dataclasses import replace
+
+        text = feedback_text(
+            play_function(GOOD, 1, config), replace(config, reference_score=12345)
+        )
+        assert "12345" in text
+
+    def test_the_reference_tracks_the_budget(self, config):
+        """The bug in one line: a longer game deserves a bigger target."""
+        from tetris_bench.loop import heuristic_reference
+
+        assert heuristic_reference(config.train_seeds, 2000) > heuristic_reference(
+            config.train_seeds, 120
+        )
 
     def test_withholds_our_diagnosis(self, config):
         """Symptoms, not diagnoses: the model must find its own bug.
@@ -629,7 +656,7 @@ class TestPromptIsAPureInsertion:
 
     def test_the_declaration_names_quantities_without_defining_them(self, config):
         """Naming what is measured is not the same as explaining what it means."""
-        from tetris_bench.loop import MEASUREMENT_DECLARATION
+        from tetris_bench.agents.strategy import MEASUREMENT_DECLARATION
 
         assert "holes" in MEASUREMENT_DECLARATION
         # the definition every rung has got wrong must not be given away

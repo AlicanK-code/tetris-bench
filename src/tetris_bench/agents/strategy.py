@@ -27,7 +27,34 @@ from tetris_bench.engine.placements import Placement
 from tetris_bench.prompts import render
 from tetris_bench.sandbox import UNPLAYABLE, ScoringSandbox, build_items
 
-DEFAULT_TEMPLATE = "strategy_v2"
+DEFAULT_TEMPLATE = "strategy_v3"
+"""The template both callers use, so a one-shot run *is* the loop's iteration 0.
+
+This was `strategy_v2` while the loop used `strategy_v3`, which meant
+`tetris-bench strategy --model X` and iteration 0 of `tetris-bench loop --model
+X` asked the same model for the same thing with different prompts -- awkward in
+a benchmark whose entire claim is that its numbers are comparable. `v3` is `v2`
+plus two placeholders, so nothing in the instructions changed; only what can be
+appended did.
+"""
+
+MEASUREMENT_DECLARATION = """\
+## How your function will be judged
+
+It will play one game, and you will be told: the score, lines cleared, pieces
+placed, how the game ended, the number of holes left on the board, the height of
+the tallest column, and how uneven the surface was. You will also be shown the
+board at the end and at its worst point.
+
+Those are the quantities measured. What they mean, and which of them matter, is
+for you to work out.
+"""
+"""Named the measured quantities, without saying what to do about them.
+
+It lives here rather than in `loop.py` because both the loop and one-shot
+`strategy` mode need it, and `loop` already imports from this module -- putting
+it the other way round would be a cycle.
+"""
 
 #: Matches a fenced code block, with or without a language tag.
 CODE_FENCE = re.compile(r"```(?:python|py)?\s*\n(.*?)```", re.DOTALL | re.IGNORECASE)
@@ -105,14 +132,28 @@ def build_strategy_prompt(
     height: int = DEFAULT_HEIGHT,
     per_call_seconds: float = 1.0,
     template: str = DEFAULT_TEMPLATE,
+    declare_metrics: bool = True,
+    feedback_section: str = "",
 ) -> str:
-    """Render the prompt that asks a model for a scoring function."""
+    """Render the prompt that asks a model for a scoring function.
+
+    The single renderer for both callers: one-shot `strategy` mode leaves
+    `feedback_section` empty, and the improvement loop passes the previous
+    attempt's outcome in it. Keeping one function is what makes a one-shot run
+    byte-identical to the loop's iteration 0 by construction rather than by
+    coincidence -- they drifted apart once already.
+
+    The defaults match `LoopConfig`'s, so calling this with none of the extra
+    arguments reproduces an iteration-0 prompt exactly.
+    """
     return render(
         template,
         width=width,
         height=height,
         last_row=height - 1,
         per_call_seconds=per_call_seconds,
+        measurement_section=MEASUREMENT_DECLARATION if declare_metrics else "",
+        feedback_section=feedback_section,
     )
 
 

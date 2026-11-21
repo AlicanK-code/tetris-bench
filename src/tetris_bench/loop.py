@@ -35,6 +35,7 @@ file that can disagree with the log.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -45,6 +46,7 @@ from tetris_bench.agents.strategy import (
     StrategyAgent,
     StrategyDiagnostics,
     StrategyError,
+    build_strategy_prompt,
 )
 from tetris_bench.clients.client import ModelClient
 from tetris_bench.clients.transport import ModelError
@@ -57,7 +59,6 @@ from tetris_bench.feedback import (
 )
 from tetris_bench.jsonl import append_record, read_records
 from tetris_bench.metrics import BoardStats
-from tetris_bench.prompts import render
 from tetris_bench.records import GameResult, ModelUsage, RunRecord
 from tetris_bench.runner import play_game
 from tetris_bench.sandbox import (
@@ -80,17 +81,6 @@ TEMPLATE = "strategy_v3"
 #: Note what this names and what it does not: the *quantities* are named, their
 #: *definitions* are not. A model still has to work out what a hole is -- which
 #: is the thing every rung has so far got wrong.
-MEASUREMENT_DECLARATION = """\
-## How your function will be judged
-
-It will play one game, and you will be told: the score, lines cleared, pieces
-placed, how the game ended, the number of holes left on the board, the height of
-the tallest column, and how uneven the surface was. You will also be shown the
-board at the end and at its worst point.
-
-Those are the quantities measured. What they mean, and which of them matter, is
-for you to work out.
-"""
 
 
 @dataclass(frozen=True)
@@ -132,8 +122,17 @@ class LoopConfig:
     model_seed: int | None = None
     log_path: Path = Path("runs/loop.jsonl")
     functions_dir: Path = Path("runs/functions")
-    #: Shown to the model for scale. The heuristic reference on these seeds.
-    reference_score: int | None = 21600
+    #: Shown to the model for scale, as "a good scoring function scores around
+    #: N". `None` computes it by playing the hand-written heuristic on this
+    #: run's own training seeds at this run's own budget; an int overrides that.
+    #:
+    #: It used to be the literal 21600, which was the heuristic's score at a
+    #: 500-piece budget and became wrong the moment the budget moved to 2000,
+    #: where the same agent scores around 87,000. The feedback says "survives
+    #: the full piece budget and scores around N", so a stale N understates the
+    #: target by a factor of four -- and unlike the printed references in
+    #: analysis/, this one goes into the prompt the model reads.
+    reference_score: int | None = None
 
 
 @dataclass(frozen=True)
@@ -323,7 +322,7 @@ def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
             snapshots=snapshots,
             sandbox_failures=outcome.sandbox_failures,
             sandbox_errors=outcome.sandbox_errors,
-            reference_score=config.reference_score,
+            reference_score=_resolved_reference(config),
         ).render()
         if outcome.crashed:
             # Still a symptom, not a diagnosis: it says the run stopped and on
@@ -364,7 +363,7 @@ def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
         collector=outcome.collector,
         sandbox_failures=outcome.sandbox_failures,
         sandbox_errors=outcome.sandbox_errors,
-        reference_score=config.reference_score,
+        reference_score=_resolved_reference(config),
     ).render()
 
 
@@ -394,13 +393,14 @@ def build_prompt(config: LoopConfig, previous: Outcome | MultiOutcome | None) ->
             "change whatever did not, and restructure freely.\n"
         )
 
-    return render(
-        config.template,
+    # Delegated rather than rendered here, so that one-shot `strategy` mode and
+    # this cannot render the same template differently. They did once.
+    return build_strategy_prompt(
         width=10,
         height=20,
-        last_row=19,
         per_call_seconds=config.per_call_seconds,
-        measurement_section=MEASUREMENT_DECLARATION if config.declare_metrics else "",
+        template=config.template,
+        declare_metrics=config.declare_metrics,
         feedback_section=feedback_section,
     )
 
@@ -532,6 +532,36 @@ def model_seed_for(base: int | None, chain: int) -> int | None:
     nothing.
     """
     return None if base is None else base + chain
+
+
+@functools.cache
+def heuristic_reference(seeds: tuple[int, ...], max_pieces: int) -> int:
+    """Mean score of the hand-written heuristic, as a scale for the model.
+
+    Computed rather than quoted, because the only honest value depends on the
+    budget: the heuristic does not die inside 2000 pieces on most seeds, so its
+    score there is the budget times its rate. Hard-coding one number means the
+    prompt silently lies the next time the budget changes, which is exactly what
+    happened.
+
+    Cached on its arguments: a run asks for this once per position but the
+    answer cannot change within a run, and the games are a second or two each.
+    """
+    from tetris_bench.agents.heuristic import heuristic_agent
+
+    scores = [
+        play_game(Game(seed=seed, max_pieces=max_pieces), heuristic_agent()).score for seed in seeds
+    ]
+    return round(sum(scores) / len(scores)) if scores else 0
+
+
+def _resolved_reference(config: LoopConfig) -> int | None:
+    """The configured reference, or the measured one when none is set."""
+    if config.reference_score is not None:
+        return config.reference_score
+    if not config.train_seeds:
+        return None
+    return heuristic_reference(tuple(config.train_seeds), config.max_pieces)
 
 
 def _sha(source: str) -> str:

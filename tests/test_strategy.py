@@ -378,9 +378,35 @@ class TestPromptVersions:
         assert {"strategy_v1", "strategy_v2"} <= set(available())
 
     def test_the_default_is_the_newest_version(self):
+        """This test's name was right while its assertion went stale on v2.
+
+        The loop moved to `strategy_v3` and one-shot `strategy` mode did not,
+        so the same request reached the same model as two different prompts.
+        """
         from tetris_bench.agents.strategy import DEFAULT_TEMPLATE
 
-        assert DEFAULT_TEMPLATE == "strategy_v2"
+        assert DEFAULT_TEMPLATE == "strategy_v3"
+
+    def test_a_one_shot_prompt_is_exactly_the_loops_iteration_zero(self):
+        """The comparability the benchmark rests on, asserted rather than assumed.
+
+        Both callers now go through `build_strategy_prompt`, so this holds by
+        construction -- but it is the property that silently broke before, and
+        it is cheap to check.
+        """
+        from tetris_bench.loop import LoopConfig, build_prompt
+
+        assert build_strategy_prompt() == build_prompt(LoopConfig(model="m"), None)
+
+    def test_v3_adds_only_the_two_appendable_sections(self):
+        """`v3` must not change the instructions, or iteration 0 is not v2's task."""
+        v2 = build_strategy_prompt(template="strategy_v2", declare_metrics=False)
+        v3 = build_strategy_prompt(template="strategy_v3", declare_metrics=False)
+        # The placeholders sit on their own lines, so an empty v3 differs from
+        # v2 by blank lines alone. Compare the content, not the whitespace.
+        assert [ln for ln in v3.splitlines() if ln.strip()] == [
+            ln for ln in v2.splitlines() if ln.strip()
+        ]
 
     def test_v2_tells_the_model_its_scores_must_differ(self):
         """The fix for the observed failure: a constant function cannot choose."""
