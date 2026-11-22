@@ -30,21 +30,58 @@
 #   ollama pull qwen3:4b && ollama pull qwen3:8b
 #   ollama pull qwen3:14b && ollama pull qwen3:30b-a3b
 
+# --- what every rung on the ladder must share, and the one thing it must not ---
+#
+# `temperature`, `frequency_penalty`, `max_tokens` and `max_retries` are
+# IDENTICAL on all four rungs, because a ladder comparison is only about model
+# size if nothing else differs. These four were each added to the 14B alone,
+# empirically, and leaving them there would have confounded size with sampling
+# configuration: a 4B truncated at a different token budget than the 14B looks
+# worse for a reason that has nothing to do with being a 4B.
+#
+#   temperature 0.7     chains do not work at 0 -- the sampler never draws from
+#                       the RNG, so every chain returns one byte-identical
+#                       generation. The first five-chain run paid 5.5 hours to
+#                       learn this. See docs/findings/.
+#   frequency_penalty   greedy decoding makes a repetition loop permanent.
+#   max_tokens 14000    the budget. Must be equal across rungs or the comparison
+#                       is between token allowances, not models.
+#   max_retries 0       an identical request that overran once will overrun
+#                       again, having already cost the wall-clock to find out.
+#
+# `timeout_seconds` is the exception and SHOULD differ: it is wall-clock for the
+# same token budget, and the rungs generate at very different speeds. Measured
+# steady-state output rate (Ollama's eval_count/eval_duration, which excludes
+# model load): 4B 48.0 tok/s, 8B 25.5, 14B 14.4, 30B-a3b 57.2. The 30B is the
+# *fastest* rung despite being the largest, because only ~3B of it is active.
+# Each timeout below is the 14B's hard-won 2400s scaled by that ratio and
+# rounded up, so every rung tolerates the same worst-case tokens/sec floor.
+
 models:
   # --- the size ladder: Apple Silicon, 32GB, so ~30B at 4-bit is the ceiling ---
   - name: qwen3-4b
     provider: ollama
     model: qwen3:4b
     pricing: {input_per_million: 0, output_per_million: 0}
-    timeout_seconds: 600
+    # 3.3x the 14B's rate, so 2400/3.3 = 720s, rounded up.
+    timeout_seconds: 900
+    max_retries: 0
+    frequency_penalty: 0.5
+    max_tokens: 14000
     seed: 1
+    temperature: 0.7
 
   - name: qwen3-8b
     provider: ollama
     model: qwen3:8b
     pricing: {input_per_million: 0, output_per_million: 0}
-    timeout_seconds: 900
+    # 1.8x the 14B's rate, so 2400/1.8 = 1356s, rounded up.
+    timeout_seconds: 1500
+    max_retries: 0
+    frequency_penalty: 0.5
+    max_tokens: 14000
     seed: 1
+    temperature: 0.7
 
   - name: qwen3-14b
     provider: ollama
@@ -114,8 +151,16 @@ models:
     provider: ollama
     model: qwen3:30b-a3b
     pricing: {input_per_million: 0, output_per_million: 0}
+    # 4.0x the 14B's rate, so 2400/4.0 = 604s. Kept at 1200s rather than cut to
+    # 900: `max_tokens` is the real backstop now, so a generous deadline costs
+    # nothing unless something genuinely wedges, and this is the rung whose
+    # throughput is least characterised on long contexts.
     timeout_seconds: 1200
+    max_retries: 0
+    frequency_penalty: 0.5
+    max_tokens: 14000
     seed: 1
+    temperature: 0.7
 
 # --- not run: kept to document the shape of other provider entries ---
 #
