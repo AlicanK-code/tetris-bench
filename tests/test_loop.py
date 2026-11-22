@@ -200,9 +200,7 @@ class TestFeedbackText:
         """Measuring is the default, not a removal of the knob."""
         from dataclasses import replace
 
-        text = feedback_text(
-            play_function(GOOD, 1, config), replace(config, reference_score=12345)
-        )
+        text = feedback_text(play_function(GOOD, 1, config), replace(config, reference_score=12345))
         assert "12345" in text
 
     def test_the_reference_tracks_the_budget(self, config):
