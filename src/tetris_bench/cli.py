@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from pathlib import Path
 
 from tetris_bench.agents.base import Agent
@@ -203,6 +204,11 @@ def build_parser() -> argparse.ArgumentParser:
     loop.add_argument("--per-call-seconds", type=float, default=1.0)
     loop.add_argument("--log", type=Path, default=Path("runs/loop.jsonl"))
     loop.add_argument("--save-dir", type=Path, default=Path("runs/functions"))
+    loop.add_argument(
+        "--no-notify",
+        action="store_true",
+        help="do not push a notification when the sweep ends (default: push if NTFY_TOPIC is set)",
+    )
     return parser
 
 
@@ -244,7 +250,7 @@ def run_improvement_loop(args: argparse.Namespace) -> None:
     """Run the improvement loop. Imported lazily, like `strategy`."""
     from tetris_bench.clients.client import ModelClient
     from tetris_bench.clients.config import load_model_config
-    from tetris_bench.loop import LoopConfig, run_loop
+    from tetris_bench.loop import LoopConfig, run_loop, summarise_run
 
     config = load_model_config(args.config, args.model)
     client = ModelClient(config)
@@ -272,7 +278,67 @@ def run_improvement_loop(args: argparse.Namespace) -> None:
         f"{len(loop_config.eval_seeds)} held-out seeds evaluated per iteration"
     )
     print(f"log {loop_config.log_path} - rerun the same command to resume\n")
-    run_loop(client, loop_config)
+
+    # Notifications live here rather than inside `run_loop` on purpose. The loop
+    # is pure orchestration that the test suite calls directly; giving it a
+    # network side effect would mean every test attempting a POST. The CLI is
+    # already the layer that reads the environment and prints, so it is the
+    # right place for "tell someone this finished".
+    started = time.monotonic()
+    try:
+        run_loop(client, loop_config)
+    except BaseException as error:
+        # Includes KeyboardInterrupt and SystemExit: a sweep that died at 3am is
+        # exactly the one worth being told about, however it died.
+        _notify_run_ended(
+            args,
+            title=f"Sweep FAILED: {config.name}",
+            body=f"{type(error).__name__}: {error}\nafter {_hms(time.monotonic() - started)}",
+            urgent=True,
+        )
+        raise
+
+    _notify_run_ended(
+        args,
+        title=f"Sweep finished: {config.name}",
+        body=(
+            f"{summarise_run(loop_config.log_path, loop_config.model)}\n"
+            f"{_hms(time.monotonic() - started)}"
+        ),
+    )
+
+
+def _hms(seconds: float) -> str:
+    """Render a duration as `2h 14m`, which is what you want on a lock screen."""
+    minutes = int(seconds // 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes:02d}m" if hours else f"{minutes}m"
+
+
+def _notify_run_ended(
+    args: argparse.Namespace,
+    title: str,
+    body: str,
+    urgent: bool = False,
+) -> None:
+    """Push a notification about a finished sweep, if one was asked for.
+
+    On by default whenever the topic is configured: a run long enough to want a
+    notification is also long enough to have forgotten to pass a flag, and
+    setting `NTFY_TOPIC` is already an explicit opt-in. `--no-notify` suppresses
+    it. An unset topic is silence, not an error, so the common case of not using
+    ntfy at all costs nothing.
+    """
+    from tetris_bench.notify import PRIORITY_DEFAULT, PRIORITY_HIGH, TOPIC_ENV, send
+
+    if getattr(args, "no_notify", False) or not os.environ.get(TOPIC_ENV):
+        return
+    send(
+        body,
+        title=title,
+        priority=PRIORITY_HIGH if urgent else PRIORITY_DEFAULT,
+        tags=["rotating_light"] if urgent else ["chart_with_upwards_trend"],
+    )
 
 
 def run_strategy(args: argparse.Namespace) -> None:

@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import statistics
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -798,6 +799,68 @@ def run_loop(
             f"({len(config.eval_seeds)} held-out seeds)"
         )
         previous = multi
+
+
+def summarise_run(log_path: Path | str, model: str, statistic: str = "median") -> str:
+    """Describe a finished sweep in a few lines, read back from its own log.
+
+    Deliberately reads the log rather than accumulating totals during the run:
+    the log is the run's only source of truth, and a resumed sweep that skipped
+    most of its positions would otherwise report only the handful it replayed.
+
+    The held-out figure is a *median* across chains by default. That is not a
+    neutral choice and the caller should know it: on the first five-chain sweep
+    the median rose 670 to 1410 while the mean fell 2226 to 1270, because one
+    chain started at 9590 and collapsed. Both summarise the same five numbers.
+    """
+    if statistic not in ("median", "mean"):
+        raise ValueError(f"statistic must be 'median' or 'mean', not {statistic!r}")
+
+    rows = [r for r in read_records(log_path) if r.get("model") == model]
+    if not rows:
+        return f"{model}: no records in {log_path}"
+
+    held_out: dict[int, dict[int, list[int]]] = {}
+    positions_seen: set[tuple[int, int]] = set()
+    tokens_out = 0
+    failures = 0
+    for row in rows:
+        positions_seen.add((row.get("chain", 0), row.get("iteration", 0)))
+        failures += row.get("failed_calls") or 0
+        if row.get("split") == "eval":
+            by_chain = held_out.setdefault(row.get("iteration", 0), {})
+            by_chain.setdefault(row.get("chain", 0), []).append(row.get("score") or 0)
+        elif row.get("seed") == rows[0].get("seed"):
+            # Usage is logged per position, repeated on each of its rows, so
+            # counting one seed's rows counts each generation once.
+            tokens_out += row.get("tokens_out") or 0
+
+    lines = [f"{model}: {len(positions_seen)} generations, {tokens_out:,} tokens out"]
+
+    # One mean per chain per iteration, which is the unit everything below uses.
+    chain_means: dict[int, list[float]] = {
+        iteration: [statistics.fmean(scores) for scores in by_chain.values()]
+        for iteration, by_chain in sorted(held_out.items())
+    }
+    if chain_means:
+        pick = statistics.median if statistic == "median" else statistics.fmean
+        curve = {iteration: pick(means) for iteration, means in chain_means.items()}
+        first, last = min(curve), max(curve)
+        chains = max(len(means) for means in chain_means.values())
+        lines.append(
+            f"held-out {statistic} it{first} {curve[first]:,.0f} "
+            f"-> it{last} {curve[last]:,.0f} ({chains} chain(s))"
+        )
+
+        # The noise bar, where there is more than one chain to compare: if this
+        # is larger than the movement reported above, the movement is not news.
+        spreads = [max(means) - min(means) for means in chain_means.values() if len(means) > 1]
+        if spreads:
+            lines.append(f"widest spread between chains {max(spreads):,.0f}")
+
+    if failures:
+        lines.append(f"{failures} failed model call(s)")
+    return "\n".join(lines)
 
 
 def _log_position(
