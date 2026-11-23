@@ -384,7 +384,7 @@ across all four rungs, probe-clean functions average a held-out median of
 **2,740** against **190** for probe-broken ones (Mann-Whitney p = 0.000004).
 
 ```bash
-uv run python analysis/term_diagnostics.py runs/functions/ladder --flip
+uv run python analysis/term_diagnostics.py runs/published/ladder/functions --flip
 ```
 
 **Every defect is board geometry.** Of the 56 functions that loaded, **all 56
@@ -597,24 +597,26 @@ the generated functions as artifacts:
   a full arm: a model call per turn at ~500 turns per game is enormous for a
   result the prior work already reports, so one short game to show the failure
   mode and the cost ratio is the whole value.
-- **Publishing the ladder's artifacts.** See the provenance note below.
 
 ### Provenance
 
-Most findings above are checkable from the repo without rerunning a model:
+**Every finding above is checkable from the repo without running a model.**
 [`runs/published/`](runs/published/) holds the generated functions plus the
-prompt, reasoning trace and raw reply that produced each one, for the
-single-chain 14B run, the counterexample arm, both noise floors, the 4B
-iteration-0 study and the seed-inertness test.
+prompt, reasoning trace and raw reply that produced each one -- including the
+full size ladder (60 generations, 728 games) and the five-chain sweep, so the
+tables in this section can be rebuilt rather than taken on trust:
 
-**The three newest results are not yet published**: the size ladder, the
-five-chain sweep and the capability probes read from `runs/ladder.jsonl`,
-`runs/loop.jsonl` and `runs/functions/ladder/`, which are gitignored like all
-working output. So the `term_diagnostics.py` command above will not run in a
-fresh clone, and those tables cannot currently be checked from the repo alone --
-they are reported rather than demonstrated. The ladder artifacts are about 3.3MB
-of generation traces, so copying them into `runs/published/` is a deliberate
-decision rather than an oversight, and it has not been made yet.
+```bash
+uv run python analysis/curves.py --log runs/published/five-chain/loop.jsonl
+uv run python analysis/term_diagnostics.py runs/published/ladder/functions
+```
+
+A saved function replays in well under a second, with no model involved. The
+`.json` beside each `.py` is the part that makes a claim auditable rather than
+merely reported: it holds the prompt the model actually received and the
+reasoning trace it actually produced. Working output stays gitignored; this
+directory is the deliberate exception, and
+[its own README](runs/published/README.md) indexes what each run supports.
 
 ## Licence
 

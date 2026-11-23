@@ -24,7 +24,10 @@ Two file types, written by `loop.py` as a run proceeds:
   trace it actually produced.
 
 Everything here is `qwen3` at 4-bit on one MacBook via Ollama, so no file
-contains an API key, a URL or any personal data. The `.py` files were written by
+contains an API key, a credential or any personal data. The only URL anywhere in
+these artifacts is one a model cited inside its own reasoning trace
+(`five-chain/functions/qwen3-14b-chain2-iter5.json`), which is model output and
+not necessarily a real reference. The `.py` files were written by
 a language model and executed only inside the sandbox described in the top-level
 README. **Read them, do not import them** -- that is the entire premise of
 `sandbox.py`.
@@ -33,14 +36,36 @@ README. **Read them, do not import them** -- that is the entire premise of
 
 | directory | what it is | cited by |
 |-----------|------------|----------|
-| `clean-6iter/` | The six-iteration improvement run, one chain, 78 games. The headline curve. | README Results, `docs/timeline.md` |
+| `ladder/` | All four rungs at iteration 0, 15 chains each: 60 generations, 728 games, one byte-identical prompt. | [size-ladder-is-a-step.md](../../docs/findings/size-ladder-is-a-step.md), README Results |
+| `five-chain/` | The 14B over six iterations on five independent chains, 390 games. Supersedes `clean-6iter/` as the improvement result. | README Results |
+| `clean-6iter/` | The six-iteration improvement run, one chain, 78 games. Single-chain predecessor of `five-chain/`; still the source of the credit-assignment example. | README Results, `docs/timeline.md` |
 | `seed-inert/` | Five chains at iteration 0 under model seeds 1-5, 65 games. | [seed-is-inert-at-temperature-zero.md](../../docs/findings/seed-is-inert-at-temperature-zero.md) |
 | `noise-floor/` | Repeated iteration-0 generations from one prompt: 5 on the 14B, 2 on the 30B. | [noise-floor-qwen3-14b.md](../../docs/findings/noise-floor-qwen3-14b.md), [noise-floor-qwen3-30b.md](../../docs/findings/noise-floor-qwen3-30b.md) |
 | `revise/` | Two independent revisions of the same function from the same feedback. | [first-revision-reweights-not-debugs.md](../../docs/findings/first-revision-reweights-not-debugs.md) |
 | `counterexample/` | Revisions given a feature-level counterexample. `1,2,3` are the original trace board; `-p8-1`, `-p24-1` vary it. | [counterexample-fixes-what-feedback-cannot.md](../../docs/findings/counterexample-fixes-what-feedback-cannot.md) |
 | `qwen3-4b-iter0/` | The 4B's first functions, including the `strategy_v1` vs `v2` prompt comparison. | [qwen3-4b-iter0-detailed.md](../../docs/findings/qwen3-4b-iter0-detailed.md), [prompt-comparison-and-determinism.md](../../docs/findings/prompt-comparison-and-determinism.md) |
 
-## The two results worth opening a file for
+## The results worth opening a file for
+
+**`ladder/functions/qwen3-30b-chain3-iter0.py` is the best function the project
+has produced, and it was the first thing that chain wrote.** 22 lines: lines,
+holes and bumpiness, no height term at all. It reaches 96% of the hand-written
+heuristic on held-out seeds with no feedback of any kind. Its sibling
+`qwen3-30b-chain11-iter0.py` from the same prompt and the same rung scores zero,
+which is the spread this benchmark has to measure through.
+
+Four files in `ladder/functions/` were refused before they ever ran, and the
+`.json` beside each shows the model producing them:
+
+```bash
+grep -l "^import math" runs/published/ladder/functions/*.py    # three of the four
+```
+
+Those three imported `math` against a prompt that forbids imports in bold, which
+makes them instruction-following failures rather than harness artefacts. The
+fourth, `qwen3-8b-chain4-iter0.py`, is a plain syntax error.
+
+## Two more worth opening a file for
 
 **`clean-6iter/functions/` is a credit-assignment failure you can read.**
 Iterations 3, 4 and 5 are the same strategy with the same bug treated three

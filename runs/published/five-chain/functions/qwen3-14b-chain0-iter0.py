@@ -1,0 +1,39 @@
+def score(board, placement):
+    lines = placement["lines_cleared"]
+    
+    # Calculate column heights
+    heights = []
+    for col in range(10):
+        h = 0
+        for row in reversed(range(20)):
+            if board[row][col]:
+                h += 1
+            else:
+                break
+        heights.append(h)
+    
+    # Calculate number of holes
+    holes = 0
+    for col in range(10):
+        highest_filled_row = None
+        for row in range(20):
+            if board[row][col]:
+                highest_filled_row = row
+                break
+        if highest_filled_row is not None:
+            for row in range(highest_filled_row + 1, 20):
+                if not board[row][col]:
+                    holes += 1
+    
+    # Calculate bumpiness
+    bumpiness = 0
+    for i in range(9):
+        bumpiness += abs(heights[i] - heights[i + 1])
+    
+    # Calculate max height
+    max_h = max(heights)
+    
+    # Combine all factors into a score
+    score = lines * 10 - holes * 1 - bumpiness * 0.5 - max_h * 0.5
+    
+    return float(score)
