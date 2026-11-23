@@ -106,7 +106,7 @@ for this machine; the confound should be stated in the README rather than hidden
 
 ---
 
-## 3. The probes gain predictive power with scale
+## 3. The probes predict a score everywhere except the 4B
 
 The sharper result, and the one that justifies having built the probes at all:
 
@@ -120,6 +120,16 @@ The sharper result, and the one that justifies having built the probes at all:
 
 In points per piece, over all 15 positions per rung with a rejected function
 counting as zero.
+
+> **Later correction.** Under the old total-score headline these ratios read
+> 0.9× / 8.1× / 104× / ∞, which looked like a gradient, and this section was
+> titled "the probes gain predictive power with scale". Per piece they read
+> 0.9× / 63× / 62× / ∞ — the 8B and the 14B are indistinguishable, so it is a
+> **step at the 4B boundary rather than a gradient**. The old progression was an
+> artefact of totals: score grows superlinearly with survival, so a rung whose
+> clean functions survive longer got a disproportionately larger ratio. The
+> finding that survives is the one the 4B supports on its own, and it is the
+> interesting half anyway.
 
 Pooled, that separation is p = 0.000001 (Mann-Whitney). From the 8B up, whether
 a function can express a strategy at all is most of what determines its score.
