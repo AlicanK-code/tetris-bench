@@ -1,7 +1,9 @@
-# The counterexample jump is the sampler, not the board
+# A single draw cannot tell you which counterexample board works
 
-**Status:** replicated at n=15 distinct samples. The effect is real and it is
-intermittent. The earlier "one success in three boards" reading was wrong.
+**Status:** the first pass's per-board reading is withdrawn. The replication
+that withdrew it then turned out to have a defect of its own, found immediately
+afterwards, which changes what the numbers can support. Both corrections are
+below. **The fire rate of this intervention is not yet estimated.**
 
 ## What was being tested
 
@@ -14,68 +16,100 @@ project's signature defect: `heights[col] > row`, which has the board's
 orientation backwards and so cannot see a gap. Iteration 0 scores **110** on the
 held-out seeds, **3.8 points per piece**.
 
-The first pass showed three boards once each and got held-out **2540 / 120 / 5**
-for boards at piece 8 / 16 / 24. Read as a per-board effect, that says board 8
-is informative and board 24 is actively harmful. That reading does not survive.
+The first pass reported held-out **2540 / 120 / 5** for boards at piece 8 / 16 /
+24 and was read as a per-board effect: board 8 informative, board 24 harmful.
 
-## The replication
+## The defect in both passes: the sweep never varied the seed
 
-Six boards (pieces 4, 8, 12, 16, 20, 24), three runs each, `qwen3-14b`,
-2026-11-23 02:03–06:20 GMT, 4h16m, 18 generations at ~855s each.
+`analysis/counterexample_arm.py` called `client.complete(messages)` without a
+`seed`, so every run fell back to `config.seed`. `qwen3-14b` is configured
+`seed: 1, temperature: 0.7`. **Every run on a given board therefore sent a
+byte-identical request** — same prompt, same seed, same temperature. The run
+index reached the output filename and nothing else.
 
-| board | distinct samples (held-out score) | holes |
-|---|---|---|
-| 4  | 20, 40 | 99.5, 100.5 |
-| 8  | **2455**, 130 | 37.6, 82.2 |
-| 12 | 95, 145 | 91.3, 78.6 |
-| 16 | 95, 105 | 88.2, 89.9 |
-| 20 | 100, 100 | 85.7, 101.7 |
-| 24 | 65, **5835** | 93.8, 22.9 |
+So the right way to count the evidence is **six requests, one per board**:
 
-Iteration 0 for comparison: score 110, holes 85.8.
+| board | outputs | distinct functions | held-out scores of the distinct ones | holes |
+|---|---:|---:|---|---|
+| 4  | 3 | 2 | 20, 40 | 99.5, 100.5 |
+| 8  | 4 | 3 | **2540**, **2455**, 130 | –, 37.6, 82.2 |
+| 12 | 3 | 2 | 95, 145 | 91.3, 78.6 |
+| 16 | 3 | 2 | 95, 105 | 88.2, 89.9 |
+| 20 | 3 | 2 | 100, 100 | 85.7, 101.7 |
+| 24 | 4 | 3 | 5, 65, **5835** | –, 93.8, 22.9 |
 
-**Board 24 produced both the worst result in the first pass (5) and the best
-result in the project's history (5835).** Board 8 produced 2540 and 2455 on two
-samples and 130 on two others. Which board is shown does not predict the
-outcome; the sample does.
+Plus three earlier outputs (2 distinct) at piece 16 that predate the
+board-in-filename convention; only one of their scores, 120, survives in the
+write-up. Iteration 0 for comparison: 110, holes 85.8.
 
-Counting all 15 distinct samples across both passes, **3 jumped by more than
-20×** (2540, 2455, 5835) and the other 12 landed between 20 and 145 — at or
-around the unrevised 110. So the intervention fires about **20% of the time**,
-and when it fires it is decisive: 5835 is **33.1 points per piece** against
-iteration 0's 3.8, within sight of the hand-written heuristic's 43.5.
+**That identical requests gave different functions is not a contradiction.** This
+rung is already known not to be bit-reproducible at a fixed seed — see
+[seed-is-inert-at-temperature-zero.md](seed-is-inert-at-temperature-zero.md) —
+from floating-point near-ties in long generations. Within each board, roughly
+two of the three runs landed on the same completion and one diverged. Identical
+output-token counts on the matching pairs confirm the same completion rather
+than two generations that converged.
 
-## The mechanism, where it is visible
+## What the data does and does not support
 
-The holes column separates the two outcomes cleanly. Both big winners cut holes
-from 85.8 to 37.6 and 22.9. Every other sample stayed at 78–102, i.e. it never
-learned to see the gap at all, whatever it did to its weights.
+**Supported: a single draw per board cannot distinguish boards.** Board 24's one
+request produced held-out **5** in the first pass and **5835** in the
+replication — the worst and the best results in the project's history, from the
+same bytes. Board 8's request produced 2540, 2455 and 130. Any design that shows
+each board once is measuring generation noise and reporting it as a board
+property, which is exactly what the first pass did.
 
-Of the 12 distinct samples, 5 rewrote the `heights[col] > row` comparison and 7
-left it verbatim. Both winners are in the group of 5; none of the 7 that kept
-the line scored above 145. Fisher exact on 2/5 against 0/7 gives p=0.19, so this
-is a direction and not a result — but it is the direction the mechanism predicts.
-Changing the line is close to necessary; changing it *correctly* is the part the
-model gets right one time in five or so.
+**Supported: the intervention sometimes produces a large, real jump.** Three of
+the 16 distinct functions cleared 20× the unrevised 110. The best is **33.1
+points per piece** against iteration 0's 3.8, within sight of the hand-written
+heuristic's 43.5. Nothing in the outcome-only control has come close: its two
+revisions scored 130 and 85 against 110, both keeping `heights[col] > row`
+verbatim and changing only weights.
 
-## A sampling bug this surfaced
+**Supported: the mechanism is visible in the holes column.** Both big winners cut
+holes from 85.8 to 37.6 and 22.9. Every other sample stayed at 78–102 — it never
+learned to see the gap at all, whatever it did to its weights. Of the 12 distinct
+functions from the replication, the 5 that rewrote the `heights[col] > row`
+comparison include both winners; none of the 7 that kept it verbatim scored
+above 145. Fisher exact on 2/5 against 0/7 gives p=0.19, so this is a direction
+and not a result — but it is the direction the mechanism predicts. Changing the
+line is close to necessary; changing it *correctly* is the hard part.
 
-**Runs 11 and 12 produced byte-identical functions on all six boards** — same
-hash, same output-token count. Run 10 always differed. So `--runs 3
---start-index 10` yielded two distinct samples per board, not three, and a
-sixth of the 4h16m was spent regenerating work already done.
+**Not supported: any fire rate.** "3 of 16" is a rate over floating-point
+divergence at one fixed seed, not over seeds. It is not an estimate of what the
+intervention would do on a fresh sample, and it should not be quoted as one.
 
-The seed derivation for consecutive run indices is collapsing somewhere between
-the index and the request. Until that is found, **read n as two-thirds of the
-`--runs` value** on this script, and check the hashes before trusting a count.
+**Not settled: whether the board matters at all.** Board 8 produced 2 of its 3
+distinct functions above 2400; the other five boards produced 1 big winner
+between them, on board 24. Fisher exact gives p=0.07 one-sided. That is suggestive and
+it is confounded with the per-board request being fixed, so it cannot be read
+either way yet. The honest position is that the first pass's *specific* ranking
+was noise, and whether any board ranking exists is an open question.
+
+## Fixed
+
+`counterexample_arm.py` and `null_arm.py` now derive a per-run seed through the
+same `model_seed_for` the loop uses for chains, so a sweep index offsets the
+configured seed exactly as a chain offset does. A regression test
+(`tests/test_analysis_sweeps_vary_the_seed.py`) walks the AST of every script in
+`analysis/` and asserts each `.complete(` call passes a `seed`, with an explicit
+exemption list. `revise_reproducibility.py` is on that list and deliberately
+unseeded: sending the identical request N times is its whole experiment.
+
+**The loop's chains were never affected.** `loop.py` has always passed
+`seed=model_seed_for(config.model_seed, position.chain)`, and all 30 positions
+in `runs/published/five-chain/loop.jsonl` carry distinct `function_sha` values.
+The independent-chains argument in CLAUDE.md stands; the defect was confined to
+the standalone analysis sweeps, which bypass the loop's generation path.
 
 ## What this changes
 
-- The counterexample arm stays a live result: a trace board can take a function
-  from 3.8 to 33.1 points per piece, which nothing in the outcome-only control
-  has ever done (its two revisions scored 130 and 85 against 110).
-- It cannot be reported as a reliable intervention. At ~20% it needs n per cell
-  in the double digits before two conditions can be compared, which is ~5h of
-  generation per cell on this hardware.
-- Any future per-board claim needs n well above 3. The first pass is a worked
-  example of how a 3-sample sweep invents structure that is not there.
+- Estimating the fire rate needs a rerun on the fixed script — 6 boards × 3
+  genuinely different seeds, ~4.2h on this hardware. Until then the arm is a
+  demonstrated possibility with an unknown rate.
+- The first pass is a worked example of a 3-sample sweep inventing structure.
+  The replication is a worked example of the subtler version: 18 runs that look
+  like a sample and are 6 requests.
+- **Check the hashes before trusting a count.** Both errors here would have been
+  caught in a second by hashing the outputs, which is now what the validity
+  check in every write-up that rests on sample counts does.

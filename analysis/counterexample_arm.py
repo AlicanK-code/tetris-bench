@@ -41,7 +41,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from tetris_bench.agents.strategy import MEASUREMENT_DECLARATION, StrategyAgent, extract_code
-from tetris_bench.clients.client import ModelClient
+from tetris_bench.clients.client import ChatResponse, ModelClient
 from tetris_bench.clients.config import load_model_config
 from tetris_bench.engine.board import Board
 from tetris_bench.engine.game import Game
@@ -49,6 +49,7 @@ from tetris_bench.loop import (
     LoopConfig,
     Outcome,
     feedback_text,
+    model_seed_for,
     play_function,
 )
 from tetris_bench.metrics import holes
@@ -58,6 +59,32 @@ from tetris_bench.runner import play_game
 from tetris_bench.sandbox import ScoringSandbox
 
 HELD_OUT_SEEDS = tuple(range(1000, 1020))
+
+
+def sample_once(client: ModelClient, prompt: str, index: int) -> ChatResponse:
+    """One sample of a sweep, seeded by its run index.
+
+    Every sample in a sweep sends the same prompt -- that is the point, since
+    the prompt is the thing being held fixed. The *seed* therefore has to carry
+    the variation, and `ModelClient.complete` falls back to the configured seed
+    when none is passed. Omitting it is silent: the sweep runs, writes N files,
+    and reports N samples, having asked one question N times.
+
+    Measured, before this existed: six boards x three runs at `--start-index
+    10`, and on every board runs 11 and 12 returned byte-identical functions
+    with identical output-token counts. Run 10 differed only because this rung
+    is not bit-reproducible even at a fixed seed (see
+    docs/findings/seed-is-inert-at-temperature-zero.md), so the duplication was
+    visible but not total -- the worst way for it to fail, because a sweep that
+    had collapsed completely would have been obvious.
+
+    `model_seed_for` is reused rather than reimplemented so that a sweep index
+    and a loop chain offset the configured seed the same way.
+    """
+    return client.complete(
+        [{"role": "user", "content": prompt}],
+        seed=model_seed_for(client.config.seed, index),
+    )
 
 
 def trace_block(boards: list[tuple[str, Board]]) -> str:
@@ -267,7 +294,7 @@ def main() -> None:
     for index in range(args.start_index, args.start_index + args.runs):
         client = ModelClient(config)
         started = time.monotonic()
-        response = client.complete([{"role": "user", "content": prompt}])
+        response = sample_once(client, prompt, index)
         elapsed = time.monotonic() - started
         try:
             source = extract_code(response.text)

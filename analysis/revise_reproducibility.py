@@ -85,6 +85,10 @@ def main() -> None:
     for index in range(1, args.runs + 1):
         client = ModelClient(config)
         started = time.monotonic()
+        # Deliberately unseeded, unlike every other sweep: sending the identical
+        # request N times is the experiment here, so varying the seed would
+        # answer a different question. Exempted by name in
+        # tests/test_analysis_sweeps_vary_the_seed.py.
         response = client.complete([{"role": "user", "content": prompt}])
         elapsed = time.monotonic() - started
         try:

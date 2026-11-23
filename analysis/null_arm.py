@@ -82,6 +82,7 @@ from counterexample_arm import (
     build_counterexample_prompt,
     held_out,
     sample_boards,
+    sample_once,
 )
 
 from tetris_bench.agents.strategy import MEASUREMENT_DECLARATION, extract_code
@@ -498,7 +499,7 @@ def main() -> None:
     for index in range(args.start_index, args.start_index + args.runs):
         client = ModelClient(config)
         started = time.monotonic()
-        response = client.complete([{"role": "user", "content": null}])
+        response = sample_once(client, null, index)
         elapsed = time.monotonic() - started
         try:
             generated = extract_code(response.text)
