@@ -788,28 +788,71 @@ five of them currently carry one.
 
 ### Not done
 
-- **Raising the piece limit.** No longer blocking -- the headline is now points
-  per piece, which is not censored by the budget -- but the budget still caps how
-  much play any single figure is measured over, and the best chain's rate rests
-  on about 1,000 pieces against the heuristic's 10,467. A longer run would make
-  that comparison tighter rather than fix anything broken.
-- **The loop on any rung but the 14B.** The ladder measured all four rungs at
-  **iteration 0 only**. Whether the loop *moves* a rung -- the reframed version
-  of the "does a small model close on a large one" question -- has data for one
-  rung out of four, and the baselines for the other three are now measured.
+Ordered by whether it would change anything claimed above.
+
+**One experiment would.** Everything in [What we found](#what-we-found) rests on
+the loop having been run on **one rung**: the 14B. The ladder measured all four
+rungs at *iteration 0 only*. So "no model has been shown to improve" and "the
+largest gain ever observed is +10.0" are statements about one model currently
+being quoted as statements about the mechanism.
+
+- **The loop on a second rung -- the 8B, 10 chains, 6 iterations, ~9.3 hours.**
+  The 8B because it has the project's best **headroom-to-noise ratio, 2.29
+  against the 30B's 1.31**: not the cheapest run, but the one with the most room
+  for a result to appear in. See
+  [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md).
+  This is the only outstanding item that could move a headline.
+
+**One pilot would shore up a soft spot in the analysis.**
+
+- **The 30B at 6 chains, ~3.5 hours.** Every power claim in this repo uses a
+  paired standard deviation **scaled from the 14B** (8.74 x 15.13/12.55),
+  because the paired figure has never been measured on the 30B at all. Six
+  chains measure it directly. The finding that makes those claims says so
+  itself.
+
+**Four things cost nothing and are answerable from logs already on disk.**
+
+- **The rate of zeros as its own effect.** Three of the 30B's 15 chains scored
+  0.0. If the loop's value on that rung is *rescuing dead functions* rather than
+  improving live ones, the effect is a change in a proportion -- a different
+  power calculation from the one in the write-up, and one the current analysis
+  cannot see.
+- **Does the loop move the probe-clean fraction?** 37 of 60 first attempts were
+  broken rather than bad. This is the restated form of the "does a small model
+  close on a large one" question, and the ladder left it open.
+- **The `import math` rejections.** Three of the project's four rejections were
+  `import math` against a prompt that forbids imports in bold, which makes them
+  instruction-following failures rather than harness artefacts. Worth
+  quantifying rather than mentioning.
+- **Whether `strategy_v2`'s "must discriminate" warning worked**, from
+  [the 4B write-up](docs/findings/qwen3-4b-iter0-detailed.md)'s open questions.
+
+**Two are held rather than planned.**
+
+- **The counterexample arm, rerun on the fixed script (~4.2 h).** The
+  per-board reading was withdrawn when the sweep turned out never to have varied
+  its seed; the board question reopened at **Fisher p = 0.07 one-sided**, which
+  is suggestive and not settled. See
+  [the write-up](docs/findings/counterexample-is-the-sampler-not-the-board.md).
+- **Is `qwen3-8b` reproducible?** 19-30 minutes, documentation value only. The
+  14B is the only rung shown reproducible and only on the iteration-0 prompt;
+  this is not a gate on the 8B loop.
+
+**Three will not happen here, and the reasons are structural rather than
+scheduling.**
+
+- **A powered direct-mode arm.** Several seeds across several rungs, at 672 s
+  per piece, is weeks of wall clock for a baseline whose purpose is to be beaten.
+  The demonstration ran, the cost ratio was the deliverable, and it is measured
+  -- see [above](#direct-mode-costs-800x-and-plays-like-random).
 - **Separating size from architecture.** The one rung that outperforms is the one
-  MoE, and nothing on a 32GB machine can break that tie.
-- **Chains per rung is not established.** `chains=1` for the 14B rests on score
-  stability across two samples, and no rung is text-reproducible for revisions.
-  The ladder sidestepped this by using 15 chains everywhere. There are now
-  concrete per-rung numbers to argue from, in
-  [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md):
-  the 8B at 10 chains for 9.3 hours, and the 30B at 6 chains for a
-  parity-sized effect or 14 to 28 for a realistically-sized one.
-- **A powered direct-mode arm.** The demonstration ran and is written up
-  above; what is not done is several seeds across several rungs, which at 672 s
-  per piece is weeks of wall clock for a baseline whose purpose is to be beaten.
-  The cost ratio was the deliverable and it is measured.
+  MoE, and nothing that fits in 32GB breaks that tie.
+- **Raising the piece limit.** Stopped being blocking when the headline moved to
+  a rate, which is not censored by the budget. The budget still caps how much
+  play any single figure covers -- the best chain's rate rests on about 1,000
+  pieces against the heuristic's 10,467 -- so a longer run would tighten that
+  comparison rather than fix anything broken.
 
 ### Provenance
 

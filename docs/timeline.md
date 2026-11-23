@@ -5,7 +5,7 @@ is traceable to a commit or a document in [`findings/`](findings/).
 
 The short version: the engine and baselines took an evening, the model-facing
 machinery took a day, and almost everything since has been **measurement** —
-establishing what a number from this benchmark is allowed to mean. Four of the
+establishing what a number from this benchmark is allowed to mean. Twelve of the
 project's own published results have been corrected by later measurement, and
 that thread is tracked separately in [Corrections](#corrections) below, because
 it is the part a reader should trust least on first reading and most on
@@ -338,6 +338,115 @@ correcting the concept destroyed the behaviour.
 
 ---
 
+## 2026-11-21 to 11-23 — the measurement phase
+
+Thirty-four commits, and almost no new capability among them. The build was
+finished; what these three days did was establish **what a number from this
+benchmark is allowed to mean**, which repeatedly meant withdrawing something
+already published here.
+
+### The seed was inert, so five chains were one sample
+
+`87f05e6`, `17730da`. Chains existed so that a rising median across independent
+samples could rule out selection bias. At temperature 0 with one model seed,
+every chain generated the **byte-identical function** — measured, by hash. A
+five-chain run had been four copies of one sample. `model_seed_for(base, chain)`
+fixed it, giving chain *k* the seed `base + k` while chain 0 keeps the configured
+seed, so a single-chain run stays bit-for-bit what it was. Verified afterwards:
+every rung of the ladder produced 15 distinct SHAs across its 15 chains.
+
+### Capability probes, because a low score has two causes
+
+`6e753ab`. A bad strategy and one that *cannot be expressed* both produce a low
+number, and the benchmark had no way to tell them apart. The probes separate
+them, and the answer reframed the project: **37 of 60 first attempts were broken
+rather than bad.**
+
+### The ladder is a step, not a slope
+
+`2ae8c5c`, `41e189b`. All four rungs at iteration 0, 15 chains each, one
+byte-identical prompt (SHA `f3a0cb0af765`): 60 generations, 728 games.
+
+| rung | probe-clean | median pts/pc | best pts/pc |
+|---|---:|---:|---:|
+| `qwen3-4b` | 4/15 | 7.4 | 15.6 |
+| `qwen3-8b` | 5/15 | 15.6 | 35.1 |
+| `qwen3-14b` | 3/15 | 1.9 | 39.0 |
+| `qwen3-30b-a3b` | **11/15** | **26.0** | **46.4** |
+| *hand-written heuristic* | — | *43.5* | *43.5* |
+
+4B, 8B and 14B are statistically indistinguishable; the 30B steps up to 11/15,
+**p = 0.002** against the three pooled (Fisher exact). So "does the loop let a
+small model close on a large one" is ill-posed as written — there is no slope to
+close — and it is restated as *does the loop move a rung's probe-clean
+fraction?*, which remains open.
+
+The 30B's best function is also the best the project has produced, and it was
+the **first thing that chain wrote**: 22 lines, no height term, 96% of the
+hand-written heuristic on held-out seeds with no feedback of any kind.
+
+### The headline moved to points per piece
+
+`177d1dd`, `3051399`. A total is censored by the piece budget, and the project's
+best function is censored in 8 of 10 games. A rate is not: the heuristic measures
+**43.2–43.5 points per piece at 500, 2,000, 20,000 and 50,000 pieces alike**.
+Totals stay in the schema and are reported beside the rate, because survival is
+a separate thing to know — the clearest case being a function at 92% of the
+heuristic's *rate* and 6% of its *survival*.
+
+### The game got its own time bound
+
+`097e36d`, `f45c751`. Bounding the call and the piece does not bound the game. A
+function that merely spends its full second on every placement, never looping,
+could run 2,000 pieces × 34 placements × 1s — about **19 hours** — entirely
+within the rules, and an unattended sweep would simply appear to hang.
+`per_game_seconds` closes that, checked between batches rather than inside one,
+because cutting a batch short would kill a worker behaving exactly as allowed.
+
+### Two withdrawals, both from measuring the measurement
+
+**The counterexample result was the sampler, not the board.** `05d6df3`,
+`6ebf93d`. The published reading — one trace board in three fixes the hole-count
+bug — rested on a sweep that **never varied its seed**: consecutive run indices
+produced byte-identical output, so what looked like three boards sampled once
+each was one board sampled repeatedly. Re-running properly gave 23 outputs and
+16 distinct functions, and the board question reopened at **Fisher p = 0.07
+one-sided**: suggestive, unsettled. The fire rate was withdrawn outright, being
+a rate over floating-point divergence at one fixed seed rather than over seeds.
+A regression test now walks `analysis/*.py` and fails if a `.complete()` call
+omits its seed.
+
+**The 30B loop is underpowered, not futile.** `ac63400`. The earlier claim was
+that the 30B "cannot demonstrate improvement at any affordable sample size".
+Both its figures reproduced; the conclusion did not follow. The error was
+substituting cross-chain spread (15.13) for the **paired** standard deviation
+(8.74, 0.70× of it), which inflated the required sample roughly twofold, and
+then treating n=5 as the affordable ceiling. One more chain clears the bar:
+**n=6 gives 17.30 against 17.52 of headroom, at 3.5 hours.** The real obstacle
+turned out to be effect size — parity with the heuristic needs 1.75× the largest
+gain the loop has ever produced — which is a different objection, and the one
+that makes the 8B the better next run.
+
+### Milestone 7, measured rather than argued
+
+`04a3160`, `d26e56a`. The direct agent: one model call per piece, the reply an
+index into the enumerated legal moves so every option is legal by construction.
+One demonstration game, 20 pieces, **3 h 44 m**.
+
+**672 s and 6,444 output tokens per piece** — 64× strategy mode charged against
+a single game, 822× amortised over the ~900 pieces a function is actually
+replayed across. A full 2,000-piece game would be 15.4 days, which is why this is
+a demonstration and not a rung.
+
+It also scored 0 with **86 holes**, against random play's 70.6 over 200 agent
+seeds on the same sequence — the 80th percentile, inside the distribution. With
+**0 malformed replies in 20 calls**, so the failure is choice and not formatting,
+which is exactly what the index design was built to isolate.
+
+*582 → 698 tests.*
+
+---
+
 ## Corrections
 
 Published results this project has overturned with its own later measurement.
@@ -355,13 +464,30 @@ methodological claim being made.
 | An unparseable reply no longer clobbers the chain's previous function | Only the logging half had landed; a probe confirmed the empty code block was still reaching the next prompt. The earlier commit message overstated its own fix | `3f263f5` |
 | A counterexample trace fixes the hole-count bug | On one trace board in three. Another kept the bug verbatim; a third produced a new inverted one | 2026-11-21 |
 | The 23× counterexample improvement, measured against a 110 baseline | That baseline is `strategy_v2`. On `strategy_v3`, iteration 0 scores a held-out 1,580 unaided, so on pieces the advantage is 101.5 vs 71.8 — ~1.4×, not 23× | 2026-11-21 |
+| A per-chain seed makes chains independent | Not at temperature 0, where it is inert: five chains generated one byte-identical function. Independence needed `model_seed_for`, and was verified by hash afterwards | `87f05e6`, `17730da` |
+| A counterexample fixes the bug on one trace board in three | The sweep never varied its seed, so that was one board sampled repeatedly, not three sampled once each. Re-run properly: 23 outputs, 16 distinct functions, board question reopened at Fisher p = 0.07 one-sided | `6ebf93d`, `05d6df3` |
+| The counterexample arm's "fire rate" | A rate over floating-point divergence at one fixed seed, not over seeds. Withdrawn outright | `6ebf93d` |
+| The 30B loop cannot demonstrate improvement at any affordable sample size | Both figures reproduced, the conclusion did not follow: cross-chain spread was substituted for the paired standard deviation (0.70× of it), and n=5 treated as the ceiling. n=6 clears the bar at 3.5 hours | `ac63400` |
+| Total score is the headline | Censored by the piece budget, and the best function is censored in 8 of 10 games. Points per piece is budget-independent: 43.2–43.5 for the heuristic at 500, 2,000, 20,000 and 50,000 pieces | `177d1dd` |
+| Per-piece latency grows as the board fills | Three samples against twenty. Over a full 20-piece game the second half averaged 577 s against the first half's 754 s, r(index, latency) = −0.279 | `d26e56a` |
 
 ---
 
 ## Where it stands
 
-Milestones 1–6 and 8 are built and tested. Milestone 7 (the direct agent) is
-not started.
+**Every milestone is built and tested, under 698 unit tests.** Milestone 7, the
+direct agent, landed as a single demonstration game rather than a full arm,
+because 672 s per piece makes a powered version weeks of wall clock for a
+baseline whose purpose is to be beaten; the cost ratio was its deliverable and
+it is measured.
+
+What remains is measurement, and one item would change what the README claims:
+**the loop has only ever been run on the 14B.** The ladder measured all four
+rungs at iteration 0 only, so every statement about what the loop does is a
+statement about one model. The 8B at 10 chains, ~9.3 hours, is the run that
+settles it — chosen for the project's best headroom-to-noise ratio, 2.29 against
+the 30B's 1.31, rather than for cost. The rest of the outstanding list is in the
+README's [Not done](../README.md#not-done).
 
 There is now one clean six-iteration curve, and it is simultaneously the
 project's strongest result and its least trustworthy. `curves.py` reports the
@@ -399,11 +525,15 @@ Open questions, in rough priority order:
 2. **Is the frequency penalty harmful?** It was added to fix a non-terminating
    generation, which it did decisively. It also appears to have changed what the
    model writes, on the one comparison available. Needs several samples per arm.
-3. **Raise the piece budget.** Iteration 4 is censored at 500 pieces on half its
-   sequences, so the ceiling is now the measurement rather than the model.
-   **Partly done:** the default moved to 2,000, which uncensored that result --
-   but the ladder's best function is now censored in 8 of 10 games at 2,000, so
-   the same hazard has simply moved up the scale. Still open.
+3. ~~**Raise the piece budget.** Iteration 4 is censored at 500 pieces on half
+   its sequences, so the ceiling is now the measurement rather than the model.~~
+   **Resolved by changing the measure, not the budget.** The default moved to
+   2,000, but the ladder's best function is censored in 8 of 10 games there too,
+   so raising it only moves the hazard up the scale. The headline is now points
+   per piece, which has no such failure mode — 43.2-43.5 for the heuristic at
+   500, 2,000, 20,000 and 50,000 pieces alike. The budget still bounds how much
+   play any one figure covers, which is a limit on precision rather than a
+   censored measurement.
 4. ~~**The ladder.** 4B, 8B and 30B under the same protocol, and whether the loop
    lets a smaller rung close on a larger one.~~ **Answered** for iteration 0, all
    four rungs, 15 chains each: [size-ladder-is-a-step.md](findings/size-ladder-is-a-step.md).
@@ -412,6 +542,15 @@ Open questions, in rough priority order:
    (p = 0.002 against the three pooled). The second half of the question is
    therefore ill-posed as written and is restated there as *does the loop move a
    rung's probe-clean fraction?*
-5. **Credit assignment.** The counterexample arm is the project's most
-   interesting result and its least replicated — one rung, one iteration, three
-   boards, one success.
+5. **Credit assignment.** Still the project's most interesting result and its
+   least replicated, but the earlier description of it — *three boards, one
+   success* — was withdrawn: the sweep never varied its seed, so that was one
+   board sampled repeatedly. Re-run properly it gave 23 outputs and 16 distinct
+   functions, and **which board works is reopened at Fisher p = 0.07
+   one-sided**. One rung, one iteration, and now an honest p-value instead of a
+   ratio. See
+   [counterexample-is-the-sampler-not-the-board.md](findings/counterexample-is-the-sampler-not-the-board.md).
+6. **The loop on a second rung.** Added here because it is now the top of the
+   list: every statement this project makes about what the loop *does* rests on
+   the 14B alone. The 8B at 10 chains, ~9.3 hours, is the run that turns one
+   rung's behaviour into a measurement.
