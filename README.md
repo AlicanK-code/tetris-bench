@@ -722,6 +722,43 @@ the clearest demonstration of *why* the two have to be reported separately.
 uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
 ```
 
+### The discriminate warning does not fix inert arithmetic
+
+`strategy_v2` added a bolded warning that a function **must give different
+candidates different scores**, with an actionable second half -- "check that each
+term you use actually *varies*". Did it work?
+
+**The comparison the question wanted is not available.** Of 134 published
+generations, **132 received the warning and 2 did not**, and the two are one
+model at one seed from the original prompt-comparison arm. That cannot be a rate.
+
+What is measurable is whether inert functions persist *under* the warning.
+Replaying every published function in the sandbox against eight boards:
+
+| rung | ran | constant on **every** board |
+|---|---:|---:|
+| `qwen3-4b` | 43 | **5** |
+| `qwen3-8b` | 13 | 0 |
+| `qwen3-14b` | 54 | 0 |
+| `qwen3-30b` | 15 | **0** |
+
+**Five of 125 functions are inert on every board, all of them 4B, and three were
+written under the warning.** In the single controlled v1/v2 pair that exists,
+*both* members are inert -- so the one piece of direct evidence points at no
+effect. The 30B is the only rung with no flatness anywhere.
+
+**The transferable part is a measurement trap.** A naive probe -- "does it return
+the same number for every candidate on a board?" -- over-reports by about five
+times, because on a near-empty board many placements are genuinely equivalent
+and a *correct* function scores them identically. On one empty board 29% of
+functions look inert; on the mid-depth boards it is 5-6%. Only "constant on
+every board" is a defect. Relatedly, `flat_moves` in the run records cannot
+answer this at all: it counts a crashing function as flat, because the sandbox
+returns `-inf` for a failed call.
+
+Full write-up:
+[docs/findings/the-discriminate-warning-does-not-fix-inert-arithmetic.md](docs/findings/the-discriminate-warning-does-not-fix-inert-arithmetic.md).
+
 ### The import rule fails three times in five
 
 The ladder noted that three of the project's four rejections were `import math`
@@ -755,11 +792,11 @@ impossible wording.
 
 Cost: 3 generations, 27,743 output tokens, 38.6 minutes, producing nothing.
 
-**Revisions never do it** -- 0 of 55, against 3 of 76 at iteration 0 -- and not
-because the revise prompt states the rule better. It states it *worse*, as an
-unbolded parenthetical with no example. The likelier mechanism is that a
-revision prompt contains the model's own previous function, which is already
-import-free and so a template to copy. The corpus cannot test that.
+**Revisions never do it** -- 0 of 55, against 3 of 76 at iteration 0 -- and the
+wording is *identical* in both: the loop uses one template for every iteration,
+so a revision is the same text plus a feedback block and the model's previous
+function. What differs is that the previous function is already import-free and
+so a template to copy, where iteration 0 has nothing but prose.
 
 Full write-up:
 [docs/findings/the-import-rule-fails-three-times-in-five.md](docs/findings/the-import-rule-fails-three-times-in-five.md).
@@ -966,6 +1003,11 @@ five of them currently carry one.
 - **A bad strategy and one that cannot be expressed look identical in a score**,
   which is why the capability probes exist. Both produce a low number, and 37 of
   60 first attempts were in the second category.
+- **[The discriminate warning does not fix inert
+  arithmetic](docs/findings/the-discriminate-warning-does-not-fix-inert-arithmetic.md)**
+  -- 3 of 123 warned generations are still inert, all 4B, and the only
+  controlled pair shows no effect. Also a measurement trap: a one-board probe
+  over-reports flatness five-fold.
 - **[The import rule fails three times in
   five](docs/findings/the-import-rule-fails-three-times-in-five.md)** -- the
   right denominator is the 5 generations that wanted `math`, not the 60 that
@@ -1018,10 +1060,9 @@ being quoted as statements about the mechanism.
   14-chain requirement is a lower bound, and this pilot is a precondition for
   the larger run rather than a nice-to-have.
 
-**One thing costs nothing and is answerable from logs already on disk.**
+**Nothing cheap is left.** Every analysis answerable from the logs on disk has
+been run; what remains needs a GPU.
 
-- **Whether `strategy_v2`'s "must discriminate" warning worked**, from
-  [the 4B write-up](docs/findings/qwen3-4b-iter0-detailed.md)'s open questions.
 
 **Two are held rather than planned.**
 

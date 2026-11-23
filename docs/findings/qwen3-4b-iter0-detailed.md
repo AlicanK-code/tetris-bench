@@ -287,12 +287,16 @@ plain `for` loop.
    holes probe, among functions that loaded: 4B 8/15, 8B 4/13, 14B 6/13, 30B
    2/15 — thinner at the top rung, never absent. See
    [size-ladder-is-a-step.md](size-ladder-is-a-step.md) §4.1.
-2. Would a prompt that warns a function must *discriminate* between candidates
-   fix this without leaking strategy? **Partly settled:** the warning landed in
-   `strategy_v2` (the addendum below), which answers the leakage half by
-   construction — it talks about function behaviour, not Tetris. Whether it
-   *fixes* the conflation is still unmeasured, and needs the degenerate-function
-   rate under v2 against v1.
+2. ~~Would a prompt that warns a function must *discriminate* between candidates
+   fix this without leaking strategy?~~ **Answered: it does not fix it.** The
+   leakage half was settled by construction — the warning talks about function
+   behaviour, not Tetris. The other half is now measured as far as it can be:
+   inert functions are still produced under the warning (3 of 123 warned
+   generations, all 4B), and in the one controlled v1/v2 pair that exists
+   *both* members are inert. Whether it *reduces* the rate remains out of reach:
+   132 of 134 published generations received the warning, so there is no v1 arm
+   to compare against. See
+   [the-discriminate-warning-does-not-fix-inert-arithmetic.md](the-discriminate-warning-does-not-fix-inert-arithmetic.md).
 3. ~~Should feedback name the bug class ("your function scored every candidate
    identically") or only the outcome ("you made 107 holes")?~~ **Decided: the
    outcome.** "Feedback is symptoms, not diagnoses" in `CLAUDE.md`, because the

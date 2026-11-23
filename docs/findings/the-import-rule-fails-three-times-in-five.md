@@ -77,25 +77,34 @@ has no score on this instruction rather than a perfect one.
 
 ---
 
-## 4. Revisions never do it, and the likely reason is not prominence
+## 4. Revisions never do it, under identical wording
 
-| prompt | generations | import rejections |
+| condition | generations | import rejections |
 |---|---:|---:|
-| `strategy_v*` (iteration 0) | 76 | **3** |
-| `revise_v1` (all revisions) | 55 | **0** |
+| iteration 0 | 76 | **3** |
+| revisions | 55 | **0** |
 
-The tempting read is that the revise prompt states the rule better. It does not —
-it states it *worse*, as an unbolded parenthetical with no example:
+> **Correction (2026-11-23, same day).** This section first attributed the
+> contrast to the revise prompt stating the rule *worse* — an unbolded
+> parenthetical with no example — quoting `revise_v1.md`. That is wrong.
+> **`revise_v1` was never used in any published run.** The loop uses one
+> template for every iteration (`loop.py`: `TEMPLATE = "strategy_v3"`), and its
+> own comment says why: earlier versions used `strategy_v2` at iteration 0 and
+> `revise_v1` afterwards, "which differed in several ways at once", so the
+> prompt change was tangled up with the measured effect. All 134 published
+> generations carry the strategy body; a revision is that same text plus a
+> feedback block and the previous function.
 
-> Rules: no imports (`math` is already available as a name), no file, network or
-> system access.
+So the wording is **identical** in both conditions — bolded, with the
+`math.sqrt` example — and the contrast cannot be a wording effect at all. What
+differs is only the feedback block and the inclusion of the model's previous
+function, which is already import-free and therefore **a template to copy where
+iteration 0 has nothing but prose.**
 
-So prominence is not what separates them. The more plausible mechanism is that
-**a revision prompt contains the model's own previous function**, which is
-already import-free and therefore a template to copy, where iteration 0 has
-nothing but prose. That is a hypothesis this corpus cannot test: the two
-conditions differ in several ways at once, and no rung has been run with the
-instruction moved between the two positions.
+That is now the only explanation standing rather than one of two, which makes it
+stronger evidence and still not proof: the two conditions differ in those two
+ways together, and nothing here separates "copies the previous function's shape"
+from "behaves differently once it has any example of a valid answer".
 
 ---
 

@@ -5,7 +5,7 @@ is traceable to a commit or a document in [`findings/`](findings/).
 
 The short version: the engine and baselines took an evening, the model-facing
 machinery took a day, and almost everything since has been **measurement** —
-establishing what a number from this benchmark is allowed to mean. Seventeen of the
+establishing what a number from this benchmark is allowed to mean. Eighteen of the
 project's own published results have been corrected by later measurement, and
 that thread is tracked separately in [Corrections](#corrections) below, because
 it is the part a reader should trust least on first reading and most on
@@ -502,6 +502,16 @@ and not because the revise prompt states the rule better: it states it worse,
 unbolded and without an example. The likelier reason is that a revision carries
 the model's own import-free function as a template.
 
+**And the discriminate warning does not fix inert arithmetic.** Of 134
+published generations, **132 received the warning and 2 did not**, so the
+comparison that question wanted was never available. What is measurable: five of
+125 functions are inert on every one of eight probe boards, all five on the 4B,
+and **three of the five were written under the warning**. In the single
+controlled v1/v2 pair both members are inert. The 30B produces no flatness
+anywhere. The transferable part is a measurement trap — a one-board probe
+over-reports flatness about five-fold, because on a near-empty board many
+placements are genuinely equivalent and a *correct* function scores them alike.
+
 **It also broke a power assumption of the project's own**, and the one used to
 justify this very run. The 4B's paired standard deviation came out **2.39× its
 cross-chain spread**, where the 14B's is **0.70×** — the opposite direction. The
@@ -538,6 +548,7 @@ methodological claim being made.
 | Per-piece latency grows as the board fills | Three samples against twenty. Over a full 20-piece game the second half averaged 577 s against the first half's 754 s, r(index, latency) = −0.279 | `d26e56a` |
 | Paired σ_d is about 0.70× cross-chain spread, so cross-chain spread is the safe proxy | A property of the 14B, not the method. On the 4B it inverts to 2.39×, because a single revision there replaces or breaks the function rather than refining it. Predicted n=1.2 chains for a +8.04 gain, measured n=9.2 | 2026-11-23 |
 | The 4B is cheap to measure through the loop because it is the quietest rung | Quiet at iteration 0 was a floor effect — every chain starts near-equally bad — and said nothing about how violently a chain moves once revisions start | 2026-11-23 |
+| Revisions avoid the `import math` error despite the revise prompt stating the rule worse | `revise_v1` was never used in any published run. The loop uses one template for every iteration, so the wording is identical at iteration 0 and at revision; the difference is the feedback block and the previous function, which is already import-free | `04cc3ca` |
 
 ---
 
