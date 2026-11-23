@@ -10,6 +10,12 @@ __pycache__/
 # to live in CLAUDE.md, kept out of the public repo but still read here.
 CLAUDE.local.md
 
+# Personal Claude Code wiring. The notification hook under .claude/hooks/ is
+# committed -- it holds no secret and is worth reading -- but what switches it
+# on is not: this repo is public, and a hook that POSTs to a notification
+# service on every prompt should not activate itself in someone else's clone.
+.claude/settings.local.json
+
 # Run outputs: JSONL logs and model-generated scoring functions.
 #
 # `runs/*` rather than `runs/`, because git does not descend into an excluded
