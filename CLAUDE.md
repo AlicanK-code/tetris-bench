@@ -118,6 +118,8 @@ model, mode, seed, iteration, score, lines cleared, pieces placed, final/avg max
 
 Derived: improvement per iteration, best-so-far curve, iterations to plateau, regression count, tokens per point, seconds per point.
 
+**The headline measure is points per piece, not total score.** A total is censored by the piece budget — a game that hits the cap is cut off rather than finished — so it is a lower bound, and the project's best function is censored in 8 of 10 games. A rate has no such failure mode and is empirically budget-independent: the heuristic measures 43.2–43.5 points per piece at 500, 2,000, 20,000 and 50,000 pieces alike. Defined as total points over total pieces, which is what the baseline's own 43.5 already is. Totals stay in the schema and are reported beside the rate, because survival is a separate thing to know; "per point" in the derived metrics above therefore means per point of *rate*.
+
 Estimated cost stays in the schema and will read zero for every local run; it is there so a paid model could be added without a migration.
 
 ## Tech stack

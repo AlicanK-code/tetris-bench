@@ -111,8 +111,14 @@ class Panel:
 
 
 def score_of(position: PositionSummary) -> float | None:
-    """The curve's headline measure. Always a number, zero included."""
-    return position.eval_score
+    """The curve's headline measure: points per piece. Always a number, zero included.
+
+    Reads `headline` rather than `eval_score` so the figure and the table in
+    `analysis/curves.py` cannot disagree about what is being plotted. That is a
+    tested invariant, and it caught this exact drift when the headline moved
+    from totals to rates.
+    """
+    return position.headline
 
 
 def pieces_of(position: PositionSummary) -> float | None:
@@ -237,7 +243,7 @@ def panels_for(curve: Curve, pieces_values: PositionValues) -> tuple[Panel, Pane
     pieces_delta, pieces_mean = pieces_noise(curve, pieces_values)
     score = build_panel(
         curve,
-        label="held-out score",
+        label="held-out points per piece",
         value=score_of,
         delta_noise=curve.delta_noise(),
         mean_noise=curve.noise_of_mean(),

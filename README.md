@@ -352,8 +352,17 @@ features are unavailable through a compatibility layer.
 ## Results
 
 Every figure below is read from **held-out** seeds whose outcomes the model never
-saw, at zero dollars. Scores are per-chain means over ten unseen sequences unless
-stated otherwise.
+saw, at zero dollars.
+
+**The headline measure is points per piece, not total score.** A total is
+censored by the piece budget -- a game that hits the cap is cut off rather than
+finished, so its score is a lower bound, and the best function here was censored
+in 8 of 10 games. A rate does not have that failure mode and is empirically
+budget-independent: the hand-written heuristic measures 43.2-43.5 points per
+piece at 500, 2,000, 20,000 and 50,000 pieces alike. Totals are still reported
+beside it, because survival is a separate thing worth knowing. Rates are totals
+over totals across a position's ten unseen sequences, which is what the
+baseline's own 43.5 is (454,900 / 10,467).
 
 The honest summary of what this benchmark has measured so far: **the clearest
 signal is whether a model can express a strategy at all, and the improvement
@@ -380,8 +389,9 @@ Across 60 first attempts, **23 were capable and 37 were not**. On the 14B's
 six-iteration sweep the rate is 7 of 33 functions (21%).
 
 This is not a quibble about code quality; it changes what a score means. Pooled
-across all four rungs, probe-clean functions average a held-out median of
-**2,740** against **190** for probe-broken ones (Mann-Whitney p = 0.000004).
+across all four rungs, probe-clean functions reach a held-out median of **26.9
+points per piece** against **1.2** for probe-broken ones (Mann-Whitney
+p = 0.000001).
 
 ```bash
 uv run python analysis/term_diagnostics.py runs/published/ladder/functions --flip
@@ -405,12 +415,19 @@ Four rungs, same prompt, 15 independent chains each, no feedback -- what each
 model writes cold. The prompt was **byte-identical across all 60 generations**,
 so the only variable is the model.
 
-| rung | strategy-capable | median | best chain | best pts/piece |
-|---|---:|---:|---:|---:|
-| `qwen3-4b` | 4/15 | 290 | 880 | 13.6 |
-| `qwen3-8b` | 5/15 | 940 | 5,940 | 32.2 |
-| `qwen3-14b` | 3/15 | 670 | 9,820 | 35.7 |
-| `qwen3-30b-a3b` | 11/15 | 2,580 | **81,300** | 45.0 |
+| rung | strategy-capable | median pts/piece | best pts/piece | median total | best total |
+|---|---:|---:|---:|---:|---:|
+| `qwen3-4b` | 4/15 | 7.4 | 15.6 | 290 | 880 |
+| `qwen3-8b` | 5/15 | 15.6 | 35.1 | 880 | 5,940 |
+| `qwen3-14b` | 3/15 | **1.9** | 39.0 | 40 | 9,820 |
+| `qwen3-30b-a3b` | 11/15 | **26.0** | **46.4** | 2,580 | 81,300 |
+| *hand-written heuristic* | — | *43.5* | *43.5* | *84,720* | *84,720* |
+
+Medians are over all **15** positions per rung, with a rejected function counting
+as a zero -- it failed, which is a result rather than missing data, and it is the
+convention `analysis/curves.py` uses. That matters for the 8B and 14B, the two
+rungs that had rejections: excluding them would raise the 14B's median from 1.9
+to 12.5 and flatter exactly the rungs that failed.
 
 The three dense rungs are **statistically indistinguishable from one another**
 (every pairwise Fisher p >= 0.68, and the 14B sits *below* both smaller models).
@@ -431,10 +448,12 @@ confound rather than a loose end.
 
 | rung | probe-clean median | probe-broken median | ratio |
 |---|---:|---:|---:|
-| `qwen3-4b` | 270 | 290 | **0.9x** |
-| `qwen3-8b` | 3,620 | 445 | 8.1x |
-| `qwen3-14b` | 2,600 | 25 | 104x |
-| `qwen3-30b-a3b` | 3,940 | 0 | infinite |
+| `qwen3-4b` | 7.1 | 7.5 | **0.9x** |
+| `qwen3-8b` | 31.4 | 0.5 | 63x |
+| `qwen3-14b` | 24.9 | 0.4 | 62x |
+| `qwen3-30b-a3b` | 33.5 | 0.0 | infinite |
+
+In points per piece, like every other figure here.
 
 **On the 4B, writing valid code buys nothing.** Its four clean functions score
 the same as its eleven broken ones, because it then picks the wrong terms and
@@ -448,21 +467,35 @@ intended behaviour -- they test construct validity, not skill -- and it makes th
 4B the wrong rung for loop experiments, since no feedback derived from its score
 can steer it.
 
-### The top rung reaches a hand-written heuristic cold
+### The top rung matches a hand-written heuristic cold
 
-`qwen3-30b-a3b`, first attempt, no feedback, 22 lines of lines/holes/bumpiness
-and no height term at all: a held-out mean of **81,300 against the hand-written
-heuristic's 84,720 on the same ten seeds -- 96%**.
+Two `qwen3-30b-a3b` chains, both first attempts with no feedback, and which one
+looks best depends entirely on the measure:
 
-That figure is a **lower bound**: it hit the 2,000-piece limit in **8 of 10
-games**, clearing around 795 lines each time. One chain in fifteen reproduced a
-Dellacherie-style evaluator cold, from a 4-bit model on a laptop.
+| | pts/piece | total | mean pieces | censored |
+|---|---:|---:|---:|---:|
+| chain 4 | **46.4** | 47,930 | 1,034 | 1/10 |
+| chain 3 | 43.4 | **81,300** | 1,875 | 8/10 |
+| *heuristic (Lee 2013)* | *43.5* | *84,720* | *10,467* | — |
 
-It is also an awkward result for this project, and worth saying plainly: the
-single best function the benchmark has produced **arrived without the improvement
-loop**, and a chain that starts at the ceiling cannot demonstrate improvement.
-Raising the piece limit, or switching the headline to points-per-piece, is now
-the blocking measurement task.
+**Chain 3 wins on totals by surviving longer; chain 4 actually scores faster.**
+That inversion is the switch to a rate earning its keep. Chain 3's 81,300 was a
+lower bound -- censored in 8 of 10 games -- so the old headline was partly
+reporting the budget. Chain 4 is censored once in ten, which makes its 46.4 the
+more trustworthy figure of the two.
+
+So the result is that a 4-bit local model, on its first attempt, **matches the
+scoring rate of a tuned hand-written heuristic** -- 46.4 and 43.4 against 43.5.
+Read that as parity rather than a win: the heuristic's rate is measured over
+10,467 pieces and chain 4's over about 1,034, and a rate measured over a shorter
+run has had less chance to meet the board states that punish a weak evaluator.
+
+Chain 4's function is 22 lines of lines, holes and bumpiness with **no height
+term at all**. One chain in fifteen reproduced a Dellacherie-style evaluator
+cold.
+
+It stays an awkward result for this project, and worth saying plainly: the best
+function the benchmark has produced **arrived without the improvement loop**.
 
 ### The improvement curve is real but smaller than its noise
 
@@ -471,28 +504,37 @@ function and never sees another's, so a rising median cannot be selection bias.
 
 | iteration | 0 | 1 | 2 | 3 | 4 | 5 |
 |---|---:|---:|---:|---:|---:|---:|
-| median of 5 chains | 670 | 1,410 | 1,120 | 1,140 | 930 | **1,410** |
+| median pts/piece | 12.5 | **21.4** | 18.0 | 18.1 | 16.0 | 20.6 |
+| median total | 670 | 1,410 | 1,120 | 1,140 | 930 | 1,410 |
 
 Paired against its own iteration 0 on identical seeds, chain by chain:
 
-| chain | delta | t | improved on |
-|---|---:|---:|---:|
-| 0 | +740 | 1.46 | 6/10 seeds |
-| 1 | +10 | 1.00 | 1/10 |
-| 2 | **-7,150** | **-2.65** | 1/10 |
-| 3 | +1,160 | 1.77 | 7/10 |
-| 4 | +460 | **3.56** | **10/10** |
+| chain | pts/piece | delta | t | delta as a total |
+|---|---:|---:|---:|---:|
+| 0 | 12.5 → 20.6 | +8.0 | 1.37 | +740 |
+| 1 | 0.5 → 0.8 | +0.3 | 0.45 | +10 |
+| 2 | 35.4 → 24.8 | **-10.5** | **-4.68** | -7,150 |
+| 3 | 15.4 → 24.8 | +9.5 | 1.96 | +1,160 |
+| 4 | 0.0 → 10.0 | **+10.0** | **4.75** | +460 |
 
-**Two of five chains moved significantly, in opposite directions.** Chain 4 rose
-from 0 by deleting two inverted terms -- repair, not refinement. Chain 2 fell by
-two thirds by *adding* a term blind above the first gap, which was confirmed by
-execution rather than inferred: a 3-cell column and a 9-cell column ten rows tall
-both score -6 under its function.
+**Three chains rose, one fell, and under a rate the rises and the fall are
+comparable in size.** That is a change from the old headline, where chain 4's
+repair (+460) looked trivial beside chain 2's collapse (-7,150) -- a 15x gap that
+was mostly score growing superlinearly with survival. Per piece they are +10.0
+and -10.5, and both are *more* significant than they looked.
 
-And the whole movement sits inside the noise. Those five iteration-0 chains are
-five samples of **one identical prompt**, and they scored 670, 10, 9,590, 860 and
-0 -- a standard deviation of **4,135**, which is about three times the largest
-median movement in the table above.
+Chain 4 rose from zero by deleting two inverted terms -- repair, not refinement.
+Chain 2 fell by *adding* a term blind above the first gap, confirmed by execution
+rather than inferred: a 3-cell column and a 9-cell column ten rows tall both
+score -6 under its function. It was not censored at either end, so that
+regression is real and not a budget artefact.
+
+And the movement still sits inside the noise. Those five iteration-0 chains are
+five samples of **one identical prompt**, and they scored 12.5, 0.5, 35.4, 15.4
+and 0.0 points per piece -- a spread the tooling measures at **14.4**, against a
+largest median movement of 8.9. `curves.py` reaches the same verdict by its own
+route: *"gain +8, only 0.6x the noise bar of 13"*, and it puts the plateau at
+iteration 0.
 
 So the defensible claim is narrow: **the loop repairs broken scorers and does not
 measurably improve working ones.** Whole sweep: 30 generations, 194,492 output
@@ -532,13 +574,17 @@ gives 24,060 over 602 pieces, which does not change the conclusion.
 | | points/piece | pieces survived |
 |---|---:|---:|
 | heuristic (Lee 2013) | 43.5 | 10,467 |
-| best model function | 40.2 | 626 |
+| 14B, iteration 4 | 40.2 | 626 |
 
 **About 92% of the heuristic's scoring rate, and 6% of its survival.** The model
 learned to clear lines about as efficiently as a tuned hand-written heuristic
 and never learned to stay alive. Quoting totals alone would have called this
 "69% of the heuristic" and hidden both halves -- see
 [Reference baselines](#reference-baselines).
+
+This was the observation that eventually moved the headline onto a rate. It is
+no longer the best rate in the project -- the 30B's 46.4 is -- but it is still
+the clearest demonstration of *why* the two have to be reported separately.
 
 ```bash
 uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
@@ -580,10 +626,11 @@ the generated functions as artifacts:
 
 ### Not done
 
-- **Raising the piece limit**, which now blocks the headline. The best function
-  the project has produced is censored in 8 of 10 games, so its score is a lower
-  bound and the measurement has become the ceiling rather than the model. Either
-  the budget rises or points-per-piece becomes the quoted figure.
+- **Raising the piece limit.** No longer blocking -- the headline is now points
+  per piece, which is not censored by the budget -- but the budget still caps how
+  much play any single figure is measured over, and the best chain's rate rests
+  on about 1,000 pieces against the heuristic's 10,467. A longer run would make
+  that comparison tighter rather than fix anything broken.
 - **The loop on any rung but the 14B.** The ladder measured all four rungs at
   **iteration 0 only**. Whether the loop *moves* a rung -- the reframed version
   of the "does a small model close on a large one" question -- has data for one

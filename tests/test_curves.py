@@ -15,8 +15,13 @@ import pytest
 from tetris_bench.curves import Curve, build_curves, summarise
 from tetris_bench.records import GameResult, ModelUsage, RunRecord
 
+#: The fixture's default pieces per game. The headline is points per piece, so
+#: every expectation below is written as `score / PIECES` rather than as a bare
+#: number -- it keeps the arithmetic visible and survives a change of default.
+PIECES = 50
 
-def game(seed: int, score: int, pieces: int = 50, holes: int = 10) -> GameResult:
+
+def game(seed: int, score: int, pieces: int = PIECES, holes: int = 10) -> GameResult:
     return GameResult(
         agent="strategy",
         seed=seed,
@@ -142,8 +147,8 @@ def test_deltas_are_paired_within_a_chain() -> None:
         *position_rows(chain=1, iteration=1, train=[(1, 0)], held_out=[(1000, 800)]),
     ]
     (curve,) = build_curves(rows)
-    assert curve.paired_deltas() == [(0, 1, 50.0), (1, 1, -100.0)]
-    assert curve.mean_delta() == -25.0
+    assert curve.paired_deltas() == [(0, 1, 50 / PIECES), (1, 1, -100 / PIECES)]
+    assert curve.mean_delta() == pytest.approx(-25 / PIECES)
     assert curve.regressions() == 1
 
 
@@ -152,7 +157,7 @@ def test_chains_are_combined_by_median() -> None:
     for chain, score in ((0, 100), (1, 200), (2, 900)):
         rows += position_rows(chain=chain, iteration=0, train=[(1, 0)], held_out=[(1000, score)])
     (curve,) = build_curves(rows)
-    assert curve.median_score() == [200.0]
+    assert curve.median_score() == [200 / PIECES]
 
 
 def test_a_rejected_position_contributes_a_zero_and_is_flagged() -> None:
@@ -163,7 +168,7 @@ def test_a_rejected_position_contributes_a_zero_and_is_flagged() -> None:
     ]
     (curve,) = build_curves(rows)
     assert [p.iteration for p in curve.positions] == [0, 1]
-    assert curve.median_score() == [300.0, 0.0]
+    assert curve.median_score() == [300 / PIECES, 0.0]
     assert curve.positions[1].rejected is True
     assert curve.positions[1].eval_games == 0
     assert curve.regressions() == 1
@@ -176,8 +181,8 @@ def test_best_so_far_never_falls() -> None:
         *position_rows(chain=0, iteration=2, train=[(1, 0)], held_out=[(1000, 200)]),
     ]
     (curve,) = build_curves(rows)
-    assert curve.median_score() == [100.0, 500.0, 200.0]
-    assert curve.best_so_far() == [100.0, 500.0, 500.0]
+    assert curve.median_score() == [100 / PIECES, 500 / PIECES, 200 / PIECES]
+    assert curve.best_so_far() == [100 / PIECES, 500 / PIECES, 500 / PIECES]
 
 
 def test_cost_per_point_is_none_when_nothing_was_gained() -> None:
@@ -187,7 +192,7 @@ def test_cost_per_point_is_none_when_nothing_was_gained() -> None:
         *position_rows(chain=0, iteration=1, train=[(1, 0)], held_out=[(1000, 200)]),
     ]
     (curve,) = build_curves(rows)
-    assert curve.score_gained() == -100.0
+    assert curve.score_gained() == pytest.approx(-100 / PIECES)
     assert curve.tokens_per_point() is None
     assert curve.seconds_per_point() is None
 
@@ -203,9 +208,10 @@ def test_cost_per_point_divides_total_cost_by_held_out_gain() -> None:
     ]
     (curve,) = build_curves(rows)
     assert curve.total_tokens() == 1_000
-    assert curve.score_gained() == 200.0
-    assert curve.tokens_per_point() == 5.0
-    assert curve.seconds_per_point() == 0.25
+    assert curve.score_gained() == pytest.approx(200 / PIECES)
+    # 1,000 tokens for 4 points of rate, and 50s for the same 4.
+    assert curve.tokens_per_point() == pytest.approx(1_000 / (200 / PIECES))
+    assert curve.seconds_per_point() == pytest.approx(50.0 / (200 / PIECES))
 
 
 def test_plateau_needs_a_tolerance_and_finds_the_first_settled_iteration() -> None:
@@ -217,9 +223,11 @@ def test_plateau_needs_a_tolerance_and_finds_the_first_settled_iteration() -> No
     (curve,) = build_curves(rows)
     # Strict: only the actual maximum qualifies.
     assert curve.plateau_iteration(tolerance=0.0) == 2
-    # With 100 points of noise, iteration 1 is already indistinguishable from the end.
-    assert curve.plateau_iteration(tolerance=100.0) == 1
-    assert curve.plateau_iteration(tolerance=1_000.0) == 0
+    # Tolerances are in headline units now, so 100 points of score noise over a
+    # 50-piece game is 2 points of rate. At that bar iteration 1 is already
+    # indistinguishable from the end.
+    assert curve.plateau_iteration(tolerance=100 / PIECES) == 1
+    assert curve.plateau_iteration(tolerance=1_000 / PIECES) == 0
 
 
 def test_models_are_separated() -> None:
@@ -229,8 +237,8 @@ def test_models_are_separated() -> None:
     ]
     curves = build_curves(rows)
     assert [c.model for c in curves] == ["a", "b"]
-    assert curves[0].median_score() == [100.0]
-    assert curves[1].median_score() == [900.0]
+    assert curves[0].median_score() == [100 / PIECES]
+    assert curves[1].median_score() == [900 / PIECES]
 
 
 def test_non_strategy_rows_are_ignored() -> None:
@@ -255,10 +263,15 @@ def test_held_out_spread_is_measured_and_drives_the_plateau_threshold() -> None:
         *position_rows(chain=0, iteration=1, train=[(1, 0)], held_out=[(1000, 100), (1001, 300)]),
     ]
     (curve,) = build_curves(rows)
-    # Each position: mean 100 and 200, sd of (0, 200) and (100, 300) alike.
-    assert curve.median_score() == [100.0, 200.0]
-    assert curve.seed_noise() == curve.positions[0].eval_sd
-    assert curve.seed_noise() > 100.0
+    # Each position: rate 100/50 and 200/50, with the same spread either way --
+    # the per-game rates are (0, 200)/50 and (100, 300)/50.
+    assert curve.median_score() == [100 / PIECES, 200 / PIECES]
+    assert curve.seed_noise() == curve.positions[0].eval_rate_sd
+    assert curve.seed_noise() > 100 / PIECES
+    # The score spread is still recorded, and is PIECES times larger. Keeping
+    # both is the point: feeding the score spread to a rate threshold was the
+    # unit error this switch had to avoid.
+    assert curve.positions[0].eval_sd == pytest.approx(curve.positions[0].eval_rate_sd * PIECES)
     # The plotted point is a mean of two games, so its own spread is smaller by
     # root-2. Judging a mean against a single-game spread sets the bar too high.
     assert curve.noise_of_mean() == pytest.approx(curve.seed_noise() / math.sqrt(2))
@@ -322,8 +335,9 @@ def test_cost_per_point_does_not_scale_with_the_number_of_chains() -> None:
     (single,) = build_curves(one_chain(0))
     (triple,) = build_curves([*one_chain(0), *one_chain(1), *one_chain(2)])
 
-    assert single.tokens_per_point() == 5.0
-    assert triple.tokens_per_point() == 5.0
+    per_point = 1_000 / (200 / PIECES)
+    assert single.tokens_per_point() == pytest.approx(per_point)
+    assert triple.tokens_per_point() == pytest.approx(per_point)
     assert triple.total_tokens() == 3 * single.total_tokens()
 
 
@@ -332,7 +346,9 @@ def test_chain_spread_measures_disagreement_between_chains() -> None:
     for chain, score in ((0, 100), (1, 200), (2, 900)):
         rows += position_rows(chain=chain, iteration=0, train=[(1, 0)], held_out=[(1000, score)])
     (curve,) = build_curves(rows)
-    assert curve.chain_spread() == pytest.approx(statistics.stdev([100, 200, 900]))
+    assert curve.chain_spread() == pytest.approx(
+        statistics.stdev([100 / PIECES, 200 / PIECES, 900 / PIECES])
+    )
     # Generation noise dominates, so it is the bar for a delta.
     assert curve.delta_noise() == curve.chain_spread()
 
@@ -420,3 +436,58 @@ def test_cost_is_summarised_correctly_from_rows_the_loop_itself_wrote(tmp_path) 
     assert summary.seconds == 480.0
     assert summary.model_calls == 1
     assert summary.eval_score == 50.0
+
+
+class TestTheHeadlineIsARate:
+    """The switch from totals to points per piece, and the choices inside it."""
+
+    def test_the_headline_is_total_points_over_total_pieces(self):
+        # Not a mean of per-game ratios, which would give 2.841 here. The ratio
+        # of totals is what the hand-written baseline's own 43.5 is
+        # (454,900 / 10,467), so any other definition would compare the model
+        # against a differently computed number.
+        rows = position_rows(
+            chain=0, iteration=0, train=[(1, 0)], held_out=[(1000, 100), (1001, 140)]
+        )
+        for row in rows:
+            if row["split"] == "eval":
+                row["pieces_placed"] = 40 if row["seed"] == 1000 else 44
+        (curve,) = build_curves(rows)
+        assert curve.positions[0].eval_rate == pytest.approx(240 / 84)
+        assert curve.positions[0].headline == pytest.approx(240 / 84)
+        assert curve.positions[0].eval_rate != pytest.approx((100 / 40 + 140 / 44) / 2)
+
+    def test_the_total_is_still_recorded_beside_the_rate(self):
+        # Survival and rate are separate things to know, and the README reports
+        # both; switching the headline must not throw the total away.
+        rows = position_rows(chain=0, iteration=0, train=[(1, 0)], held_out=[(1000, 500)])
+        (curve,) = build_curves(rows)
+        assert curve.positions[0].eval_score == 500.0
+        assert curve.positions[0].score == 500.0
+        assert curve.positions[0].headline == pytest.approx(500 / PIECES)
+
+    def test_a_rate_over_no_pieces_is_none_but_the_headline_is_zero(self):
+        # Same split the module makes for board features: a position that never
+        # played contributes a zero to the curve, because scoring nothing is a
+        # real outcome, while the undefined rate itself stays None.
+        rows = position_rows(chain=0, iteration=0, train=[(1, 0)], held_out=[], played=False)
+        (curve,) = build_curves(rows)
+        assert curve.positions[0].eval_rate is None
+        assert curve.positions[0].headline == 0.0
+
+    def test_the_rate_is_unaffected_by_where_a_game_was_cut_off(self):
+        # The whole reason for the switch. Two positions with the same scoring
+        # rate but very different lengths -- one censored early, one not -- are
+        # the same headline, where their totals differ by a factor of four.
+        short = position_rows(chain=0, iteration=0, train=[(1, 0)], held_out=[(1000, 500)])
+        long_ = position_rows(chain=1, iteration=0, train=[(1, 0)], held_out=[(1000, 2000)])
+        for row in short:
+            if row["split"] == "eval":
+                row["pieces_placed"] = 50
+        for row in long_:
+            if row["split"] == "eval":
+                row["pieces_placed"] = 200
+        (curve,) = build_curves([*short, *long_])
+        rates = [p.headline for p in curve.positions]
+        assert rates[0] == pytest.approx(rates[1])
+        assert curve.positions[0].eval_score * 4 == curve.positions[1].eval_score

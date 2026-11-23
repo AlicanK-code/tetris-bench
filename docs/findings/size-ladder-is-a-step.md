@@ -18,19 +18,36 @@ that preceded this run, and it is worth verifying rather than assuming.
 
 ## 1. Result
 
-| rung | played | probe-clean | median | mean | best chain | best pts/piece |
+| rung | played | probe-clean | median pts/pc | best pts/pc | median total | best total |
 |---|---:|---:|---:|---:|---:|---:|
-| `qwen3-4b` | 15/15 | **4/15** | 290 | 287 | 880 | 13.6 |
-| `qwen3-8b` | 13/15 | **5/15** | 940 | 1,888 | 5,940 | 32.2 |
-| `qwen3-14b` | 13/15 | **3/15** | 670 | 2,153 | 9,820 | 35.7 |
-| `qwen3-30b-a3b` | 15/15 | **11/15** | 2,580 | 12,209 | **81,300** | 45.0 |
-| *hand-written heuristic* | — | — | *84,720* | *84,720* | *84,720* | — |
+| `qwen3-4b` | 15/15 | **4/15** | 7.4 | 15.6 | 290 | 880 |
+| `qwen3-8b` | 13/15 | **5/15** | 15.6 | 35.1 | 880 | 5,940 |
+| `qwen3-14b` | 13/15 | **3/15** | **1.9** | 39.0 | 40 | 9,820 |
+| `qwen3-30b-a3b` | 15/15 | **11/15** | **26.0** | **46.4** | 2,580 | 81,300 |
+| *hand-written heuristic* | — | — | *43.5* | *43.5* | *84,720* | *84,720* |
+
+> **Later correction.** Two things changed in this table.
+>
+> Its medians originally excluded the rejected positions, giving 290 / 940 / 670
+> / 2,580 on totals. `analysis/curves.py` counts a rejected position as a zero --
+> it failed, which is a result rather than missing data -- and the table now
+> follows it. The effect is concentrated on the two rungs that had rejections,
+> and it is not small: the 14B's median rate goes from 12.5 to **1.9**, below the
+> 4B's. Excluding failures flattered exactly the rungs that failed, which made
+> the 14B's weakness look milder than it is.
+>
+> It also originally led with total score and quoted
+> `pts/piece` as a mean of per-game ratios (13.6 / 32.2 / 35.7 / 45.0). The
+> headline has since moved to points per piece as a ratio of totals, for the
+> reason section 6 gives below: the best function here is censored in 8 of 10
+> games, so its total was partly reporting the budget. The ordering of the rungs
+> is unchanged and every significance test below stands, since those are computed
+> on the probe-clean counts rather than on scores.
 
 Scores are per-chain means over the ten held-out sequences, and `pts/piece` is
-the mean of each game's own score-to-pieces ratio rather than the ratio of the
-pooled means (which would read 15.6 / 35.1 / 39.0 / 46.4). Note the best chain by
-rate is not always the best by score: on the 30B that is chain 4, not chain 3.
-"probe-clean" is
+**total points over total pieces**, which is what the hand-written baseline's own
+43.5 is (454,900 / 10,467). Note the best chain by rate is not the best by score:
+on the 30B that is chain 4, not chain 3. "probe-clean" is
 [strategy-capable](../../src/tetris_bench/term_diagnostics.py): the function
 answers all four capability probes correctly, so its score reflects a strategy
 rather than a defect.
@@ -95,13 +112,16 @@ The sharper result, and the one that justifies having built the probes at all:
 
 | rung | probe-clean median | probe-broken median | ratio |
 |---|---:|---:|---:|
-| `qwen3-4b` | 270 | 290 | **0.9×** |
-| `qwen3-8b` | 3,620 | 445 | 8.1× |
-| `qwen3-14b` | 2,600 | 25 | 104× |
-| `qwen3-30b-a3b` | 3,940 | **0** | ∞ |
-| **pooled (56 chains)** | **2,740** | **190** | 14× |
+| `qwen3-4b` | 7.1 | 7.5 | **0.9×** |
+| `qwen3-8b` | 31.4 | 0.5 | 63× |
+| `qwen3-14b` | 24.9 | 0.4 | 62× |
+| `qwen3-30b-a3b` | 33.5 | **0.0** | ∞ |
+| **pooled (60 chains)** | **26.9** | **1.2** | 22× |
 
-Pooled, that separation is p = 0.000004 (Mann-Whitney). From the 8B up, whether
+In points per piece, over all 15 positions per rung with a rejected function
+counting as zero.
+
+Pooled, that separation is p = 0.000001 (Mann-Whitney). From the 8B up, whether
 a function can express a strategy at all is most of what determines its score.
 
 **On the 4B it predicts nothing.** Its four probe-clean functions score the same
@@ -182,8 +202,9 @@ Per rung, among functions that loaded:
 | `qwen3-14b` | 13 | 10 | 6 | 7 |
 | `qwen3-30b-a3b` | 15 | 3 | 2 | 3 |
 
-As a *rate*, the 14B is the worst rung on height (10/13, 77%) and above-gap
-(7/13, 54%), which is the same inversion section 1 found and is not explained by
+The 14B's median rate of 1.9 -- below the 4B's 7.4 -- is the same weakness seen
+from the other side. As a *rate*, it is the worst rung on height (10/13, 77%) and
+above-gap (7/13, 54%), which is the same inversion section 1 found and is not explained by
 scale. It is **not** worst on holes: 46% against the 4B's 53%. The failure that
 distinguishes this rung is specifically orientation, not defects in general.
 
@@ -243,12 +264,15 @@ fifteen, by a 4-bit model on a laptop.
 
 ## 6. Consequences for the improvement loop
 
-1. **The top rung starts at the ceiling.** A chain already at 96% of the
-   reference, censored in 8 of 10 games, cannot demonstrate improvement. Either
-   the piece limit rises or the headline measure becomes **points per piece**,
-   where the ordering survives uncensored (45.0 / 35.7 / 32.2 / 13.6 best, top
-   rung to bottom). This is the fourth time censoring has distorted a result and
-   should now be fixed rather than noted.
+1. **The top rung starts at the ceiling.** A chain censored in 8 of 10 games
+   cannot demonstrate improvement, and its total was partly reporting the
+   budget. **Done:** the headline is now points per piece, where the best chains
+   read 46.4 / 39.0 / 35.1 / 15.6 (top rung to bottom) against the heuristic's
+   43.5 -- uncensored, and budget-independent at 43.2-43.5 for the heuristic
+   across every budget tried. The switch also changed *which* function looks
+   best on this rung: chain 3 wins on totals by surviving longer, chain 4 scores
+   faster per piece. That was the fourth time censoring had distorted a result,
+   which is why it was fixed rather than noted again.
 2. **The loop's premise needs re-scoping.** "Does the loop let a small model
    close on a larger one?" assumes a slope to close. There is no gap between the
    4B, 8B and 14B to close, and the gap to the 30B is a step whose cause is
@@ -289,8 +313,11 @@ could not be sped up here.
 
 ## 8. Open questions
 
-1. **Raise the piece limit, or switch the headline to points per piece.** Now
-   blocking: the best result in the project is censored.
+1. ~~**Raise the piece limit, or switch the headline to points per piece.**~~
+   **Done:** the headline is points per piece. The budget still bounds how much
+   play any one figure covers -- the best chain's rate rests on ~1,000 pieces
+   against the heuristic's 10,467 -- so a longer run would tighten that
+   comparison, but nothing is censored any more.
 2. **Is the step architectural?** Needs a second MoE or a dense model ≥30B.
    Neither fits this machine, so this may have to stand as a stated confound.
 3. **Does the loop move the probe-clean fraction?** The reframed milestone-6

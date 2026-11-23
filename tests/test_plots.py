@@ -130,7 +130,9 @@ def test_a_rejected_position_scores_zero_pieces_but_a_missing_one_has_no_value()
     ]
     _, (score, pieces) = panels(rows)
 
-    assert score.per_chain[0] == [120.0, 0.0, 0.0]
+    # 240 points over 84 pieces. Written as the ratio of totals because that
+    # is the definition: a mean of per-game ratios would give 2.841 here.
+    assert score.per_chain[0] == [pytest.approx(240 / 84), 0.0, 0.0]
     assert pieces.per_chain[0] == [42.0, 0.0, None]
     assert score.rejected == [(0, 1)] and score.unlogged == [(0, 2)]
 
@@ -148,7 +150,7 @@ def test_the_score_panel_median_is_the_one_the_table_prints():
     curve, (score, _) = panels(rows)
     assert score.median == curve.median_score()
     # The rejected chain's zero is in that median, so it is a median of three.
-    assert score.median == [300.0, 400.0]
+    assert score.median == [300 / 50, 400 / 40]
 
 
 def test_the_pieces_median_leaves_out_a_position_with_no_games():
@@ -161,7 +163,7 @@ def test_the_pieces_median_leaves_out_a_position_with_no_games():
     ]
     _, (score, pieces) = panels(rows)
     assert pieces.median == [40.0]  # the median of 30 and 50, not of 30, 50 and 0
-    assert score.median == [100.0]  # but the score keeps the logged zero
+    assert score.median == [100 / 30]  # but the headline keeps the logged zero
 
 
 def test_a_short_held_out_set_keeps_its_value_and_gains_a_flag():
@@ -178,7 +180,10 @@ def test_a_short_held_out_set_keeps_its_value_and_gains_a_flag():
 
     assert [(p.chain, p.iteration) for p in curve.incomplete_positions()] == [(0, 1)]
     assert score.under_sampled == [(0, 1, 3)]
-    assert score.per_chain[0] == [100.0, 300.0]
+    assert score.per_chain[0] == [
+        pytest.approx(1_000 / 400),
+        pytest.approx(900 / 210),
+    ]
     assert pieces.per_chain[0] == [40.0, 70.0]
     # Short, but not empty: it is not one of the two failure flags.
     assert score.rejected == [] and score.unlogged == []

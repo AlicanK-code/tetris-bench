@@ -1,8 +1,20 @@
 """Turning a loop log into an improvement curve.
 
 This is the measurement half of the benchmark. The loop produces rows; this
-decides what those rows mean. Four choices are made here explicitly rather than
+decides what those rows mean. Five choices are made here explicitly rather than
 left to a dataframe one-liner, because each of them can manufacture a result.
+
+**The headline is points per piece, not total score.** A total is censored by
+the piece budget: a game that hits the cap is cut off rather than finished, so
+its score is a lower bound. The best function this project has produced is
+censored in 8 of 10 games, which made its headline an artefact of the budget
+rather than a measurement of the function -- and raising the budget only moved
+the problem, since the cap had already gone from 500 to 2,000 once. A rate does
+not have that failure mode, and it is empirically budget-independent: the
+hand-written heuristic measures 43.2-43.5 points per piece at 500, 2,000, 20,000
+and 50,000 pieces alike. Totals are still recorded and still reported beside the
+rate, because survival is a real and separate thing to know -- see
+:attr:`PositionSummary.eval_rate`.
 
 **The curve is read from evaluation rows.** A function revised against a
 training sequence has been selected against it, and the project has already
@@ -85,6 +97,35 @@ class PositionSummary:
     #: does not exist has no features.
     eval_pieces: float | None
     eval_holes: float | None
+    #: **The headline measure.** Total held-out points divided by total held-out
+    #: pieces -- a ratio of totals, not a mean of per-game ratios.
+    #:
+    #: Total score cannot be the headline because it is *censored*: a game that
+    #: hits the piece cap is cut off rather than finished, so its score is a
+    #: lower bound. The best function this project has produced is censored in 8
+    #: of 10 games, which makes its total an artefact of the budget. A rate is
+    #: not censored -- points per piece while alive is the same quantity whether
+    #: a game ran 500 pieces or 5,000 -- and it is stable across budgets:
+    #: measured at 43.2-43.5 for the heuristic at 500, 2,000, 20,000 and 50,000.
+    #:
+    #: A ratio of totals rather than a mean of ratios, for two reasons. It is
+    #: what the hand-written baseline's own 43.5 already is (454,900 / 10,467),
+    #: so any other definition would compare the model against a differently
+    #: computed number. And a mean of ratios weights a 15-piece game the same as
+    #: a 2,000-piece one, which over-weights exactly the shortest and noisiest
+    #: games -- one lucky line clear in a 10-piece game is a wild ratio.
+    #:
+    #: ``None`` when no held-out piece was ever placed, following `eval_pieces`:
+    #: a rate over zero pieces is undefined rather than zero.
+    eval_rate: float | None
+    #: Spread of the per-game rate across this position's held-out seeds.
+    #:
+    #: Needed as its own field because every noise term has to be in the same
+    #: units as the measure it judges. `eval_sd` is the spread of *totals*, and
+    #: feeding it to a plateau threshold that now compares rates would compare
+    #: a score to a rate -- a bar roughly fifty times too high at a typical
+    #: piece count, which would report every real change as noise.
+    eval_rate_sd: float
     train_games: int
     train_score: float
     played: bool
@@ -102,8 +143,37 @@ class PositionSummary:
 
     @property
     def score(self) -> float:
-        """The number the curve is read from."""
+        """Mean held-out total score.
+
+        Kept and still reported, but no longer what the curve is read from --
+        see :attr:`eval_rate` and :attr:`headline`. A total is censored by the
+        piece budget; a rate is not.
+        """
         return self.eval_score
+
+    @property
+    def headline(self) -> float:
+        """The number the curve is read from: points per piece.
+
+        Zero when the rate is undefined, which is the same choice
+        :attr:`eval_score` makes for a position that never played -- scoring
+        nothing is a real outcome and belongs in the curve as a zero, whereas a
+        board that does not exist has no features and stays ``None``.
+        """
+        return self.eval_rate if self.eval_rate is not None else 0.0
+
+
+def _rate(rows: Sequence[dict]) -> float | None:
+    """Points per piece over a set of games: total points / total pieces.
+
+    See :attr:`PositionSummary.eval_rate` for why a ratio of totals rather than
+    a mean of per-game ratios. ``None`` when no piece was placed at all, which
+    is the one case where the quantity does not exist.
+    """
+    pieces = sum(float(r["pieces_placed"]) for r in rows)
+    if pieces <= 0:
+        return None
+    return sum(float(r["score"]) for r in rows) / pieces
 
 
 def _mean(values: Sequence[float]) -> float:
@@ -178,6 +248,14 @@ def summarise(rows: Iterable[dict]) -> list[PositionSummary]:
                 eval_holes=(
                     _mean([float(r["final_holes"]) for r in held_out]) if held_out else None
                 ),
+                eval_rate=_rate(held_out),
+                eval_rate_sd=_sd(
+                    [
+                        float(r["score"]) / float(r["pieces_placed"])
+                        for r in held_out
+                        if float(r["pieces_placed"]) > 0
+                    ]
+                ),
                 train_games=len(train),
                 train_score=_mean([float(r["score"]) for r in train]),
                 played=not rejected,
@@ -211,14 +289,14 @@ class Curve:
         return sorted({p.iteration for p in self.positions})
 
     def seed_noise(self) -> float:
-        """Spread of a *single* held-out game within a position.
+        """Spread of a *single* held-out game's **rate** within a position.
 
         The median of the per-position standard deviations: the variation of one
         fixed function across sequences it never saw, with the model held
         constant. Useful for describing how noisy one game is, and **wrong as a
         bar for a change between iterations** -- see :meth:`delta_noise`.
         """
-        spreads = [p.eval_sd for p in self.positions if p.eval_games > 1]
+        spreads = [p.eval_rate_sd for p in self.positions if p.eval_games > 1]
         return statistics.median(spreads) if spreads else 0.0
 
     def noise_of_mean(self) -> float:
@@ -246,7 +324,7 @@ class Curve:
         generation noise is absent, only that this log cannot see it.
         """
         spreads = [
-            _sd([p.score for p in self.positions if p.iteration == iteration])
+            _sd([p.headline for p in self.positions if p.iteration == iteration])
             for iteration in self.iterations
         ]
         usable = [s for s in spreads if s > 0.0]
@@ -284,7 +362,7 @@ class Curve:
         """
         series: list[float] = []
         for iteration in self.iterations:
-            scores = [p.score for p in self.positions if p.iteration == iteration]
+            scores = [p.headline for p in self.positions if p.iteration == iteration]
             series.append(statistics.median(scores) if scores else 0.0)
         return series
 
@@ -314,7 +392,7 @@ class Curve:
         for chain in self.chains:
             series = self.chain_series(chain)
             for earlier, later in zip(series, series[1:], strict=False):
-                deltas.append((chain, later.iteration, later.score - earlier.score))
+                deltas.append((chain, later.iteration, later.headline - earlier.headline))
         return deltas
 
     def mean_delta(self) -> float:
@@ -378,7 +456,7 @@ class Curve:
         much that single number is hiding.
         """
         spreads = [
-            _sd([p.score for p in self.positions if p.iteration == iteration])
+            _sd([p.headline for p in self.positions if p.iteration == iteration])
             for iteration in self.iterations
         ]
         usable = [s for s in spreads if s > 0.0]
@@ -399,7 +477,7 @@ class Curve:
             series = self.chain_series(chain)
             if len(series) < 2:
                 continue
-            gained = series[-1].score - series[0].score
+            gained = series[-1].headline - series[0].headline
             if gained > 0 and gained > bar:
                 qualifying.append(chain)
         return qualifying
@@ -455,7 +533,14 @@ class Curve:
         return sum(p.seconds for p in self.positions)
 
     def score_gained(self) -> float:
-        """Final median minus iteration-0 median."""
+        """Final median minus iteration-0 median, in headline units.
+
+        Since the headline is now points per piece, so is this and so are
+        :meth:`tokens_per_point` and :meth:`seconds_per_point` -- "per point"
+        means per point of *rate*. The names are kept because the metrics list
+        in CLAUDE.md and the analysis output both use them; the unit changed
+        under them, which is the whole intent of the switch.
+        """
         medians = self.median_score()
         if len(medians) < 2:
             return 0.0
@@ -485,7 +570,7 @@ class Curve:
             series = self.chain_series(chain)
             if len(series) < 2:
                 continue
-            gained = series[-1].score - series[0].score
+            gained = series[-1].headline - series[0].headline
             if gained <= 0 or gained <= bar:
                 continue
             spent = sum(getattr(p, attribute) for p in series)

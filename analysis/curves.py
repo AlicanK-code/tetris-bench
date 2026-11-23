@@ -52,9 +52,12 @@ def print_curve(curve: Curve, tolerance: float | None) -> None:
     )
     print("=" * 86)
 
+    # Units are spelled out because two of these columns are rates and three
+    # are totals, and the headline moved from the second kind to the first.
     header = (
-        f"{'iter':>4} {'held-out':>9} {'median':>8} {'chains':>7} {'n':>3} {'train':>8} "
-        f"{'pieces':>7} {'holes':>6} {'tokens':>8} {'secs':>7}  per-chain held-out"
+        f"{'iter':>4} {'pts/pc':>7} {'score':>8} {'med':>8} {'chains':>7} {'n':>3} "
+        f"{'train':>8} {'pieces':>7} {'holes':>6} {'tokens':>8} {'secs':>7}  "
+        f"per-chain pts/pc"
     )
     print(header)
     print("-" * len(header))
@@ -63,18 +66,23 @@ def print_curve(curve: Curve, tolerance: float | None) -> None:
     medians = curve.median_score()
     for index, iteration in enumerate(curve.iterations):
         at = sorted((p for p in curve.positions if p.iteration == iteration), key=lambda p: p.chain)
-        per_chain = ", ".join(f"{p.eval_score:,.0f}{marker(p)}" for p in at)
+        # The headline, so this row and the `pts/pc` column cannot disagree.
+        per_chain = ", ".join(f"{p.headline:,.1f}{marker(p)}" for p in at)
 
         # Spread *between chains* at this iteration — generation noise, which the
         # project has measured to dominate seed noise. The previous column was a
         # maximum of the within-position single-game sd, a statistic used nowhere
         # else and never compared against anything.
-        spread = statistics.stdev([p.score for p in at]) if len(at) > 1 else 0.0
+        # In headline units, so it is comparable with the noise bar printed
+        # below it. A spread of totals against a threshold on rates would be a
+        # unit error of about the piece count.
+        spread = statistics.stdev([p.headline for p in at]) if len(at) > 1 else 0.0
         games = sorted({p.eval_games for p in at})
 
         print(
-            f"{iteration:>4} {medians[index]:>9,.0f} "
-            f"{statistics.median([p.eval_median for p in at]):>8,.0f} {spread:>7,.0f} "
+            f"{iteration:>4} {medians[index]:>7,.1f} "
+            f"{statistics.median([p.eval_score for p in at]):>8,.0f} "
+            f"{statistics.median([p.eval_median for p in at]):>8,.0f} {spread:>7,.1f} "
             f"{(str(games[0]) if len(games) == 1 else 'mix'):>3} "
             f"{statistics.median([p.train_score for p in at]):>8,.0f} "
             f"{optional_mean([p.eval_pieces for p in at], 1, 7)} "
