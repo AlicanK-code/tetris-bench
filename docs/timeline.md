@@ -480,6 +480,17 @@ conjunction over terms and fixing them one at a time while breaking others does
 not arrive. This was the last remaining way the loop could have been doing
 something the scores could not see.
 
+**And the zeros rate is null too, with the power calculation that explains the
+silence.** Pooled over both loops: 5 revivals against 5 deaths over 50
+transitions, exact sign test **p = 1.000**, with "dead" drawn at a measured line
+— the 95th percentile of what random play itself scores over a 10-game
+evaluation, 0.851 points per piece. The useful part is the sample size: power is
+spent on pairs that *change state* and only 10 of 50 did, so the test needs
+**15-55 chains** against the 5 that ran. Four write-ups had deferred this
+question; the answer is that the design could not have detected it. That makes
+three independent checks for an effect the curve cannot see — the mean,
+function-level capability, and the dead-function proportion — all null.
+
 **It also broke a power assumption of the project's own**, and the one used to
 justify this very run. The 4B's paired standard deviation came out **2.39× its
 cross-chain spread**, where the 14B's is **0.70×** — the opposite direction. The

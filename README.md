@@ -50,8 +50,11 @@ On `qwen3-4b`, under the identical protocol, the median **falls** from 7.5 to
 3.7 -- also inside its own noise, which is 10.9 there. Three of its five chains
 ended below where they started.
 
-So the headline the project set out to produce, an improvement curve with a
-slope, is not there on either rung that has been measured.
+Three ways the loop could have been improving something the curve cannot see
+have each been checked and each come back null: the mean, the fraction of
+functions that can express a strategy at all, and the fraction that score
+nothing. So the headline the project set out to produce, an improvement curve
+with a slope, is not there on either rung that has been measured.
 [The 14B detail](#the-improvement-curve-is-smaller-than-its-own-noise),
 [the 4B's](#the-loop-shows-nothing-on-a-second-rung).
 
@@ -719,6 +722,43 @@ the clearest demonstration of *why* the two have to be reported separately.
 uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
 ```
 
+### The zeros rate does not move either
+
+The last way the loop could have been doing something the curve cannot see. If
+its value were **rescuing functions that score nothing** rather than improving
+ones that work, the effect would be a change in a proportion, and comparing
+medians would miss it entirely.
+
+"Dead" is drawn at a measured line rather than a round number: random play
+averages 0.327 points per piece on the evaluation split, and a single 10-game
+evaluation of it -- the same evaluation a loop position gets -- reaches **0.851**
+at the 95th percentile. At or below that is inside the range random hits by
+chance.
+
+| | it0 | it1 | it2 | it3 | it4 | it5 |
+|---|---:|---:|---:|---:|---:|---:|
+| 4B dead | 1/5 | 2/5 | 1/5 | 1/5 | 2/5 | 2/5 |
+| 14B dead | 2/5 | 1/5 | 1/5 | 2/5 | 1/5 | 1/5 |
+
+Pooled, **3 of 10 dead at iteration 0 and 3 of 10 at iteration 5**. Across all
+50 adjacent transitions: **5 revivals, 5 deaths**, a paired exact sign test on
+the 10 discordant pairs giving **p = 1.000**.
+
+**The more useful result is that no run here could have settled it.** Power is
+spent on pairs that *change state*, and only 10 of 50 did. At that 20% rate the
+sample size is **15 chains** if revivals are 90% of changed pairs, **25** at 80%,
+**55** at 70% -- against the 5 chains both loops ran. So the four earlier
+write-ups that deferred this question were not negligent; the design could not
+have detected it. The cheapest sufficient version is a 15-chain 4B loop at 7.4
+hours.
+
+Full write-up:
+[docs/findings/the-zeros-rate-does-not-move-either.md](docs/findings/the-zeros-rate-does-not-move-either.md).
+
+```bash
+uv run python analysis/zeros_rate.py
+```
+
 ### The loop does not repair capability either
 
 If the loop were quietly fixing *broken* functions without moving *scores*, that
@@ -884,6 +924,10 @@ five of them currently carry one.
 - **A bad strategy and one that cannot be expressed look identical in a score**,
   which is why the capability probes exist. Both produce a low number, and 37 of
   60 first attempts were in the second category.
+- **[The zeros rate does not move
+  either](docs/findings/the-zeros-rate-does-not-move-either.md)** -- 5 revivals
+  against 5 deaths, p = 1.000, and the sample size that would have been needed:
+  15 to 55 chains against the 5 that ran.
 - **[The loop does not repair capability
   either](docs/findings/the-loop-does-not-repair-capability.md)** -- 1 repair in
   40 chances against 2 regressions, across both completed loops. Closes the
@@ -928,13 +972,8 @@ being quoted as statements about the mechanism.
   14-chain requirement is a lower bound, and this pilot is a precondition for
   the larger run rather than a nice-to-have.
 
-**Four things cost nothing and are answerable from logs already on disk.**
+**Two things cost nothing and are answerable from logs already on disk.**
 
-- **The rate of zeros as its own effect.** Three of the 30B's 15 chains scored
-  0.0. If the loop's value on that rung is *rescuing dead functions* rather than
-  improving live ones, the effect is a change in a proportion -- a different
-  power calculation from the one in the write-up, and one the current analysis
-  cannot see.
 - **The `import math` rejections.** Three of the project's four rejections were
   `import math` against a prompt that forbids imports in bold, which makes them
   instruction-following failures rather than harness artefacts. Worth

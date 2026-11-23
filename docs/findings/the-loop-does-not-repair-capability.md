@@ -127,12 +127,12 @@ something different — refinement rather than repair — and the 30B is that ru
 at 11/15. **A 30B loop is now the only way to test repair-versus-refinement**,
 which is a second reason to want one beyond the paired-noise pilot.
 
-**Still open, and now better motivated:** the *rate of zeros and crashes* as its
-own effect. Function-level capability is static, but the 4B run had 9 of 30
-positions under 1.0 points per piece and one chain crashing on every call for
-five consecutive iterations. Whether the loop moves *that* proportion is a
-different question from whether it moves a mean, and the fourth write-up to say
-so.
+**Tested since:** the *rate of zeros and crashes* was the remaining candidate,
+and it is null as well — 5 revivals against 5 deaths across 50 transitions,
+p = 1.000, and a required sample size of 15-55 chains against the 5 that ran.
+All three ways the loop could have been doing something the curve cannot see
+have now been checked. See
+[the-zeros-rate-does-not-move-either.md](the-zeros-rate-does-not-move-either.md).
 
 ---
 

@@ -152,9 +152,11 @@ quieter paired term could still show a gain. **The 8B remains the better
 experiment, and this run slightly strengthens that**: it demonstrates that
 "quiet at iteration 0" does not mean "cheap to measure through the loop".
 
-**Open:** the zeros-and-crashes rate is arguably the real effect on this rung —
-9 of 30 positions under 1.0 — and that is a proportion, not a mean. `curves.py`
-cannot see it. This is the third write-up to reach that conclusion.
+**Tested since:** the zeros-and-crashes rate was the obvious candidate for the
+real effect on this rung, and it is null too — 5 revivals against 5 deaths
+pooled with the 14B, p = 1.000 — with the sample size that would have been
+needed now measured at 15-55 chains against the 5 that ran. See
+[the-zeros-rate-does-not-move-either.md](the-zeros-rate-does-not-move-either.md).
 
 ---
 

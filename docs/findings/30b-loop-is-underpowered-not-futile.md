@@ -204,7 +204,12 @@ chain counts these calculations rest on are real.
    no gain rather than a smaller one. One rung with a gain and one rung with
    nothing measurable does not establish a ceiling; it establishes that the
    14B's +8 is not a general figure. The 8B still turns this into a measurement.
-3. **Three of the 30B's 15 chains scored 0.0.** If the loop's main value on this
-   rung is rescuing dead functions rather than improving live ones, the relevant
-   effect is a change in the *rate of zeros*, which is a proportion test and a
-   completely different power calculation from the one above.
+3. ~~**Three of the 30B's 15 chains scored 0.0.** If the loop's main value on
+   this rung is rescuing dead functions rather than improving live ones, the
+   relevant effect is a change in the *rate of zeros*, which is a proportion
+   test and a completely different power calculation from the one above.~~
+   **Tested and null, with the power calculation done.** Across both completed
+   loops: 5 revivals against 5 deaths over 50 transitions, sign test p = 1.000.
+   The proportion test needs **15-55 chains** depending on effect size, against
+   the 5 that ran — so this was undetectable by design rather than untested. See
+   [the-zeros-rate-does-not-move-either.md](the-zeros-rate-does-not-move-either.md).
