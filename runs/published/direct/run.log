@@ -1,0 +1,33 @@
+qwen3-14b (qwen3:14b) picking placements directly, up to 20 pieces: one call each
+
+0123456789
+..........
+.###.#....
+.#####....
+.##.#.####
+..#.###...
+..#..#....
+..#.###...
+..#...#...
+..#..###..
+..##.#....
+..#..##...
+..####..#.
+..###...#.
+...##...##
+...#....##
+...###..##
+#...#..##.
+#...#..##.
+#.######..
+#...##.###
+
+score          0
+lines cleared  0
+pieces placed  20
+ended by       piece_limit
+holes          86 (avg 32.5)
+max height     19 (avg 13.1)
+invalid replies 0 (played move 0 each time)
+model          20 call(s), 15757 in / 128885 out, 13440.9s
+per piece      788 in / 6444 out, 672.0s

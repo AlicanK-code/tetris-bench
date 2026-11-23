@@ -130,7 +130,7 @@ wrong turns is part of what the project is demonstrating.
 
 The engine, baseline agents, rendering and run records, the model client, the
 sandboxed strategy agent, the improvement loop and the analysis all work, under
-653 unit tests. Every milestone that was going to be built is built; what
+698 unit tests. Every milestone that was going to be built is built; what
 remains is measurement, and the measurement has reframed the headline -- see
 [Results](#results).
 
@@ -142,7 +142,7 @@ remains is measurement, and the measurement has reframed the headline -- see
 | 4 | Model client (OpenAI-compatible, local + cloud) | **done** |
 | 5 | Strategy agent + sandbox | **done** |
 | 6 | Improvement loop | **done** |
-| 7 | Direct agent | cut to a demonstration, see [Results](#results) |
+| 7 | Direct agent | **done**, one demonstration game, see [Results](#direct-mode-costs-800x-and-plays-like-random) |
 | 8 | Analysis (curves, ladder gap, tokens/seconds per point) | **done**, ladder measured on all four rungs |
 
 ## Setup
@@ -699,6 +699,52 @@ the clearest demonstration of *why* the two have to be reported separately.
 uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
 ```
 
+### Direct mode costs 800x and plays like random
+
+The milestone 7 demonstration: `qwen3-14b` picking placements one at a time,
+one model call per piece, on piece seed 1 at a 20-piece budget. The point was
+to measure the cost ratio that makes `strategy` the main mode. It took **3 h
+44 m** to place 20 pieces.
+
+| agent | score | lines | holes | max height | cost |
+|---|---:|---:|---:|---:|---:|
+| heuristic (Lee 2013) | **800** | **7** | **1** | **4** | ~0 s |
+| **direct, qwen3-14b** | 0 | 0 | **86** | 19 | **3 h 44 m** |
+| random (agent seed 0) | 0 | 0 | 76 | 19 | ~0 s |
+
+**The cost first, since that was the deliverable.** 6,444 output tokens and
+**672 s per piece**, against the same model in `strategy` mode at 100.8 tokens
+and 10.25 s per piece charged conservatively against a single game, or 8.04 and
+0.818 amortised the way the runs actually replay a function. That is **64x to
+822x** depending on which denominator you accept. At 672 s per piece a full
+2,000-piece game is **15.4 days**, which is why this mode is a demonstration and
+not a rung.
+
+**Then the part that was not the goal.** Nearly four hours of 14B generation
+bought placements inside the random distribution: random play on this seed makes
+70.6 holes on average over 200 agent seeds (median 70, range 33-127), putting
+the agent's 86 at about the 80th percentile. Worse than four random games in
+five, and comfortably inside the spread -- so "indistinguishable from random,
+leaning bad", not "worse than random", which one game cannot establish. The zero
+score proves nothing on its own, because random scores zero on all 200 seeds at
+this budget; the heuristic's 800 points and 1 hole on the identical sequence is
+what shows the budget permits scoring.
+
+**And formatting was not the failure: 0 invalid replies in 20 calls.** The agent
+asks for an index into the enumerated legal moves, so every option is legal by
+construction and a bad result cannot be blamed on malformed output. The same
+model in `strategy` mode rates 24.53 points per piece across every published
+run. It can say which move it wants; it just wants the wrong one.
+
+Full write-up, including why per-piece latency turned out *not* to grow with the
+board, in
+[docs/findings/direct-mode-costs-800x-and-plays-like-random.md](docs/findings/direct-mode-costs-800x-and-plays-like-random.md).
+
+```bash
+uv run tetris-bench play --agent heuristic --seed 1 --max-pieces 20   # instant
+uv run tetris-bench direct --model qwen3-14b --seed 1 --max-pieces 20 # 3h44m
+```
+
 ### Findings with their own write-ups
 
 Each of these is a separate experiment in [docs/findings/](docs/findings/), with
@@ -734,6 +780,11 @@ five of them currently carry one.
 - **A bad strategy and one that cannot be expressed look identical in a score**,
   which is why the capability probes exist. Both produce a low number, and 37 of
   60 first attempts were in the second category.
+- **[Direct mode costs 800x and plays like
+  random](docs/findings/direct-mode-costs-800x-and-plays-like-random.md)** --
+  the milestone 7 demonstration. 3 h 44 m for 20 pieces, 86 holes against random
+  play's 70.6, and 0 malformed replies, so the failure is choice and not
+  formatting.
 
 ### Not done
 
@@ -755,10 +806,10 @@ five of them currently carry one.
   [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md):
   the 8B at 10 chains for 9.3 hours, and the 30B at 6 chains for a
   parity-sized effect or 14 to 28 for a realistically-sized one.
-- **Milestone 7, the direct agent**, cut to a planned demonstration rather than
-  a full arm: a model call per turn at ~500 turns per game is enormous for a
-  result the prior work already reports, so one short game to show the failure
-  mode and the cost ratio is the whole value.
+- **A powered direct-mode arm.** The demonstration ran and is written up
+  above; what is not done is several seeds across several rungs, which at 672 s
+  per piece is weeks of wall clock for a baseline whose purpose is to be beaten.
+  The cost ratio was the deliverable and it is measured.
 
 ### Provenance
 

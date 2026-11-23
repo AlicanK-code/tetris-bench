@@ -82,7 +82,7 @@ tetris-bench/
 │   ├── jsonl.py        # append/read run records
 │   ├── runner.py       # play_game(game, agent) -> GameResult
 │   ├── clients/        # OpenAI-compatible client, provider config
-│   ├── agents/         # random, heuristic, strategy (direct agent to come)
+│   ├── agents/         # random, heuristic, strategy, direct
 │   ├── prompts/        # versioned prompt templates + loader
 │   ├── sandbox.py      # AST validation + host side of the sandbox
 │   ├── sandbox_worker.py  # the isolated child; stdlib only, run by path
@@ -107,7 +107,23 @@ tetris-bench/
    - **Resumable by replay, no state file.** Records append as games finish and functions are written to disk; a rerun reads the log, skips completed positions, and replays the saved function to regenerate its feedback in under a second. One source of truth instead of a checkpoint that can drift.
    - **Training seeds are fed back; evaluation seeds are held out.** A function plays every training sequence and the feedback aggregates across them, so a revision cannot be tuned to one sequence. It is then replayed on a disjoint set of evaluation sequences whose outcomes the model never sees, and **the curve is read from those rows** (`split` in the log). This matters because a single sequence is a noisy estimate: a fixed, deterministic function varies 85–348% across unseen seeds, and a training-seed score of 400 turned out to be a function's luckiest case out of twenty-one (held-out mean 110). Evaluation games cost under a second each, so this is free.
    - **Chains per rung is not established.** `qwen3-14b` is reproducible on the *iteration-0* prompt but **not** on the revise prompt, which is 1.5× longer — two revisions of the same function gave two different sources, though both scored the same. No rung is text-reproducible for revisions. `chains=1` for the 14B currently rests on score stability from two samples. See `docs/findings/`.
-7. **Direct agent**: baseline mode for comparison (small seed set only, as it is expensive).
+7. **Direct agent**: baseline mode for comparison. *Done.*
+   - **One demonstration game, not an arm.** Measured at **672 s and 6,444
+     output tokens per piece**, which is 64-822x `strategy` mode depending on
+     whether a generation is charged against one game or the ~900 pieces it is
+     actually replayed over. A full 2,000-piece game would be 15.4 days, so a
+     powered version — several seeds, several rungs — is weeks of wall clock for
+     a baseline whose purpose is to be beaten.
+   - **The reply is an index into the enumerated legal placements**, so every
+     option is legal by construction. That is deliberately generous: it isolates
+     *can you choose well* from *can you emit a well-formed move*, and the 14B
+     answered all 20 calls with a valid index while playing inside the random
+     distribution. Without the index design that result would have been
+     indistinguishable from a formatting failure.
+   - **A malformed answer is never rescued.** It is counted in
+     `invalid_outputs` and the engine plays index 0 — arbitrary but
+     deterministic. Falling back to the heuristic would let a model that never
+     emits a valid answer score like a competent one.
 8. **Analysis**: improvement curves per model, the size-ladder gap, tokens and seconds per point, a results table for the README.
 
 Finish and test each milestone before starting the next.
@@ -147,6 +163,7 @@ uv run tetris-bench play --agent random --show-state --log runs/baseline.jsonl
 uv run tetris-bench models                                   # validate model config
 uv run tetris-bench strategy --model qwen3-4b --seed 1       # model writes a scorer
 uv run tetris-bench loop --model qwen3-14b --iterations 6 --chains 3   # the loop
+uv run tetris-bench direct --model qwen3-14b --seed 1 --max-pieces 20  # 1 call/piece
 uv run python analysis/curves.py                             # improvement curves
 uv run python analysis/plots.py                              # figures
 uv run python analysis/held_out.py                           # replay on unseen seeds

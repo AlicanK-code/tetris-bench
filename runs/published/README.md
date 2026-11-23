@@ -43,6 +43,7 @@ README. **Read them, do not import them** -- that is the entire premise of
 | `noise-floor/` | Repeated iteration-0 generations from one prompt: 5 on the 14B, 2 on the 30B. | [noise-floor-qwen3-14b.md](../../docs/findings/noise-floor-qwen3-14b.md), [noise-floor-qwen3-30b.md](../../docs/findings/noise-floor-qwen3-30b.md) |
 | `revise/` | Two independent revisions of the same function from the same feedback. | [first-revision-reweights-not-debugs.md](../../docs/findings/first-revision-reweights-not-debugs.md) |
 | `counterexample/` | Revisions given a feature-level counterexample. `1,2,3` are the original trace board; `-p8-1`, `-p24-1` vary it. | [counterexample-fixes-what-feedback-cannot.md](../../docs/findings/counterexample-fixes-what-feedback-cannot.md) |
+| `direct/` | The milestone 7 direct-mode demonstration: one 20-piece game, one model call per piece, 3 h 44 m. The only `mode: "direct"` row in the repo. | [direct-mode-costs-800x-and-plays-like-random.md](../../docs/findings/direct-mode-costs-800x-and-plays-like-random.md), README Results |
 | `qwen3-4b-iter0/` | The 4B's first functions, including the `strategy_v1` vs `v2` prompt comparison. | [qwen3-4b-iter0-detailed.md](../../docs/findings/qwen3-4b-iter0-detailed.md), [prompt-comparison-and-determinism.md](../../docs/findings/prompt-comparison-and-determinism.md) |
 
 ## The results worth opening a file for
