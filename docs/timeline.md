@@ -392,8 +392,14 @@ Open questions, in rough priority order:
    model writes, on the one comparison available. Needs several samples per arm.
 3. **Raise the piece budget.** Iteration 4 is censored at 500 pieces on half its
    sequences, so the ceiling is now the measurement rather than the model.
-4. **The ladder.** 4B, 8B and 30B under the same protocol, and whether the loop
-   lets a smaller rung close on a larger one.
+4. ~~**The ladder.** 4B, 8B and 30B under the same protocol, and whether the loop
+   lets a smaller rung close on a larger one.~~ **Answered** for iteration 0, all
+   four rungs, 15 chains each: [size-ladder-is-a-step.md](findings/size-ladder-is-a-step.md).
+   There is no slope to close — 4B, 8B and 14B are statistically
+   indistinguishable (3–5/15 probe-clean) and the 30B-a3b steps up to 11/15
+   (p = 0.002 against the three pooled). The second half of the question is
+   therefore ill-posed as written and is restated there as *does the loop move a
+   rung's probe-clean fraction?*
 5. **Credit assignment.** The counterexample arm is the project's most
    interesting result and its least replicated — one rung, one iteration, three
    boards, one success.
