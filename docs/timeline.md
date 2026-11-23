@@ -390,8 +390,12 @@ before it lands.
 
 Open questions, in rough priority order:
 
-1. **A per-chain model seed,** so chains are independent without abandoning
-   reproducibility, followed by a multi-chain curve on this rung.
+1. ~~**A per-chain model seed,** so chains are independent without abandoning
+   reproducibility, followed by a multi-chain curve on this rung.~~ **Done.**
+   `model_seed_for(base, chain)` gives chain *k* the seed `base + k`, and chain 0
+   keeps the configured seed so a single-chain run stays bit-for-bit what it was.
+   Verified independent: every rung of the ladder produced 15 distinct function
+   SHAs across its 15 chains. The multi-chain curve followed on the 14B.
 2. **Is the frequency penalty harmful?** It was added to fix a non-terminating
    generation, which it did decisively. It also appears to have changed what the
    model writes, on the one comparison available. Needs several samples per arm.
