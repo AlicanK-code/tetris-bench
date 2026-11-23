@@ -64,6 +64,7 @@ from tetris_bench.records import GameResult, ModelUsage, RunRecord
 from tetris_bench.runner import play_game
 from tetris_bench.sandbox import (
     SandboxCrashed,
+    SandboxGameDeadline,
     SandboxLimits,
     SandboxValidationError,
     ScoringSandbox,
@@ -104,6 +105,10 @@ class LoopConfig:
     #: one definition. See the note there on why score is a censored measure.
     max_pieces: int = DEFAULT_MAX_PIECES
     per_call_seconds: float = 1.0
+    #: Wall-clock budget for one game, or None for no limit. Defaults to the
+    #: sandbox's own default rather than restating a number here, so the budget
+    #: has one definition -- the same reason `max_pieces` defers to the engine.
+    per_game_seconds: float | None = SandboxLimits.per_game_seconds
     #: One template for every iteration. The feedback block is empty at
     #: iteration 0 and populated afterwards, so the feedback is the *only*
     #: difference between the first prompt and the second. Previously iteration 0
@@ -160,6 +165,11 @@ class Outcome:
     #: The function ran but wedged or killed its worker, so no game finished.
     #: Distinct from ``rejected``, which means it never started.
     crashed: bool = False
+    #: A crash that was specifically the whole-game time budget running out.
+    #: Kept apart from a wedge because the two need different feedback: a wedge
+    #: is usually a loop that never ends, while this function terminates on
+    #: every call and is simply too slow to finish a game.
+    deadline: bool = False
     reason: str = ""
     result: GameResult | None = None
     diagnostics: StrategyDiagnostics = field(default_factory=StrategyDiagnostics)
@@ -181,6 +191,7 @@ class MultiOutcome:
     per_seed: dict[int, Outcome] = field(default_factory=dict)
     rejected: bool = False
     crashed: bool = False
+    deadline: bool = False
     reason: str = ""
 
     @property
@@ -251,6 +262,7 @@ def play_on_seeds(source: str, seeds: tuple[int, ...], config: LoopConfig) -> Mu
             return MultiOutcome(source=source, rejected=True, reason=outcome.reason)
         if outcome.crashed:
             multi.crashed = True
+            multi.deadline = outcome.deadline
             multi.reason = outcome.reason
             break
         multi.per_seed[seed] = outcome
@@ -274,7 +286,10 @@ def empty_result(agent: str, seed: int) -> GameResult:
 
 def play_function(source: str, seed: int, config: LoopConfig) -> Outcome:
     """Run one scoring function for a whole game, or record why it could not."""
-    limits = SandboxLimits(per_call_seconds=config.per_call_seconds)
+    limits = SandboxLimits(
+        per_call_seconds=config.per_call_seconds,
+        per_game_seconds=config.per_game_seconds,
+    )
     try:
         with ScoringSandbox(source, limits=limits) as sandbox:
             agent = StrategyAgent(sandbox)
@@ -292,6 +307,10 @@ def play_function(source: str, seed: int, config: LoopConfig) -> Outcome:
             )
     except SandboxValidationError as error:
         return Outcome(source=source, rejected=True, reason=str(error))
+    except SandboxGameDeadline as error:
+        # Caught before SandboxCrashed, which it subclasses, so the slow-function
+        # case is labelled rather than reported as a wedge.
+        return Outcome(source=source, crashed=True, deadline=True, reason=str(error))
     except SandboxCrashed as error:
         # The worker died or stopped answering. This must not end the sweep: one
         # bad function would otherwise cost every remaining seed and chain, and
@@ -329,9 +348,10 @@ def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
             # Still a symptom, not a diagnosis: it says the run stopped and on
             # which sequence, not why. That a wedge happened on some boards and
             # not others is information the model needs and can act on.
+            what = "ran out of time for a whole game" if outcome.deadline else "stopped responding"
             rendered += (
                 "\n\n## One sequence stopped early\n\n"
-                f"- after the games above, your function stopped responding and "
+                f"- after the games above, your function {what} and "
                 f"that game was abandoned: {outcome.reason}\n"
                 "- the remaining sequences were not played, so the table above "
                 "is shorter than usual"
@@ -344,6 +364,22 @@ def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
             f"{outcome.reason}\n\n"
             "Nothing was played, so there are no results to report. Fix the "
             "problem above and try again."
+        )
+
+    if outcome.deadline:
+        # Deliberately a symptom and not a diagnosis, like every other part of
+        # the feedback: it reports that the game ran out of time, not what in
+        # the function is slow. Saying "a loop that does not terminate" here --
+        # the wedge advice below -- would be an actively wrong diagnosis, since
+        # a function that hits this one returns from every call it is given.
+        return (
+            "## Your function ran out of time before a game could finish\n\n"
+            f"{outcome.reason}\n\n"
+            "Every individual call returned, so this is not a loop that never "
+            "ends: the function is simply doing too much work per placement, "
+            "and a game is thousands of placements. Scoring one board should be "
+            "a few passes over 200 cells. Look for work repeated per placement "
+            "that could be done once, and for nested scans over the board."
         )
 
     if outcome.crashed:

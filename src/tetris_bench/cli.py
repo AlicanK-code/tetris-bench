@@ -40,6 +40,23 @@ def positive_int(value: str) -> int:
     return number
 
 
+def _game_budget(args: argparse.Namespace) -> float | None:
+    """Translate `--per-game-seconds` into the sandbox's budget.
+
+    Omitted keeps the sandbox default; `0` means no limit. Zero rather than a
+    sentinel word because argparse already types the flag as a float, and a
+    budget of literally zero seconds has no useful meaning to confuse it with.
+    """
+    # Imported locally, like the other sandbox uses in this module, so `play`
+    # and `models` do not pay for the sandbox's imports.
+    from tetris_bench.sandbox import SandboxLimits
+
+    value = getattr(args, "per_game_seconds", None)
+    if value is None:
+        return SandboxLimits.per_game_seconds
+    return None if value <= 0 else value
+
+
 def build_agent(name: str, agent_seed: int) -> Agent:
     """Construct a baseline agent by name.
 
@@ -165,6 +182,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--per-call-seconds", type=float, default=1.0, help="time budget per placement"
     )
     strategy.add_argument(
+        "--per-game-seconds",
+        type=float,
+        default=None,
+        help="wall-clock budget for one game; omit for the default, 0 for no limit",
+    )
+    strategy.add_argument(
         "--save-dir",
         type=Path,
         default=Path("runs/functions"),
@@ -202,6 +225,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     loop.add_argument("--max-pieces", type=positive_int, default=DEFAULT_MAX_PIECES)
     loop.add_argument("--per-call-seconds", type=float, default=1.0)
+    loop.add_argument(
+        "--per-game-seconds",
+        type=float,
+        default=None,
+        help="wall-clock budget for one game; omit for the default, 0 for no limit",
+    )
     loop.add_argument("--log", type=Path, default=Path("runs/loop.jsonl"))
     loop.add_argument("--save-dir", type=Path, default=Path("runs/functions"))
     loop.add_argument(
@@ -262,6 +291,7 @@ def run_improvement_loop(args: argparse.Namespace) -> None:
         chains=args.chains,
         max_pieces=args.max_pieces,
         per_call_seconds=args.per_call_seconds,
+        per_game_seconds=_game_budget(args),
         # Chain k generates under `seed + k`, so chains are independent samples
         # rather than identical copies. Chain 0 keeps the configured seed.
         model_seed=config.seed,
@@ -367,7 +397,10 @@ def run_strategy(args: argparse.Namespace) -> None:
         print()
         print(generated.source)
 
-    limits = SandboxLimits(per_call_seconds=args.per_call_seconds)
+    limits = SandboxLimits(
+        per_call_seconds=args.per_call_seconds,
+        per_game_seconds=_game_budget(args),
+    )
     try:
         with ScoringSandbox(generated.source, limits=limits) as sandbox:
             agent = StrategyAgent(sandbox)

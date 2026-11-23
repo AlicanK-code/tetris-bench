@@ -33,9 +33,8 @@ This is a portfolio project. Code should be readable, well structured and easy t
 ## Safety: model-generated code
 
 `strategy` mode executes code written by a model. It must never run in-process with full privileges.
-- Run it in a separate subprocess with a hard timeout on every call, and a bound
-  on the whole game. **The per-game bound is currently a piece count, not a
-  clock** — see the note below.
+- Run it in a separate subprocess with a hard timeout on every call, on every
+  piece, and on the whole game.
 - Do not allow imports, or allowlist pure modules only (e.g. `math`). Do not allow file, network or OS access.
 - Validate the function's signature and return type, and treat exceptions or timeouts as a recorded failure, not a crash.
 - Log every generated function to disk for later inspection.
@@ -47,22 +46,25 @@ As built, this is two independent layers:
 
 `math` is **pre-injected rather than importable**, so the one pure module a scoring function may want is available without permitting an import statement at all.
 
-One worker per game, batched per piece: a game is ~500 pieces × ~34 placements, so a process per scoring call would mean 17,000 spawns and over eight minutes per game of pure process creation.
+One worker per game, batched per piece: a game is up to 2000 pieces × ~34 placements, so a process per scoring call would mean 68,000 spawns and over half an hour per game of pure process creation.
 
 The function sees **plain data only** — boards as tuples of tuples of bool, placements as dicts — so no class, module or method of this project crosses into the sandbox.
 
-### There is no per-game clock, and that is a real gap
-
-Two time bounds exist, both below the level of a game:
+### Three time bounds, one per level
 
 - **Per call**, `SIGALRM` at `per_call_seconds` (1.0s). It raises a `BaseException` subclass deliberately, so a `try/except Exception` inside the scoring function cannot swallow its own timeout.
-- **Per piece**, a host-side deadline of `max(30s, per_call_seconds × placements + 10s)` — about 44s for a typical 34-placement piece. The floor matters: a flat 30s would kill a worker that was behaving exactly as the per-call budget allows.
+- **Per piece**, a host-side deadline of `max(30s, per_call_seconds × placements + 10s)` — about 44s for a typical 34-placement piece. The floor matters: a flat 30s would kill a worker behaving exactly as the per-call budget allows.
+- **Per game**, `per_game_seconds` (300s), checked before each batch. `None` disables it, for deliberately long replays where a long game is the point.
 
-A whole game is bounded only by `max_pieces` (2000). So a function that is merely *slow* on every placement — never looping forever, just spending its full second each time — can legitimately run **2000 × 34s ≈ 19 hours**. Nothing stops it, and an unattended sweep would simply appear to hang.
+The third one exists because the first two do not imply it. A function that merely spends its full second on every placement, never looping, could run `2000 pieces × 34 placements × 1s` — about **19 hours** — entirely within the rules, and an unattended sweep would simply appear to hang. Bounding the call and the piece does not bound the game.
 
-This is a deliberate trade made at the wrong level. The per-piece floor exists because an individual placement that times out should come back unplayable and let the game continue, rather than losing a whole game to one slow function. That reasoning is right, but it leaves the *game* with no wall-clock bound at all. The fix is a per-game deadline that aborts and records a failure, not a shorter per-call budget, which would only change which functions are measurable.
+300s is roughly a thousand times a real game: measured on the size ladder, 728 sandboxed games took about 92 seconds between them. A budget a plausible function could compete with would be a measurement rather than a safety net.
 
-Until it exists, treat the original requirement above as **partly unmet**: calls are bounded, games are not.
+Two details that are load-bearing:
+
+**`SandboxGameDeadline` subclasses `SandboxCrashed`.** Every caller already treats a crash as "this game is over, record a failure, keep the sweep running", which is the right response here too — so the deadline cannot escape through a handler nobody added. The distinct type is for telling them apart afterwards.
+
+**It is checked between batches, not enforced inside one.** Cutting a batch short would kill a worker behaving exactly as allowed, which is the mistake `per_batch_seconds` was widened to a floor to avoid, and it would surface as a wedge rather than the deadline it is. So the real bound is the budget plus at most one batch — 344s at the defaults — and the feedback for a deadline deliberately does *not* repeat the wedge advice about non-terminating loops, which would be an actively wrong diagnosis for a function that returns from every call.
 
 ## Planned structure
 

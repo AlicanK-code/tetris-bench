@@ -13,9 +13,9 @@ reason, instead of spending a timeout and leaving you guessing.
 no project module importable, a small allowlist of builtins, and ``SIGALRM``
 bounding every call.
 
-**One worker per game, batched per piece.** A game is around 500 pieces with
+**One worker per game, batched per piece.** A game is up to 2000 pieces with
 roughly 34 placements each, so scoring one placement per process would mean
-17,000 spawns and, at about 30ms each, over eight minutes per game spent purely
+68,000 spawns and, at about 30ms each, over half an hour per game spent purely
 on process creation. Instead the worker starts once, and each piece's whole
 placement list crosses the pipe in one round trip.
 
@@ -33,6 +33,7 @@ import json
 import selectors
 import subprocess
 import sys
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -87,6 +88,18 @@ class SandboxCrashed(SandboxError):
     """The worker died or stopped answering."""
 
 
+class SandboxGameDeadline(SandboxCrashed):
+    """The game exceeded its whole-game time budget.
+
+    A subclass of :class:`SandboxCrashed` on purpose. Every caller already
+    handles that as "this game is over, record a failure, keep the sweep
+    running", which is exactly the right response here too -- so the deadline
+    cannot crash a run through a handler someone forgot to add. The distinct
+    type is for telling the two apart afterwards: a crash means the worker
+    stopped answering, this means the function was simply too slow.
+    """
+
+
 @dataclass(frozen=True)
 class SandboxLimits:
     """Time budgets for model-written code.
@@ -104,6 +117,13 @@ class SandboxLimits:
     whole game to a host-side crash, when the design is that an individual
     placement comes back as unplayable and the game continues. See
     :meth:`batch_deadline`.
+
+    ``per_game_seconds`` closes what those two budgets leave open. Bounding the
+    call and the piece does not bound the game: a function that merely spends its
+    full second on every placement, never looping, can run
+    ``2000 pieces x 34 placements x 1s`` -- about **19 hours** -- entirely within
+    the rules. Nothing stopped it, and an unattended sweep would simply appear to
+    hang.
     """
 
     per_call_seconds: float = 1.0
@@ -112,6 +132,18 @@ class SandboxLimits:
     #: Slack for process round-trip and JSON encoding on top of the per-call
     #: budgets. Generous because overshooting the deadline costs a whole game.
     batch_overhead_seconds: float = 10.0
+    #: Wall-clock budget for one whole game, or ``None`` for no limit.
+    #:
+    #: 300s is roughly a thousand times a real game. Measured on the size
+    #: ladder, 728 sandboxed games took about 92 seconds between them -- ~0.13s
+    #: each -- because a scoring function is tens of lines of pure Python over a
+    #: 200-cell board, which is microseconds of work per placement. A function
+    #: needing minutes is pathological, not merely slow, so this is set to catch
+    #: pathology without being a budget any plausible function competes with.
+    #:
+    #: ``None`` exists for deliberately long replays (a 50,000-piece budget, for
+    #: instance), where a long game is the point rather than a symptom.
+    per_game_seconds: float | None = 300.0
 
     def batch_deadline(self, items: int) -> float:
         """Host deadline for a batch of ``items`` placements.
@@ -271,10 +303,39 @@ class ScoringSandbox:
         self.failures = 0
         self.errors: list[str] = []
         self._process: subprocess.Popen[str] | None = None
+        self._started: float | None = None
         if validate:
             validate_source(source)
 
+    @property
+    def elapsed_seconds(self) -> float:
+        """Wall-clock since the worker started, or 0 before it has."""
+        if self._started is None:
+            return 0.0
+        return time.monotonic() - self._started
+
+    def _check_game_deadline(self) -> None:
+        """Refuse to start more work once the game's budget is spent.
+
+        Checked before a batch rather than enforced during one. Cutting a batch
+        short would mean killing a worker that is behaving exactly as the
+        per-call budget allows, which is the same mistake ``per_batch_seconds``
+        was widened to a floor to avoid -- and it would surface as a crash
+        rather than as the deadline it really is. So the true bound is this
+        budget plus at most one batch, which at the defaults is 300s + 44s.
+        """
+        budget = self.limits.per_game_seconds
+        if budget is None or self._started is None:
+            return
+        elapsed = self.elapsed_seconds
+        if elapsed > budget:
+            raise SandboxGameDeadline(
+                f"the game exceeded its {budget:g}s budget after {elapsed:.1f}s; "
+                "the function is too slow to play a whole game"
+            )
+
     def __enter__(self) -> ScoringSandbox:
+        self._started = time.monotonic()
         self._process = subprocess.Popen(
             [sys.executable, "-I", str(WORKER_PATH)],
             stdin=subprocess.PIPE,
@@ -331,6 +392,7 @@ class ScoringSandbox:
         """
         if not items:
             return []
+        self._check_game_deadline()
         reply = self._exchange(
             {"op": "score", "items": list(items)},
             timeout=self.limits.batch_deadline(len(items)),
