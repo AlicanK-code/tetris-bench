@@ -189,7 +189,9 @@ against the 14B at one seed before any full sweep.
 2. Does the 4B's nondeterminism matter in practice, given its scores are
    invariant anyway? Possibly not, which would mean the problem is confined to a
    rung whose curve is flat at zero regardless.
-3. Should the loop's feedback name the metric ("96 holes") or the suspected cause
-   ("your hole count flags cells near the top of the board")? The first tests the
-   model's own diagnostic ability; the second teaches. This remains the central
-   open design decision.
+3. ~~Should the loop's feedback name the metric ("96 holes") or the suspected
+   cause ("your hole count flags cells near the top of the board")?~~
+   **Decided: the metric.** "Feedback is symptoms, not diagnoses" in
+   `CLAUDE.md` — the model must diagnose its own bug, because that is the
+   ability being measured. One mechanical exception survives, for a function
+   that scored every candidate identically.

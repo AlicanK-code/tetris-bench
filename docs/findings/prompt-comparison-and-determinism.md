@@ -248,16 +248,21 @@ the same model, prompt and seed N times and record the spread of scores. Until
 that number exists, there is no threshold against which a gain between
 iterations means anything.
 
-Options, not yet decided:
+~~Options, not yet decided:~~ **Decided: 1 and 2 together, 3 rejected.**
 
-1. **Measure the noise floor in score terms, then require improvements to exceed
-   it.** Note this is cheaper than it first appears: §4.3 suggests score variance
-   may be small even where text variance is large. At ~5 minutes per generation,
-   N=5 on one rung is about 25 minutes.
-2. **Several samples per iteration, report medians and spread.** Statistically
-   the right answer; multiplies an already long run by N.
-3. **Accept single runs and report the curve as indicative**, with the
-   nondeterminism stated as a limitation. Cheapest, weakest claim.
+1. ~~**Measure the noise floor in score terms, then require improvements to
+   exceed it.**~~ **Done** on two rungs:
+   [14B](noise-floor-qwen3-14b.md) and [30B](noise-floor-qwen3-30b.md). The
+   prediction held — score variance is far smaller than text variance.
+2. ~~**Several samples per iteration, report medians and spread.**~~ **Adopted**,
+   as the loop's independent chains: each chain iterates on its own function and
+   never sees another's, and `curves.py` reads the curve from the median across
+   them. Carrying best-of-N forward would manufacture a curve from noise, so the
+   median is the point. `CLAUDE.md` carries the reasoning.
+3. ~~**Accept single runs and report the curve as indicative**, with the
+   nondeterminism stated as a limitation.~~ **Rejected.** The 30B's 1,700-point
+   spread between two runs of the same request is wider than any effect the loop
+   has produced, so a single run per iteration cannot be read as a curve at all.
 
 ---
 

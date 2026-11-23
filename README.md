@@ -105,7 +105,11 @@ The negative result is **narrow, not final**, and the main limit is coverage:
 
 - **The loop has only ever run on one of the four rungs.** The other three have
   measured iteration-0 baselines and no revisions. A model that improves where
-  the 14B does not would change answer 1 outright.
+  the 14B does not would change answer 1 outright. How much sampling that takes
+  is now quantified per rung by
+  [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md):
+  on the 30B it needs 14 to 28 chains rather than the five used so far, and the
+  8B is the better first spend.
 - **Six iterations may be too few**, and five chains is a small sample against a
   noise floor this wide.
 - **The feedback is deliberately symptoms-only** -- score, lines, holes, height,
@@ -746,7 +750,11 @@ five of them currently carry one.
   MoE, and nothing on a 32GB machine can break that tie.
 - **Chains per rung is not established.** `chains=1` for the 14B rests on score
   stability across two samples, and no rung is text-reproducible for revisions.
-  The ladder sidestepped this by using 15 chains everywhere.
+  The ladder sidestepped this by using 15 chains everywhere. There are now
+  concrete per-rung numbers to argue from, in
+  [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md):
+  the 8B at 10 chains for 9.3 hours, and the 30B at 6 chains for a
+  parity-sized effect or 14 to 28 for a realistically-sized one.
 - **Milestone 7, the direct agent**, cut to a planned demonstration rather than
   a full arm: a model call per turn at ~500 turns per game is enormous for a
   result the prior work already reports, so one short game to show the failure

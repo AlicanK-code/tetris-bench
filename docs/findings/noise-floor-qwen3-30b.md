@@ -188,8 +188,13 @@ improvement loop is tested on.
 
 ## 6. Open questions
 
-1. How many samples per iteration on the 30B? The spread is from n=2; a proper
-   estimate needs 5 or more.
+1. ~~How many samples per iteration on the 30B? The spread is from n=2; a
+   proper estimate needs 5 or more.~~ **Done for iteration 0:** the size ladder
+   ran 15 chains on this rung, putting the cross-chain spread at 15.13 points
+   per piece from n=15. The *paired* standard deviation a loop needs has still
+   never been measured here, only scaled from the 14B — see
+   [30b-loop-is-underpowered-not-futile.md](30b-loop-is-underpowered-not-futile.md)
+   §6.1.
 2. Is `qwen3-8b` reproducible? It is the one untested rung.
 3. Does the nondeterminism narrow once a function is good? Both 30B runs were
    early, exploratory attempts; a model revising a working function may have

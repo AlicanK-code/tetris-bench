@@ -281,16 +281,25 @@ plain `for` loop.
 
 ## 7. Open questions
 
-1. Does the hole/empty-cells conflation persist up the ladder, or is it
-   4B-specific? Running `qwen3-30b` on the same seed answers this and determines
-   whether the loop must teach the concept to every rung.
+1. ~~Does the hole/empty-cells conflation persist up the ladder, or is it
+   4B-specific?~~ **Done: it persists on every rung**, so the loop would have to
+   teach the concept everywhere rather than only at the bottom. The ladder's
+   holes probe, among functions that loaded: 4B 8/15, 8B 4/13, 14B 6/13, 30B
+   2/15 — thinner at the top rung, never absent. See
+   [size-ladder-is-a-step.md](size-ladder-is-a-step.md) §4.1.
 2. Would a prompt that warns a function must *discriminate* between candidates
-   fix this without leaking strategy? The warning concerns function behaviour,
-   not Tetris.
-3. Should feedback name the bug class ("your function scored every candidate
-   identically") or only the outcome ("you made 107 holes")? The former is a
-   much stronger teaching signal; the latter is a purer test of the model's own
-   diagnostic ability. This choice shapes what the benchmark measures.
+   fix this without leaking strategy? **Partly settled:** the warning landed in
+   `strategy_v2` (the addendum below), which answers the leakage half by
+   construction — it talks about function behaviour, not Tetris. Whether it
+   *fixes* the conflation is still unmeasured, and needs the degenerate-function
+   rate under v2 against v1.
+3. ~~Should feedback name the bug class ("your function scored every candidate
+   identically") or only the outcome ("you made 107 holes")?~~ **Decided: the
+   outcome.** "Feedback is symptoms, not diagnoses" in `CLAUDE.md`, because the
+   model diagnosing its own bug is the ability being measured. The one exception
+   is the mechanical case this document argued for: when a function scored every
+   candidate identically the summary says so, since "you scored 0" cannot
+   distinguish a bad strategy from inert arithmetic.
 
 ---
 
