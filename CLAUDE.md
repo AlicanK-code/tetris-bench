@@ -33,7 +33,9 @@ This is a portfolio project. Code should be readable, well structured and easy t
 ## Safety: model-generated code
 
 `strategy` mode executes code written by a model. It must never run in-process with full privileges.
-- Run it in a separate subprocess with a hard timeout (per call and per game).
+- Run it in a separate subprocess with a hard timeout on every call, and a bound
+  on the whole game. **The per-game bound is currently a piece count, not a
+  clock** — see the note below.
 - Do not allow imports, or allowlist pure modules only (e.g. `math`). Do not allow file, network or OS access.
 - Validate the function's signature and return type, and treat exceptions or timeouts as a recorded failure, not a crash.
 - Log every generated function to disk for later inspection.
@@ -48,6 +50,19 @@ As built, this is two independent layers:
 One worker per game, batched per piece: a game is ~500 pieces × ~34 placements, so a process per scoring call would mean 17,000 spawns and over eight minutes per game of pure process creation.
 
 The function sees **plain data only** — boards as tuples of tuples of bool, placements as dicts — so no class, module or method of this project crosses into the sandbox.
+
+### There is no per-game clock, and that is a real gap
+
+Two time bounds exist, both below the level of a game:
+
+- **Per call**, `SIGALRM` at `per_call_seconds` (1.0s). It raises a `BaseException` subclass deliberately, so a `try/except Exception` inside the scoring function cannot swallow its own timeout.
+- **Per piece**, a host-side deadline of `max(30s, per_call_seconds × placements + 10s)` — about 44s for a typical 34-placement piece. The floor matters: a flat 30s would kill a worker that was behaving exactly as the per-call budget allows.
+
+A whole game is bounded only by `max_pieces` (2000). So a function that is merely *slow* on every placement — never looping forever, just spending its full second each time — can legitimately run **2000 × 34s ≈ 19 hours**. Nothing stops it, and an unattended sweep would simply appear to hang.
+
+This is a deliberate trade made at the wrong level. The per-piece floor exists because an individual placement that times out should come back unplayable and let the game continue, rather than losing a whole game to one slow function. That reasoning is right, but it leaves the *game* with no wall-clock bound at all. The fix is a per-game deadline that aborts and records a failure, not a shorter per-call budget, which would only change which functions are measurable.
+
+Until it exists, treat the original requirement above as **partly unmet**: calls are bounded, games are not.
 
 ## Planned structure
 
