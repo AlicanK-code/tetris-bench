@@ -8,8 +8,10 @@ its strategy, and plays again. The headline result is each model's **improvement
 who learns fastest, who plateaus, and who regresses after a revision.
 
 A secondary angle compares local models of increasing size -- a capability ladder
-from roughly 4B to 30B, all on one MacBook -- and asks whether the improvement
-loop lets a small model close on a larger one.
+from roughly 4B to 30B, all on one MacBook. It was built to ask whether the
+improvement loop lets a small model close on a larger one; the measurement found
+no gap to close between 4B and 14B and a step at the top, so the question is
+[restated rather than answered](#the-ladder-is-a-step-not-a-slope).
 
 **Everything runs locally; no paid APIs.** The client supports cloud providers and
 that path is tested, but no planned run uses one. Dollar cost is therefore always
@@ -19,8 +21,9 @@ zero, so the headline cost measures are tokens and wall-clock seconds.
 
 The engine, baseline agents, rendering and run records, the model client, the
 sandboxed strategy agent, the improvement loop and the analysis all work, under
-591 unit tests. What is not finished is the measurement: see
-[Results](#results) for what is established and what is still running.
+653 unit tests. Every milestone that was going to be built is built; what
+remains is measurement, and the measurement has reframed the headline -- see
+[Results](#results).
 
 | # | Milestone | State |
 |---|-----------|-------|
@@ -31,7 +34,7 @@ sandboxed strategy agent, the improvement loop and the analysis all work, under
 | 5 | Strategy agent + sandbox | **done** |
 | 6 | Improvement loop | **done** |
 | 7 | Direct agent | cut to a demonstration, see [Results](#results) |
-| 8 | Analysis (curves, ladder gap, tokens/seconds per point) | **done**; the ladder has no data yet |
+| 8 | Analysis (curves, ladder gap, tokens/seconds per point) | **done**, ladder measured on all four rungs |
 
 ## Setup
 
@@ -138,11 +141,20 @@ placement and keeps the best. The heuristic agent is `ScoringAgent` plus a
 weighted sum of board features.
 
 This matters for milestone 5. `strategy` mode asks a model to write exactly a
-`score(board, placement) -> float` function, so a sandboxed model-written scorer
-drops into the same slot as the hand-written heuristic, driven by the same
-adapter -- no parallel code path, and an apples-to-apples comparison for free.
-`Agent` stays the general interface, since "choose uniformly at random" is not a
-per-placement rating.
+`score(board, placement) -> float` function, so a model-written scorer is the
+same *kind* of object as the hand-written heuristic and the comparison is
+apples-to-apples. `Agent` stays the general interface, since "choose uniformly at
+random" is not a per-placement rating.
+
+**`StrategyAgent` is a separate class, not a `ScoringAgent`.** Both follow "rate
+every legal placement, keep the best", but they cannot share the adapter, because
+the sandbox boundary changes the contract: the heuristic receives the pre-move
+`Board` and calls `apply_placement` itself, whereas a sandboxed function is
+handed the *post-move* board already flattened to tuples of bool plus a dict
+carrying `lines_cleared`. Crossing a process boundary one placement at a time
+would also be unaffordable, so `StrategyAgent` batches a whole piece's candidates
+into one call. The duplication is real and deliberate; calling it "the same
+adapter" would be wrong.
 
 **Features are measured after the move, not before.** The heuristic scores the
 board a placement *would produce*, once the piece is locked and any completed
@@ -167,6 +179,8 @@ exactly -- a reference ceiling, not a published optimum here.
 
 Everything a model reads is built in `render.py`, so the whole model-facing
 surface sits in one reviewable file.
+
+The board is 20 rows; the empty rows above the stack are trimmed here.
 
 ```
 0123456789
@@ -201,10 +215,11 @@ depend only on whether a cell is filled, so the identity of the piece that fille
 it cannot change the best move. The letters are not meaningless -- they show how
 a stack was built -- but they are decision-irrelevant, and they cost tokens and
 ask the model to treat seven symbols as equivalent. `--show-pieces` brings them
-back for feedback snapshots and debugging.
+back for inspecting a game by hand; note that feedback snapshots do **not** use
+it and always render `#`.
 
-**Legal moves are offered as a numbered list**, and a model answers with an
-index:
+**A numbered list of legal moves exists but nothing currently consumes it.**
+`render_placements` produces:
 
 ```
  0  rot=0 col=0 lands row 15
@@ -212,9 +227,11 @@ index:
  2  rot=0 col=2 lands row 18
 ```
 
-Choosing from a list it was handed cannot produce an illegal move, whereas
-describing one freely can -- and an invalid output is a wasted call plus a row in
-the failure column.
+The intent was that choosing from a handed list cannot produce an illegal move,
+whereas describing one freely can. That rationale belongs to `direct` mode, which
+was [cut to a demonstration](#not-done) -- so in the only live mode the model
+writes a scoring function and never answers with an index. The renderer and its
+tests are kept because the direct-agent demonstration still needs them.
 
 **There is no hold piece.** Hold roughly doubles the branching factor per turn
 for a benchmark about scoring-function quality, not move vocabulary.
@@ -279,26 +296,31 @@ local models declare zero. Since a run must be reproducible from its config and
 seed list, and prices change, a cost logged months ago stays explainable by the
 file that produced it.
 
-**Temperature defaults to 0, and a seed is set -- but neither makes generation
-reproducible.** Measured: two runs of a byte-identical prompt at temperature 0
-with a fixed seed produced different functions on the 4B and on the 30B, where
-the two scored 0 and 1,700. The seed is honoured, so sampling is not the cause;
-floating-point non-associativity is, and no seed removes it. Reproducibility is
-a property of the (model, prompt) pair and is measured per rung -- see
-[docs/findings/](docs/findings/). The engine itself is provably deterministic;
-this is entirely model-side.
+**The code's temperature default is 0, and a seed is set -- but neither makes
+generation reproducible.** Measured: two runs of a byte-identical prompt at
+temperature 0 with a fixed seed produced different functions on the 4B and on the
+30B, where the two scored 0 and 1,700. The seed is honoured, so sampling is not
+the cause; floating-point non-associativity is, and no seed removes it.
+Reproducibility is a property of the (model, prompt) pair and is measured per
+rung -- see [docs/findings/](docs/findings/). The engine itself is provably
+deterministic; this is entirely model-side.
 
-**The temperature-0 default is also why `--chains` needs overriding.** Greedy
-decoding takes the argmax at every step and never draws from the RNG, so a
-per-chain seed has no random number to index: measured, three seeds at
-temperature 0 return one byte-identical generation, and at 1.0 return three
-different ones. A multi-chain sweep at temperature 0 therefore draws **one**
-sample and pays N times for it -- which a five-chain run discovered the
-expensive way, with four of its five chains byte-identical. The `qwen3-14b`
-entry sets `temperature: 0.7` for this reason, and the cost is smaller than it
-looks: a *fixed* seed still gives bit-identical output there, so reproducibility
-moves from `prompt -> output` to `(prompt, seed) -> output`, and the former was
-already unavailable on this rung regardless.
+**Every configured rung overrides that default to `temperature: 0.7`, because
+`--chains` does not work at 0.** Greedy decoding takes the argmax at every step
+and never draws from the RNG, so a per-chain seed has no random number to index:
+measured, three seeds at temperature 0 return one byte-identical generation, and
+at 1.0 return three different ones. A multi-chain sweep at temperature 0
+therefore draws **one** sample and pays N times for it -- which a five-chain run
+discovered the expensive way, with four of its five chains byte-identical.
+
+`temperature`, `frequency_penalty`, `max_tokens` and `max_retries` are
+**identical on all four rungs** by design. Each was first added to the 14B alone
+to fix a specific problem, and leaving them there would have confounded model
+size with sampling configuration -- a 4B truncated at a different token budget
+than the 14B looks worse for a reason that has nothing to do with being a 4B.
+One consequence worth stating: the live configs set `max_retries: 0`, so the
+retry machinery described below is exercised by the test suite rather than by any
+run in `runs/`.
 
 **Transient failures are retried in the client**, with exponential backoff capped
 at 30s, so callers only handle *semantic* failures: output that will not parse, a
@@ -329,36 +351,162 @@ features are unavailable through a compatibility layer.
 
 ## Results
 
-All figures below are `qwen3:14b` in `strategy` mode, read from **held-out**
-seeds the model never saw outcomes for, at zero dollars.
+Every figure below is read from **held-out** seeds whose outcomes the model never
+saw, at zero dollars. Scores are per-chain means over ten unseen sequences unless
+stated otherwise.
 
-### The improvement curve exists, and so does the regression
+The honest summary of what this benchmark has measured so far: **the clearest
+signal is whether a model can express a strategy at all, and the improvement
+curve is the noisier of the two stories.** That is not the result the project set
+out to find, so the sections below are ordered by how well the evidence holds up
+rather than by how interesting the claim sounds.
 
-One chain, six iterations, mean score over 10 unseen seeds:
+### Most model-written scorers are broken, not bad
 
-| iteration | held-out score | pieces | what changed |
-|----------:|---------------:|-------:|--------------|
-| 0 | 20 | 15 | first attempt, inverted height signs |
-| 1 | 2,290 | 98 | reweighted, did not debug |
-| 2 | 2,130 | 93 | reweighted again |
-| 3 | 470 | 52 | inverted heights *and* minus signs |
-| 4 | **25,180** | **626** | flipped the signs to plus |
-| 5 | 6,850 | 185 | "fixed" the definition, broke three terms |
+A score alone cannot tell a weak strategy from arithmetic that is structurally
+incapable of being one. Both produce a low number. So each generated function is
+run against four probes -- pairs of boards whose ranking is not a matter of
+opinion, like a 3-deep stack against a 12-deep one -- and a function is
+**strategy-capable** only if it gets all four right.
 
-20 to 25,180 over four revisions is a real gain, and so is the 73% fall that
-follows the peak. Whole run: 51,627 tokens, 4,121 seconds, **$0**.
+| rung | strategy-capable |
+|---|---:|
+| `qwen3-4b` | 4/15 |
+| `qwen3-8b` | 5/15 |
+| `qwen3-14b` | 3/15 |
+| `qwen3-30b-a3b` | **11/15** |
 
-**Read this curve with the caveat the tooling prints itself.** It is one chain,
-so it cannot see generation noise, and `curves.py` says so: *"one chain cannot
-see generation noise, so the bar above is known to be too lenient."* Generation
-noise is demonstrably large -- two runs of an identical iteration-0 prompt
-scored 1,580 and 20. A five-chain sweep is what settles whether "this model
-improves" is a claim this benchmark can make; until it finishes, the defensible
-results are the mechanisms below.
+Across 60 first attempts, **23 were capable and 37 were not**. On the 14B's
+six-iteration sweep the rate is 7 of 33 functions (21%).
+
+This is not a quibble about code quality; it changes what a score means. Pooled
+across all four rungs, probe-clean functions average a held-out median of
+**2,740** against **190** for probe-broken ones (Mann-Whitney p = 0.000004).
+
+```bash
+uv run python analysis/term_diagnostics.py runs/functions/ladder --flip
+```
+
+**Every defect is board geometry.** Of the 56 functions that loaded, **all 56
+read `lines_cleared` correctly** -- the one quantity specific to this harness,
+which arrives in the placement dict rather than being derived from the board.
+The failures are height (26/56), holes (20/56) and blindness above the first gap
+(16/56), and they share one cause: the board has row 0 at the top, and models
+repeatedly write code assuming it is the floor. The benchmark's own conventions
+are not the difficulty; the spatial reasoning is.
+
+Nothing from these probes is fed back to a model. Telling it that its height term
+is dead would hand it the diagnosis, and self-diagnosis is the ability being
+measured.
+
+### The ladder is a step, not a slope
+
+Four rungs, same prompt, 15 independent chains each, no feedback -- what each
+model writes cold. The prompt was **byte-identical across all 60 generations**,
+so the only variable is the model.
+
+| rung | strategy-capable | median | best chain | best pts/piece |
+|---|---:|---:|---:|---:|
+| `qwen3-4b` | 4/15 | 290 | 880 | 13.6 |
+| `qwen3-8b` | 5/15 | 940 | 5,940 | 32.2 |
+| `qwen3-14b` | 3/15 | 670 | 9,820 | 35.7 |
+| `qwen3-30b-a3b` | 11/15 | 2,580 | **81,300** | 45.0 |
+
+The three dense rungs are **statistically indistinguishable from one another**
+(every pairwise Fisher p >= 0.68, and the 14B sits *below* both smaller models).
+The 30B separates: p = 0.002 against the three pooled. A trend test over
+`log2(params)` returns p = 0.018, but it assumes a monotonicity the 8B-vs-14B
+inversion violates, so [the write-up records it as not
+quotable](docs/findings/size-ladder-is-a-step.md).
+
+**The step is also the only MoE on the ladder**, so size and architecture are
+perfectly confounded here while three observations of dense scaling show no
+effect at all. The supportable claim is therefore narrower than "capability
+scales with size": dense Qwen3 from 4B to 14B is flat on this task, and a
+30B-a3b is decisively better. Separating the two would need a dense model at or
+above 30B, which does not fit in 32GB usefully -- so this stays a stated
+confound rather than a loose end.
+
+### The probes only predict a score from the 8B up
+
+| rung | probe-clean median | probe-broken median | ratio |
+|---|---:|---:|---:|
+| `qwen3-4b` | 270 | 290 | **0.9x** |
+| `qwen3-8b` | 3,620 | 445 | 8.1x |
+| `qwen3-14b` | 2,600 | 25 | 104x |
+| `qwen3-30b-a3b` | 3,940 | 0 | infinite |
+
+**On the 4B, writing valid code buys nothing.** Its four clean functions score
+the same as its eleven broken ones, because it then picks the wrong terms and
+weights them incoherently -- one values a line clear at 10 against a row of
+height at 5; another weights holes at 1 against max-height at 50, so it buries
+holes to stay flat. Neither carries a bumpiness term, and both define a hole as a
+cell walled on all four sides, which misses nearly every real one.
+
+So the 4B fails at two levels and the probes see only the first. That is the
+intended behaviour -- they test construct validity, not skill -- and it makes the
+4B the wrong rung for loop experiments, since no feedback derived from its score
+can steer it.
+
+### The top rung reaches a hand-written heuristic cold
+
+`qwen3-30b-a3b`, first attempt, no feedback, 22 lines of lines/holes/bumpiness
+and no height term at all: a held-out mean of **81,300 against the hand-written
+heuristic's 84,720 on the same ten seeds -- 96%**.
+
+That figure is a **lower bound**: it hit the 2,000-piece limit in **8 of 10
+games**, clearing around 795 lines each time. One chain in fifteen reproduced a
+Dellacherie-style evaluator cold, from a 4-bit model on a laptop.
+
+It is also an awkward result for this project, and worth saying plainly: the
+single best function the benchmark has produced **arrived without the improvement
+loop**, and a chain that starts at the ceiling cannot demonstrate improvement.
+Raising the piece limit, or switching the headline to points-per-piece, is now
+the blocking measurement task.
+
+### The improvement curve is real but smaller than its noise
+
+Five independent chains, six iterations, the 14B. Each chain revises only its own
+function and never sees another's, so a rising median cannot be selection bias.
+
+| iteration | 0 | 1 | 2 | 3 | 4 | 5 |
+|---|---:|---:|---:|---:|---:|---:|
+| median of 5 chains | 670 | 1,410 | 1,120 | 1,140 | 930 | **1,410** |
+
+Paired against its own iteration 0 on identical seeds, chain by chain:
+
+| chain | delta | t | improved on |
+|---|---:|---:|---:|
+| 0 | +740 | 1.46 | 6/10 seeds |
+| 1 | +10 | 1.00 | 1/10 |
+| 2 | **-7,150** | **-2.65** | 1/10 |
+| 3 | +1,160 | 1.77 | 7/10 |
+| 4 | +460 | **3.56** | **10/10** |
+
+**Two of five chains moved significantly, in opposite directions.** Chain 4 rose
+from 0 by deleting two inverted terms -- repair, not refinement. Chain 2 fell by
+two thirds by *adding* a term blind above the first gap, which was confirmed by
+execution rather than inferred: a 3-cell column and a 9-cell column ten rows tall
+both score -6 under its function.
+
+And the whole movement sits inside the noise. Those five iteration-0 chains are
+five samples of **one identical prompt**, and they scored 670, 10, 9,590, 860 and
+0 -- a standard deviation of **4,135**, which is about three times the largest
+median movement in the table above.
+
+So the defensible claim is narrow: **the loop repairs broken scorers and does not
+measurably improve working ones.** Whole sweep: 30 generations, 194,492 output
+tokens, 5.67 hours, **$0**.
 
 ### The strongest result is a credit-assignment failure
 
-Verified by replaying the saved functions, not inferred from the scores:
+From an earlier single-chain run of the 14B, published at
+[`runs/published/clean-6iter/`](runs/published/clean-6iter/) -- a different run
+from the five-chain sweep above. Verified by replaying the saved functions, not
+inferred from the scores. **Scores here are replays at the current 2,000-piece
+budget**, which is why they exceed the figures in that run's own log: it was
+played at the old 500-piece cap, where iteration 4 reads 14,860 over 378 pieces
+and is censored in 5 of its 10 games.
 
 1. Iteration 3 measured column height as a **row index** on a board whose row 0
    is the top, then subtracted it -- rewarding tall stacks. Score 470.
@@ -375,7 +523,11 @@ that is the ability this benchmark set out to measure.
 
 ### Rate versus survival
 
-Iteration 4 against the hand-written heuristic, on the same held-out seeds:
+That same iteration-4 function against the hand-written heuristic, both replayed
+to exhaustion at a 50,000-piece budget so neither figure is censored. The model
+function is measured on seeds 1000-1009 and the heuristic on 1000-1019, so the
+seed sets overlap rather than match; on the same 20 seeds the model function
+gives 24,060 over 602 pieces, which does not change the conclusion.
 
 | | points/piece | pieces survived |
 |---|---:|---:|
@@ -416,22 +568,53 @@ the generated functions as artifacts:
   copies of one sample.
 - **Noise floors** for two rungs, and a **null arm** showing what the curve
   looks like with no feedback at all.
+- **[The size ladder is a step, not a
+  slope](docs/findings/size-ladder-is-a-step.md)** -- all four rungs at
+  iteration 0, 15 chains each, one byte-identical prompt. Also records the
+  project's first four rejections, three of which were `import math` against a
+  prompt that forbids imports in bold, making them instruction-following
+  failures rather than harness artefacts.
+- **A bad strategy and one that cannot be expressed look identical in a score**,
+  which is why the capability probes exist. Both produce a low number, and 37 of
+  60 first attempts were in the second category.
 
 ### Not done
 
-- **The five-chain sweep** that decides whether the curve survives generation
-  noise. Running.
-- **The capability ladder.** Only the 14B has ever been through the loop; 4B, 8B
-  and 30B are configured and unrun, so the "does a small model close on a large
-  one" question has no data.
+- **Raising the piece limit**, which now blocks the headline. The best function
+  the project has produced is censored in 8 of 10 games, so its score is a lower
+  bound and the measurement has become the ceiling rather than the model. Either
+  the budget rises or points-per-piece becomes the quoted figure.
+- **The loop on any rung but the 14B.** The ladder measured all four rungs at
+  **iteration 0 only**. Whether the loop *moves* a rung -- the reframed version
+  of the "does a small model close on a large one" question -- has data for one
+  rung out of four, and the baselines for the other three are now measured.
+- **Separating size from architecture.** The one rung that outperforms is the one
+  MoE, and nothing on a 32GB machine can break that tie.
+- **Chains per rung is not established.** `chains=1` for the 14B rests on score
+  stability across two samples, and no rung is text-reproducible for revisions.
+  The ladder sidestepped this by using 15 chains everywhere.
 - **Milestone 7, the direct agent**, cut to a planned demonstration rather than
   a full arm: a model call per turn at ~500 turns per game is enormous for a
   result the prior work already reports, so one short game to show the failure
   mode and the cost ratio is the whole value.
-The artifacts behind every finding above *are* in the repo, under
-[`runs/published/`](runs/published/) -- the generated functions plus the prompt,
-reasoning trace and raw reply that produced each one, so the claims can be
-checked rather than taken on trust. Working output stays gitignored.
+- **Publishing the ladder's artifacts.** See the provenance note below.
+
+### Provenance
+
+Most findings above are checkable from the repo without rerunning a model:
+[`runs/published/`](runs/published/) holds the generated functions plus the
+prompt, reasoning trace and raw reply that produced each one, for the
+single-chain 14B run, the counterexample arm, both noise floors, the 4B
+iteration-0 study and the seed-inertness test.
+
+**The three newest results are not yet published**: the size ladder, the
+five-chain sweep and the capability probes read from `runs/ladder.jsonl`,
+`runs/loop.jsonl` and `runs/functions/ladder/`, which are gitignored like all
+working output. So the `term_diagnostics.py` command above will not run in a
+fresh clone, and those tables cannot currently be checked from the repo alone --
+they are reported rather than demonstrated. The ladder artifacts are about 3.3MB
+of generation traces, so copying them into `runs/published/` is a deliberate
+decision rather than an oversight, and it has not been made yet.
 
 ## Licence
 
