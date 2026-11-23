@@ -345,6 +345,11 @@ could not be sped up here.
    and it is also the slowest. Three separate measurements disfavour this rung
    and none explains it.
 5. **Does the `import math` failure persist under a restated prompt?** Three of
-   four rejections were one instruction. Whether a rung can follow it is worth
-   measuring, but changing the prompt breaks comparability with these 60
-   generations, so it needs its own arm.
+   four rejections were one instruction. Still needs its own arm, since
+   changing the prompt breaks comparability with these 60 generations — but
+   **the rate is now measured against the right denominator**: 5 functions in
+   the whole corpus reach for `math` and 3 of them imported it, so it is a 60%
+   failure among generations with occasion to obey, not a 5% nuisance. An arm
+   powered to move that rate would have to prompt specifically for a function
+   wanting a square root. See
+   [the-import-rule-fails-three-times-in-five.md](the-import-rule-fails-three-times-in-five.md).

@@ -722,6 +722,48 @@ the clearest demonstration of *why* the two have to be reported separately.
 uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
 ```
 
+### The import rule fails three times in five
+
+The ladder noted that three of the project's four rejections were `import math`
+against a prompt that forbids imports in bold. Quantified, **the denominator is
+the result.**
+
+As "3 of 60 ladder generations" this is a 5% nuisance. But 55 of those 60 never
+wanted `math` at all, so they had no occasion to obey the rule. **Five functions
+in the whole 131-generation corpus reach for `math`. All five want `math.sqrt`.
+Three of the five added the forbidden import and were rejected.**
+
+| function | outcome |
+|---|---|
+| `qwen3-4b-chain1-iter0` | used `math.sqrt` correctly, no import |
+| `qwen3-8b-chain5-iter0` | used `math.sqrt` correctly, no import |
+| `qwen3-8b-chain7-iter0` | **imported -- rejected** |
+| `qwen3-14b-chain9-iter0` | **imported -- rejected** |
+| `qwen3-14b-chain14-iter0` | **imported -- rejected** |
+
+The prompt did not withhold anything. Verified against the generation record
+rather than the template, what was sent is bolded, names the substitute, and
+gives the worked example:
+
+> - **No imports.** `math` is already available as a name - use `math.sqrt(...)`
+>   directly, with no import statement.
+
+`math.sqrt` is the call in the example and the only `math` call any of the three
+makes. The two successes matter as much: they show the instruction is followable
+and the pre-injected `math` works, so the failures are not a broken facility or
+impossible wording.
+
+Cost: 3 generations, 27,743 output tokens, 38.6 minutes, producing nothing.
+
+**Revisions never do it** -- 0 of 55, against 3 of 76 at iteration 0 -- and not
+because the revise prompt states the rule better. It states it *worse*, as an
+unbolded parenthetical with no example. The likelier mechanism is that a
+revision prompt contains the model's own previous function, which is already
+import-free and so a template to copy. The corpus cannot test that.
+
+Full write-up:
+[docs/findings/the-import-rule-fails-three-times-in-five.md](docs/findings/the-import-rule-fails-three-times-in-five.md).
+
 ### The zeros rate does not move either
 
 The last way the loop could have been doing something the curve cannot see. If
@@ -924,6 +966,10 @@ five of them currently carry one.
 - **A bad strategy and one that cannot be expressed look identical in a score**,
   which is why the capability probes exist. Both produce a low number, and 37 of
   60 first attempts were in the second category.
+- **[The import rule fails three times in
+  five](docs/findings/the-import-rule-fails-three-times-in-five.md)** -- the
+  right denominator is the 5 generations that wanted `math`, not the 60 that
+  did not. A bolded rule carrying its own worked example, ignored by 3 of 5.
 - **[The zeros rate does not move
   either](docs/findings/the-zeros-rate-does-not-move-either.md)** -- 5 revivals
   against 5 deaths, p = 1.000, and the sample size that would have been needed:
@@ -972,12 +1018,8 @@ being quoted as statements about the mechanism.
   14-chain requirement is a lower bound, and this pilot is a precondition for
   the larger run rather than a nice-to-have.
 
-**Two things cost nothing and are answerable from logs already on disk.**
+**One thing costs nothing and is answerable from logs already on disk.**
 
-- **The `import math` rejections.** Three of the project's four rejections were
-  `import math` against a prompt that forbids imports in bold, which makes them
-  instruction-following failures rather than harness artefacts. Worth
-  quantifying rather than mentioning.
 - **Whether `strategy_v2`'s "must discriminate" warning worked**, from
   [the 4B write-up](docs/findings/qwen3-4b-iter0-detailed.md)'s open questions.
 

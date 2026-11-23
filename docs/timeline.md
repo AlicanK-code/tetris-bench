@@ -491,6 +491,17 @@ question; the answer is that the design could not have detected it. That makes
 three independent checks for an effect the curve cannot see — the mean,
 function-level capability, and the dead-function proportion — all null.
 
+**And the `import math` rate was quantified against the right denominator.**
+Three of the project's four rejections were that one instruction, which as "3 of
+60 ladder generations" reads as a 5% nuisance. But 55 of those 60 never wanted
+`math`. Five functions in the whole 131-generation corpus reach for it, all five
+want `math.sqrt` — the call the prompt's own worked example names — and **three
+of the five imported it anyway**. The two that did not are what make this a
+capability result rather than a broken facility. Revisions never do it, 0 of 55,
+and not because the revise prompt states the rule better: it states it worse,
+unbolded and without an example. The likelier reason is that a revision carries
+the model's own import-free function as a template.
+
 **It also broke a power assumption of the project's own**, and the one used to
 justify this very run. The 4B's paired standard deviation came out **2.39× its
 cross-chain spread**, where the 14B's is **0.70×** — the opposite direction. The

@@ -1,0 +1,154 @@
+# The import rule fails three times in five
+
+**Date:** 2026-11-23 · **Models:** all four rungs · no GPU, corpus audit
+**Sources:** [`runs/published/`](../../runs/published/) — 131 generations
+**Prompt:** `strategy_v3`, SHA `f3a0cb0af765`, byte-identical across the ladder
+
+The ladder write-up recorded that three of the project's four rejections were
+`import math` "against a prompt that forbids imports in bold", and left
+quantifying it open. Quantified here, and **the denominator is the finding.**
+
+---
+
+## 1. The four rejections
+
+Every rejection in the published corpus, all at iteration 0:
+
+| run | rung | chain | reason |
+|---|---|---:|---|
+| ladder | `qwen3-8b` | 4 | syntax error on line 12: invalid syntax |
+| ladder | `qwen3-8b` | 7 | **`import math`** |
+| ladder | `qwen3-14b` | 9 | **`import math`** |
+| ladder | `qwen3-14b` | 14 | **`import math`** |
+
+The validator's own message, for the three:
+
+```
+line 1: imports are not allowed (found math);
+        'math' is already available without importing it
+```
+
+Cost: **3 generations, 27,743 output tokens, 38.6 minutes** of the ladder's wall
+clock, producing nothing.
+
+---
+
+## 2. The prompt said so, in bold, with the answer in it
+
+This is not a case of a model needing something the prompt withheld. The
+instruction as actually sent, verified against the generation record rather than
+the template file:
+
+> - **No imports.** `math` is already available as a name - use `math.sqrt(...)`
+>   directly, with no import statement.
+
+It is bolded, it names the substitute, and **it gives the worked example**. All
+three rejected functions use exactly one `math` call: `math.sqrt`. The call in
+the example.
+
+---
+
+## 3. The denominator that matters
+
+Quoted as "3 of 60 ladder generations", this is a 5% nuisance. That is the wrong
+denominator, because 55 of those 60 had no occasion to obey the rule at all —
+they never wanted `math`.
+
+**Five functions in the entire 131-generation corpus reach for `math`. All five
+want `math.sqrt`. Three of the five added the forbidden import.**
+
+| function | outcome |
+|---|---|
+| `ladder/qwen3-4b-chain1-iter0` | used `math.sqrt` correctly, no import |
+| `ladder/qwen3-8b-chain5-iter0` | used `math.sqrt` correctly, no import |
+| `ladder/qwen3-8b-chain7-iter0` | **imported — rejected** |
+| `ladder/qwen3-14b-chain9-iter0` | **imported — rejected** |
+| `ladder/qwen3-14b-chain14-iter0` | **imported — rejected** |
+
+**Among generations with occasion to follow the instruction, the failure rate is
+60%.** And the two successes matter as much as the three failures: they
+demonstrate the instruction is followable and the sandbox's pre-injected `math`
+works as advertised, so the failures cannot be explained by the facility being
+broken or the wording being impossible.
+
+By rung, with the caveat that these are single-digit counts: 4B 0 of 1, 8B 1 of
+2, 14B 2 of 2, 30B 0 of 0 — the top rung never reached for `math` at all, so it
+has no score on this instruction rather than a perfect one.
+
+---
+
+## 4. Revisions never do it, and the likely reason is not prominence
+
+| prompt | generations | import rejections |
+|---|---:|---:|
+| `strategy_v*` (iteration 0) | 76 | **3** |
+| `revise_v1` (all revisions) | 55 | **0** |
+
+The tempting read is that the revise prompt states the rule better. It does not —
+it states it *worse*, as an unbolded parenthetical with no example:
+
+> Rules: no imports (`math` is already available as a name), no file, network or
+> system access.
+
+So prominence is not what separates them. The more plausible mechanism is that
+**a revision prompt contains the model's own previous function**, which is
+already import-free and therefore a template to copy, where iteration 0 has
+nothing but prose. That is a hypothesis this corpus cannot test: the two
+conditions differ in several ways at once, and no rung has been run with the
+instruction moved between the two positions.
+
+---
+
+## 5. What this is, and what it is not
+
+**Is:** an instruction-following measurement. A bolded rule, carrying its own
+substitute and a worked example, is ignored by 3 of the 5 generations that have
+occasion to apply it. That is a capability result about the rungs, not an
+artefact of the harness — which is what the ladder write-up suspected and could
+not yet say.
+
+**Is not:** a reason to change the sandbox. Rejecting the import is correct; the
+AST allowlist exists so a violation fails instantly with a readable reason
+instead of burning a timeout, and it did exactly that in all three cases. The
+cost of a rejection is one wasted generation, which is the intended price.
+
+**Open, and cheap only in principle:** whether a rung can follow the instruction
+when it is restated. Changing the prompt breaks byte-identical comparability
+with these 60 generations, so it needs its own arm rather than a patch — and at
+5 occasions in 131 generations, an arm powered to measure a change in a 60% rate
+would need to be very large or to prompt specifically for a function that wants
+a square root. The second option is probably the honest design.
+
+---
+
+## 6. Reproducing it
+
+```bash
+# Every rejection, with its reason
+uv run python - <<'PY'
+import glob, json
+from pathlib import Path
+from tetris_bench.sandbox import SandboxValidationError, validate_source
+
+seen = set()
+for path in sorted(set(glob.glob("runs/published/*/loop.jsonl"))):
+    for line in open(path):
+        row = json.loads(line)
+        key = (path, row["model"], row["chain"], row["iteration"])
+        if key in seen or row.get("played"):
+            continue
+        seen.add(key)
+        name = "%s-chain%d-iter%d" % (row["model"], row["chain"], row["iteration"])
+        src = Path(path).parent / "functions" / (name + ".py")
+        try:
+            validate_source(src.read_text())
+            print("%-30s accepted?" % name)
+        except SandboxValidationError as exc:
+            print("%-30s %s" % (name, exc))
+PY
+
+# Everyone who reached for math, and whether they imported it
+grep -l "math\." runs/published/*/functions/*.py | while read f; do
+  grep -q "^import math" "$f" && echo "IMPORTED  $f" || echo "correct   $f"
+done
+```
