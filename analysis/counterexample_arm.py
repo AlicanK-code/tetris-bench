@@ -40,13 +40,12 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-from tetris_bench.agents.strategy import StrategyAgent, extract_code
+from tetris_bench.agents.strategy import MEASUREMENT_DECLARATION, StrategyAgent, extract_code
 from tetris_bench.clients.client import ModelClient
 from tetris_bench.clients.config import load_model_config
 from tetris_bench.engine.board import Board
 from tetris_bench.engine.game import Game
 from tetris_bench.loop import (
-    MEASUREMENT_DECLARATION,
     LoopConfig,
     Outcome,
     feedback_text,
