@@ -81,6 +81,18 @@ within a chain share a lineage, so their differences vary less than two
 independent generations do. Using cross-chain spread as σ_d therefore overstates
 the requirement by roughly a factor of two in n.
 
+> **Later correction (2026-11-23, same day): the 0.70 ratio is a property of the
+> 14B, not of the method.** The 4B loop measured its own paired σ_d at **8.69**
+> against a cross-chain spread of 3.63 — a ratio of **2.39×**, inverting the
+> relationship this section assumes. On that rung a single revision can move a
+> chain from 8.35 to 0.27 and back to 10.47, so iterations within a chain do not
+> share a stable lineage at all. The "measured-scaled" column above is therefore
+> the **optimistic end** of a range that can go the other way, and the 30B's
+> 14-chain figure should be read as a lower bound until its paired σ_d is
+> measured directly. The 6-chain pilot in [Open questions](#6-open-questions) is
+> now the precondition for the larger run rather than a nice-to-have. See
+> [4b-loop-reweights-a-crash-five-times.md](4b-loop-reweights-a-crash-five-times.md).
+
 **So a properly aimed 30B loop needs 14–28 chains, or 8–16 hours.** Affordable,
 substantial, and nothing like impossible.
 
@@ -186,9 +198,12 @@ chain counts these calculations rest on are real.
    first six chains of any 30B loop would measure it directly, which is an
    argument for running the cheap 6-chain version as a pilot before committing
    to 14–28.
-2. **Is +8 the ceiling on loop gains, or the ceiling on the 14B's gains?** Every
-   effect-size figure here rests on one rung's loop. The 8B run is what turns
-   that from an assumption into a measurement.
+2. **Is +8 the ceiling on loop gains, or the ceiling on the 14B's gains?**
+   **Partly answered, and not reassuringly.** The 4B loop produced a median
+   change of **−3.77** against a minimum detectable change of 10.88, so it shows
+   no gain rather than a smaller one. One rung with a gain and one rung with
+   nothing measurable does not establish a ceiling; it establishes that the
+   14B's +8 is not a general figure. The 8B still turns this into a measurement.
 3. **Three of the 30B's 15 chains scored 0.0.** If the loop's main value on this
    rung is rescuing dead functions rather than improving live ones, the relevant
    effect is a change in the *rate of zeros*, which is a proportion test and a

@@ -39,6 +39,7 @@ README. **Read them, do not import them** -- that is the entire premise of
 | `ladder/` | All four rungs at iteration 0, 15 chains each: 60 generations, 728 games, one byte-identical prompt. | [size-ladder-is-a-step.md](../../docs/findings/size-ladder-is-a-step.md), README Results |
 | `five-chain/` | The 14B over six iterations on five independent chains, 390 games. Supersedes `clean-6iter/` as the improvement result. | README Results |
 | `clean-6iter/` | The six-iteration improvement run, one chain, 78 games. Single-chain predecessor of `five-chain/`; still the source of the credit-assignment example. | README Results, `docs/timeline.md` |
+| `4b-loop/` | The 4B over six iterations on five independent chains, 390 games. The second rung taken past iteration 0, and the source of the five-revisions-of-a-crash result. | [4b-loop-reweights-a-crash-five-times.md](../../docs/findings/4b-loop-reweights-a-crash-five-times.md), README Results |
 | `seed-inert/` | Five chains at iteration 0 under model seeds 1-5, 65 games. | [seed-is-inert-at-temperature-zero.md](../../docs/findings/seed-is-inert-at-temperature-zero.md) |
 | `noise-floor/` | Repeated iteration-0 generations from one prompt: 5 on the 14B, 2 on the 30B. | [noise-floor-qwen3-14b.md](../../docs/findings/noise-floor-qwen3-14b.md), [noise-floor-qwen3-30b.md](../../docs/findings/noise-floor-qwen3-30b.md) |
 | `revise/` | Two independent revisions of the same function from the same feedback. | [first-revision-reweights-not-debugs.md](../../docs/findings/first-revision-reweights-not-debugs.md) |

@@ -5,7 +5,7 @@ is traceable to a commit or a document in [`findings/`](findings/).
 
 The short version: the engine and baselines took an evening, the model-facing
 machinery took a day, and almost everything since has been **measurement** —
-establishing what a number from this benchmark is allowed to mean. Twelve of the
+establishing what a number from this benchmark is allowed to mean. Seventeen of the
 project's own published results have been corrected by later measurement, and
 that thread is tracked separately in [Corrections](#corrections) below, because
 it is the part a reader should trust least on first reading and most on
@@ -447,6 +447,40 @@ which is exactly what the index design was built to isolate.
 
 ---
 
+## 2026-11-23 (evening) — the second rung
+
+The 4B loop: 5 chains, 6 iterations, 2 h 22 m, 30 generations, 243,280 output
+tokens. Run because every claim this project made about what the loop *does*
+rested on the 14B alone, and because the 4B is the cheapest rung that could test
+it. Same seed splits as the 14B five-chain run, so the curves compare directly.
+
+**The median curve fell**, 7.49 → 3.72 points per piece, with three of five
+chains ending below where they started. Nothing is detectable either way: the
+measured paired standard deviation is 8.69, so five chains see only changes
+above 10.88. The starting point replicates the ladder's independent 15-chain
+median of 7.36, so the shape is not a sampling accident.
+
+**Chain 3 is the result.** Its first revision wrote
+`total_empty = total_empty(board)` — shadowing the function it calls, so every
+scoring call raised `UnboundLocalError` and the game recorded 342 sandbox
+failures. It then carried that line **verbatim through five consecutive
+revisions**, retuning the coefficients around it each time, while the revise
+prompt quoted the interpreter's error back to it three times naming the
+variable. The existing "first revision reweights instead of debugging" finding
+was about a semantic bug under outcome-only feedback, where "it was never told"
+is a defence. This one had the traceback.
+
+**It also broke a power assumption of the project's own**, and the one used to
+justify this very run. The 4B's paired standard deviation came out **2.39× its
+cross-chain spread**, where the 14B's is **0.70×** — the opposite direction. The
+prediction had been n=1.2 chains to detect a +8.04 gain; the measured figure is
+n=9.2. Low cross-chain spread on this rung measured a floor effect, not
+stability: a single revision moves a chain from 8.35 to 0.27 and back to 10.47,
+so iterations within a 4B chain share no stable lineage. The 30B's published
+14-chain requirement scales from the 14B's ratio and is now a lower bound.
+
+---
+
 ## Corrections
 
 Published results this project has overturned with its own later measurement.
@@ -470,6 +504,8 @@ methodological claim being made.
 | The 30B loop cannot demonstrate improvement at any affordable sample size | Both figures reproduced, the conclusion did not follow: cross-chain spread was substituted for the paired standard deviation (0.70× of it), and n=5 treated as the ceiling. n=6 clears the bar at 3.5 hours | `ac63400` |
 | Total score is the headline | Censored by the piece budget, and the best function is censored in 8 of 10 games. Points per piece is budget-independent: 43.2–43.5 for the heuristic at 500, 2,000, 20,000 and 50,000 pieces | `177d1dd` |
 | Per-piece latency grows as the board fills | Three samples against twenty. Over a full 20-piece game the second half averaged 577 s against the first half's 754 s, r(index, latency) = −0.279 | `d26e56a` |
+| Paired σ_d is about 0.70× cross-chain spread, so cross-chain spread is the safe proxy | A property of the 14B, not the method. On the 4B it inverts to 2.39×, because a single revision there replaces or breaks the function rather than refining it. Predicted n=1.2 chains for a +8.04 gain, measured n=9.2 | 2026-11-23 |
+| The 4B is cheap to measure through the loop because it is the quietest rung | Quiet at iteration 0 was a floor effect — every chain starts near-equally bad — and said nothing about how violently a chain moves once revisions start | 2026-11-23 |
 
 ---
 
@@ -481,13 +517,17 @@ because 672 s per piece makes a powered version weeks of wall clock for a
 baseline whose purpose is to be beaten; the cost ratio was its deliverable and
 it is measured.
 
-What remains is measurement, and one item would change what the README claims:
-**the loop has only ever been run on the 14B.** The ladder measured all four
-rungs at iteration 0 only, so every statement about what the loop does is a
-statement about one model. The 8B at 10 chains, ~9.3 hours, is the run that
-settles it — chosen for the project's best headroom-to-noise ratio, 2.29 against
-the 30B's 1.31, rather than for cost. The rest of the outstanding list is in the
-README's [Not done](../README.md#not-done).
+What remains is measurement. **Two rungs have now been through the loop** — the
+14B, whose median rose +8 inside a noise bar of 13, and the 4B, whose median
+fell 3.77 inside a noise bar of 10.88. Neither shows a detectable change, which
+is a firmer version of the headline than one rung could support, but the 4B
+cannot distinguish "the loop does nothing" from "the 4B has nowhere to go": its
+honest headroom is 8.27 points against a 10.88 threshold.
+
+**The 8B at 10 chains, ~9.3 hours, is the run that would settle it** — the rung
+with both room (27.87 points) and the project's best headroom-to-noise ratio,
+2.29 against the 30B's 1.31. The rest of the outstanding list is in the README's
+[Not done](../README.md#not-done).
 
 There is now one clean six-iteration curve, and it is simultaneously the
 project's strongest result and its least trustworthy. `curves.py` reports the

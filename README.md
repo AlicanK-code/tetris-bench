@@ -28,7 +28,7 @@ them are in [`runs/published/`](runs/published/).
 
 ### 1. No model has been shown to improve
 
-On the only rung the loop has been run on properly -- `qwen3-14b`, five
+Two rungs have now been run through the loop properly. On `qwen3-14b` -- five
 independent chains, six iterations, 300 held-out games -- the median rises from
 12.5 to 20.6 points per piece. That looks like learning until it is measured
 against the noise:
@@ -46,8 +46,14 @@ differ by more than six revisions do. `analysis/curves.py` prints the verdict
 itself -- *"gain +8, only 0.6x the noise bar of 13 - treat as indistinguishable
 from noise"* -- and puts the peak at the attempt before any feedback existed.
 
+On `qwen3-4b`, under the identical protocol, the median **falls** from 7.5 to
+3.7 -- also inside its own noise, which is 10.9 there. Three of its five chains
+ended below where they started.
+
 So the headline the project set out to produce, an improvement curve with a
-slope, is not there. [The detail](#the-improvement-curve-is-smaller-than-its-own-noise).
+slope, is not there on either rung that has been measured.
+[The 14B detail](#the-improvement-curve-is-smaller-than-its-own-noise),
+[the 4B's](#the-loop-shows-nothing-on-a-second-rung).
 
 ### 2. What the loop does instead is repair
 
@@ -88,6 +94,12 @@ and silently zeroed three of five terms, and the score collapsed.
 The model fixed its bug by accident and then broke it by correcting the accident.
 Locating that defect from outcome feedback is the exact ability the benchmark
 exists to measure. [The three functions](#the-strongest-result-is-a-credit-assignment-failure).
+
+**And it is not only outcome feedback.** The 4B loop produced a chain whose
+function crashed on every call, where the feedback contained the interpreter's
+own `UnboundLocalError` naming the offending variable. It carried that line
+through **five consecutive revisions**, changing the weights around it each time.
+[The five functions](#the-loop-shows-nothing-on-a-second-rung).
 
 ### 5. Scale gives a step, not a slope
 
@@ -699,6 +711,53 @@ the clearest demonstration of *why* the two have to be reported separately.
 uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
 ```
 
+### The loop shows nothing on a second rung
+
+The 4B over 6 iterations on 5 independent chains, 2 h 22 m, same seed splits as
+the 14B's five-chain run so the curves are directly comparable. This is the
+**second rung ever taken past iteration 0**, and the first check on whether the
+findings above describe the loop or describe the 14B.
+
+| chain | it0 | it1 | it2 | it3 | it4 | it5 | gain |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 1.29 | 4.66 | 4.66 | 4.42 | 4.69 | 4.69 | +3.40 |
+| 1 | 0.61 | 4.13 | 4.19 | 4.64 | 5.26 | 13.05 | **+12.44** |
+| 2 | 8.25 | 8.92 | 7.28 | 7.14 | 8.25 | 0.00 | −8.25 |
+| 3 | 7.49 | 0.44 | 0.44 | 0.44 | 0.44 | 0.44 | −7.05 |
+| 4 | 8.35 | 0.27 | 3.14 | 10.47 | 0.67 | 3.72 | −4.63 |
+| **median** | **7.49** | 4.13 | 4.19 | 4.64 | 4.69 | **3.72** | **−3.77** |
+
+The median curve **falls**, and the honest reading is that **nothing is
+detectable**: the measured paired standard deviation is 8.69, so five chains can
+only see changes above **10.88**. Three of five chains ended below where they
+started. The starting point is not a fluke -- this run's iteration-0 median of
+7.49 matches the ladder's independently measured 7.36 on 15 chains.
+
+**The individual chain worth reading is chain 3.** Its first revision wrote
+`total_empty = total_empty(board)`, which shadows the function it calls and
+raises `UnboundLocalError` on every scoring call -- 342 sandbox failures per
+game. It then carried that line, **verbatim, through five consecutive
+revisions**, retuning the coefficients around it each time, while the revise
+prompt quoted the interpreter's error back to it three times naming the exact
+variable.
+
+That is a sharper version of [finding 4](#4-given-only-outcome-feedback-the-models-do-not-find-their-own-bugs).
+There the defence "it was never told what was wrong" is available. Here it was
+told, in the interpreter's own words, five times.
+
+**It also broke a power assumption of this project's own.** The 4B's paired
+standard deviation is **2.39x** its cross-chain spread, where the 14B's is
+**0.70x** -- the opposite direction. The 30B's published 14-chain requirement
+scales from the 14B's ratio and is now a lower bound. Paired noise has to be
+measured per rung.
+
+Full write-up:
+[docs/findings/4b-loop-reweights-a-crash-five-times.md](docs/findings/4b-loop-reweights-a-crash-five-times.md).
+
+```bash
+uv run tetris-bench loop --model qwen3-4b --chains 5 --iterations 6   # 2h22m
+```
+
 ### Direct mode costs 800x and plays like random
 
 The milestone 7 demonstration: `qwen3-14b` picking placements one at a time,
@@ -780,6 +839,11 @@ five of them currently carry one.
 - **A bad strategy and one that cannot be expressed look identical in a score**,
   which is why the capability probes exist. Both produce a low number, and 37 of
   60 first attempts were in the second category.
+- **[The 4B loop reweights a crashing function five
+  times](docs/findings/4b-loop-reweights-a-crash-five-times.md)** -- the second
+  rung past iteration 0. No detectable change, a chain that carried an
+  `UnboundLocalError` through five revisions with the traceback quoted back to
+  it, and a power assumption of this project's own broken.
 - **[Direct mode costs 800x and plays like
   random](docs/findings/direct-mode-costs-800x-and-plays-like-random.md)** --
   the milestone 7 demonstration. 3 h 44 m for 20 pieces, 86 holes against random
@@ -796,20 +860,24 @@ rungs at *iteration 0 only*. So "no model has been shown to improve" and "the
 largest gain ever observed is +10.0" are statements about one model currently
 being quoted as statements about the mechanism.
 
-- **The loop on a second rung -- the 8B, 10 chains, 6 iterations, ~9.3 hours.**
-  The 8B because it has the project's best **headroom-to-noise ratio, 2.29
-  against the 30B's 1.31**: not the cheapest run, but the one with the most room
-  for a result to appear in. See
+- **The loop on a rung with room -- the 8B, 10 chains, 6 iterations, ~9.3
+  hours.** The 4B has now been run and showed **no detectable change**, which
+  establishes that the 14B's +8 is not a general figure but cannot distinguish
+  "the loop does nothing" from "the 4B has nowhere to go" -- its honest headroom
+  is 8.27 points against a detectable threshold of 10.88. The 8B is the rung
+  with both room (27.87 points) and the project's best headroom-to-noise ratio,
+  **2.29 against the 30B's 1.31**. See
   [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md).
   This is the only outstanding item that could move a headline.
 
 **One pilot would shore up a soft spot in the analysis.**
 
 - **The 30B at 6 chains, ~3.5 hours.** Every power claim in this repo uses a
-  paired standard deviation **scaled from the 14B** (8.74 x 15.13/12.55),
-  because the paired figure has never been measured on the 30B at all. Six
-  chains measure it directly. The finding that makes those claims says so
-  itself.
+  paired standard deviation **scaled from the 14B** (8.74 x 15.13/12.55), and
+  the 4B run has now shown that scaling can invert -- its paired figure came out
+  2.39x its cross-chain spread where the 14B's is 0.70x. So the 30B's published
+  14-chain requirement is a lower bound, and this pilot is a precondition for
+  the larger run rather than a nice-to-have.
 
 **Four things cost nothing and are answerable from logs already on disk.**
 
