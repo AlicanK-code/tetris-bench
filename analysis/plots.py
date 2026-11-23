@@ -470,7 +470,7 @@ def model_figure(curve: Curve, pieces_values: PositionValues, out_dir: Path) -> 
         # The peak is named beside the first-to-last gain on purpose: a signed
         # difference between two endpoints says nothing about the shape between
         # them, and a curve that peaked and fell back reads as flat without it.
-        f"median score {medians[0] if medians else 0:,.0f} → "
+        f"median pts/piece {medians[0] if medians else 0:,.1f} → "
         f"{medians[-1] if medians else 0:,.0f} ({gained:+,.0f}{margin}), peak {peak:,.0f}; "
         f"{curve.regressions()} of {len(curve.paired_deltas())} within-chain steps regressed, "
         f"median |step| {median_abs_delta(curve):,.0f}",
@@ -495,6 +495,43 @@ def ladder_order(curve: Curve) -> tuple[float, str]:
     return (float(match.group(1)) if match else float("inf"), curve.model)
 
 
+def _ladder_bars(curves: Sequence[Curve], pieces_values: PositionValues, out_dir: Path) -> Path:
+    """The ladder as bars, for a run with one iteration per model.
+
+    Same numbers as the line version, but a comparison across models rather
+    than a curve through time, because there is no time axis to draw.
+    """
+    figure, axes = plt.subplots(1, 2, figsize=(13.5, 5.2))
+    names = [c.model for c in curves]
+    colours = [MODEL_COLOURS[i % len(MODEL_COLOURS)] for i in range(len(curves))]
+    series = [panels_for(c, pieces_values) for c in curves]
+
+    labels = ("median held-out points per piece", "median held-out pieces")
+    for axis, which, label in ((axes[0], 0, labels[0]), (axes[1], 1, labels[1])):
+        values = [
+            (s[which].median[0] if s[which].median and s[which].median[0] is not None else 0.0)
+            for s in series
+        ]
+        bars = axis.bar(names, values, color=colours, width=0.6)
+        axis.bar_label(bars, fmt="%.1f" if which == 0 else "%.0f", fontsize=9, padding=2)
+        axis.set_ylabel(label)
+        axis.grid(alpha=0.25, linewidth=0.6, axis="y")
+        axis.set_ylim(bottom=0, top=max(values) * 1.18 if any(values) else 1.0)
+        axis.tick_params(axis="x", labelrotation=15)
+
+    figure.suptitle(
+        "The ladder — one generation per chain, 15 chains per rung, no feedback\n"
+        "median over all 15 positions, a rejected function counting as a zero",
+        fontsize=11,
+    )
+    figure.tight_layout(rect=(0, 0.02, 1, 0.9))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "ladder.png"
+    figure.savefig(path, dpi=150)
+    plt.close(figure)
+    return path
+
+
 def ladder_figure(curves: Sequence[Curve], pieces_values: PositionValues, out_dir: Path) -> Path:
     """Every model on one axis: the capability-ladder comparison.
 
@@ -505,7 +542,17 @@ def ladder_figure(curves: Sequence[Curve], pieces_values: PositionValues, out_di
     readable.
     """
     figure, axes = plt.subplots(1, 2, figsize=(13.5, 5.2))
-    for index, curve in enumerate(sorted(curves, key=ladder_order)):
+    ordered = sorted(curves, key=ladder_order)
+
+    # A ladder measured at iteration 0 only -- which is how the published one
+    # was run -- has a single point per model. Drawn as a line that is four dots
+    # stacked on a degenerate x-axis from -0.04 to 0.04, which is technically
+    # the data and useless as a chart. Bars are what one value per model wants.
+    single = max((len(c.iterations) for c in ordered), default=0) <= 1
+    if single:
+        return _ladder_bars(ordered, pieces_values, out_dir)
+
+    for index, curve in enumerate(ordered):
         colour = MODEL_COLOURS[index % len(MODEL_COLOURS)]
         iterations = curve.iterations
         for axis, panel in zip(axes, panels_for(curve, pieces_values), strict=True):
@@ -527,7 +574,8 @@ def ladder_figure(curves: Sequence[Curve], pieces_values: PositionValues, out_di
                 alpha=0.14,
             )
 
-    for axis, label in ((axes[0], "median held-out score"), (axes[1], "median held-out pieces")):
+    labels = ("median held-out points per piece", "median held-out pieces")
+    for axis, label in ((axes[0], labels[0]), (axes[1], labels[1])):
         axis.set_xlabel("iteration")
         axis.set_ylabel(label)
         axis.grid(alpha=0.25, linewidth=0.6)
