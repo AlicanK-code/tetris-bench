@@ -330,8 +330,16 @@ could not be sped up here.
    comparison, but nothing is censored any more.
 2. **Is the step architectural?** Needs a second MoE or a dense model ≥30B.
    Neither fits this machine, so this may have to stand as a stated confound.
-3. **Does the loop move the probe-clean fraction?** The reframed milestone-6
-   question, with baselines now measured at 4/15, 5/15, 3/15 and 11/15.
+3. ~~**Does the loop move the probe-clean fraction?** The reframed milestone-6
+   question, with baselines now measured at 4/15, 5/15, 3/15 and 11/15.~~
+   **Answered: no.** Across both completed loops the fraction went from 3/10 at
+   iteration 0 to 2/10 at iteration 5 — **1 repair in 40 chances against 2
+   regressions**, and on the 4B zero repairs in 20 chances. Revision churns
+   individual terms (6 repaired, 7 broken on the 4B) without ever assembling
+   all four, because capability is a conjunction. Note the limit: both loops
+   are rungs where most first attempts are *already* broken, so this measures
+   repair and not refinement — testing refinement needs the 30B, at 11/15. See
+   [the-loop-does-not-repair-capability.md](the-loop-does-not-repair-capability.md).
 4. **Why is the 14B the worst rung on the orientation probes?** It is below the
    4B on height and above-gap and on overall capability, though not on holes,
    and it is also the slowest. Three separate measurements disfavour this rung

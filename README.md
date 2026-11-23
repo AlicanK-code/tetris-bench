@@ -55,7 +55,7 @@ slope, is not there on either rung that has been measured.
 [The 14B detail](#the-improvement-curve-is-smaller-than-its-own-noise),
 [the 4B's](#the-loop-shows-nothing-on-a-second-rung).
 
-### 2. What the loop does instead is repair
+### 2. When the loop moves anything, it is repair and damage, not refinement
 
 Of 60 first attempts across four models, **37 were not bad strategies but broken
 ones** -- code that cannot express a strategy at all, because it counts the empty
@@ -71,6 +71,14 @@ that moved by more than the noise moved in **opposite directions**:
 
 So the loop can fix code that was broken, and it can break code that worked. What
 has not been observed is a working scorer being made meaningfully better.
+
+**And measured across both completed loops, it does the second slightly more
+often than the first: 1 repair in 40 chances against 2 regressions.** The
+function-level capability fraction ends lower than it starts. Revision moves
+individual terms about -- 6 repaired and 7 broken on the 4B -- but capability is
+a conjunction over terms, so fixing them one at a time while breaking others is
+a walk that does not arrive.
+[The measurement](#the-loop-does-not-repair-capability-either).
 
 ### 3. The best result needed no feedback at all
 
@@ -711,6 +719,43 @@ the clearest demonstration of *why* the two have to be reported separately.
 uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
 ```
 
+### The loop does not repair capability either
+
+If the loop were quietly fixing *broken* functions without moving *scores*, that
+would be a real effect the curve cannot see -- and the last remaining way the
+findings above could be understating it. Both completed loops can now be probed,
+and it is not happening.
+
+A function is **strategy-capable** when it answers all four probes correctly.
+The fraction, by iteration:
+
+| loop | it0 | it1 | it2 | it3 | it4 | it5 |
+|---|---:|---:|---:|---:|---:|---:|
+| **4B**, 5 chains | 1/5 | 1/5 | 1/5 | 1/5 | 1/5 | 1/5 |
+| **14B**, 5 chains | 2/5 | 2/5 | 0/5 | 0/5 | 1/5 | 1/5 |
+
+Pooled, iteration 0 was **3 of 10** and iteration 5 was **2 of 10**. Across both
+loops: **1 repair in 40 chances, against 2 regressions.** On the 4B specifically,
+**0 repairs in 20 chances and 0 regressions** -- the one capable chain was
+capable before any feedback existed, and twenty revisions left the other four
+broken.
+
+**The mechanism is visible at the level of terms.** The 4B's revisions repaired
+6 individual terms and broke 7, and produced *no* function-level repair at all,
+because capability is a conjunction: a function with two broken terms that fixes
+one is still broken. Revision operates on terms with a roughly equal chance of
+breaking another, which is a random walk that does not reach "all four correct".
+
+Two of the three verdict changes in the whole corpus are revisions *destroying*
+a capability the function already had.
+
+Full write-up:
+[docs/findings/the-loop-does-not-repair-capability.md](docs/findings/the-loop-does-not-repair-capability.md).
+
+```bash
+uv run python analysis/term_diagnostics.py runs/published/4b-loop/functions
+```
+
 ### The loop shows nothing on a second rung
 
 The 4B over 6 iterations on 5 independent chains, 2 h 22 m, same seed splits as
@@ -839,6 +884,10 @@ five of them currently carry one.
 - **A bad strategy and one that cannot be expressed look identical in a score**,
   which is why the capability probes exist. Both produce a low number, and 37 of
   60 first attempts were in the second category.
+- **[The loop does not repair capability
+  either](docs/findings/the-loop-does-not-repair-capability.md)** -- 1 repair in
+  40 chances against 2 regressions, across both completed loops. Closes the
+  question the ladder left open.
 - **[The 4B loop reweights a crashing function five
   times](docs/findings/4b-loop-reweights-a-crash-five-times.md)** -- the second
   rung past iteration 0. No detectable change, a chain that carried an
@@ -886,9 +935,6 @@ being quoted as statements about the mechanism.
   improving live ones, the effect is a change in a proportion -- a different
   power calculation from the one in the write-up, and one the current analysis
   cannot see.
-- **Does the loop move the probe-clean fraction?** 37 of 60 first attempts were
-  broken rather than bad. This is the restated form of the "does a small model
-  close on a large one" question, and the ladder left it open.
 - **The `import math` rejections.** Three of the project's four rejections were
   `import math` against a prompt that forbids imports in bold, which makes them
   instruction-following failures rather than harness artefacts. Worth

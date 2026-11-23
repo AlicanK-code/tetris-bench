@@ -470,6 +470,16 @@ variable. The existing "first revision reweights instead of debugging" finding
 was about a semantic bug under outcome-only feedback, where "it was never told"
 is a defence. This one had the traceback.
 
+**And the probes say the loop did not repair capability either**, which closes
+the question the ladder restated. The strategy-capable fraction sat at 1/5 at
+every one of the six iterations: **0 repairs in 20 chances, 0 regressions.** The
+14B's own loop manages 1 repair in 20 against 2 regressions, so pooled it is 1
+in 40 against 2 — the fraction ends lower than it starts. Revision does move
+individual terms, 6 repaired and 7 broken on the 4B, but capability is a
+conjunction over terms and fixing them one at a time while breaking others does
+not arrive. This was the last remaining way the loop could have been doing
+something the scores could not see.
+
 **It also broke a power assumption of the project's own**, and the one used to
 justify this very run. The 4B's paired standard deviation came out **2.39× its
 cross-chain spread**, where the 14B's is **0.70×** — the opposite direction. The
