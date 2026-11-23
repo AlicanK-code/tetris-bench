@@ -14,6 +14,14 @@ every candidate move**, so the agent played arbitrarily and scored 0.
 |---|---:|---:|---:|---|
 | heuristic reference | 21,600 | 500 | 2 | piece_limit |
 | naive floor | 2,100 | 95 | — | block_out |
+
+> **Conditions note.** The `naive` figure comes from an agent that no longer
+> exists in the codebase, and the heuristic figure here is at the old 500-piece
+> budget (about 21,600 on seed 1) rather than the current 2,000, where the same
+> heuristic averages ~84,720. Both conditions are explained in
+> [README.md](README.md); ratios quoted against them understate the gap by
+> roughly 4x.
+
 | **qwen3-4b, iteration 0** | **0** | **22** | **107** | **block_out** |
 | random | 0 | 23 | 81 | block_out |
 

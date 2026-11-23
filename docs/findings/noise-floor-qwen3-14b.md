@@ -95,6 +95,14 @@ It cleared 4 lines for 400 points.
 
 Better than random, still well below the naive floor.
 
+> **Conditions note.** The `naive` figure comes from an agent that no longer
+> exists in the codebase, and the heuristic figure here is at the old 500-piece
+> budget (about 21,600 on seed 1) rather than the current 2,000, where the same
+> heuristic averages ~84,720. Both conditions are explained in
+> [README.md](README.md); ratios quoted against them understate the gap by
+> roughly 4x.
+
+
 > **Later correction.** 400 is this function's *best* case, not its typical one.
 > On 20 held-out seeds it averages **110**, with 400 as the maximum — seed 1 was
 > the luckiest of the twenty-one sequences it has now played. See

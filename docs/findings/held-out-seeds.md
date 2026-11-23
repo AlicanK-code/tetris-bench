@@ -103,6 +103,17 @@ looks considerably better under held-out evaluation than it did under
 single-seed, which is the opposite of what one usually finds and is worth
 stating plainly.
 
+> **Later correction.** The monotone gradient does not survive a proper ladder.
+> This table is three rungs at one-to-three samples each on `strategy_v2`, and it
+> **omits the 8B** — which is exactly where the real ordering breaks. Measured
+> with 15 independent chains per rung on `strategy_v3`
+> ([size-ladder-is-a-step.md](size-ladder-is-a-step.md)), the 8B beats the 14B
+> and the 4B, 8B and 14B are statistically indistinguishable from one another
+> (every pairwise Fisher p >= 0.68). The gradient here is real within the three
+> rungs it measured and is not evidence of a gradient across the family. What
+> survives is the *method* claim — held-out evaluation beat single-seed — which
+> is this document's actual subject.
+
 ---
 
 ## 6. What should change

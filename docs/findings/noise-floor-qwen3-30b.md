@@ -27,6 +27,14 @@ the score.
 
 Reference, same game seed: heuristic 21,600 · naive 2,100 · random 0.
 
+> **Conditions note.** The `naive` figure comes from an agent that no longer
+> exists in the codebase, and the heuristic figure here is at the old 500-piece
+> budget (about 21,600 on seed 1) rather than the current 2,000, where the same
+> heuristic averages ~84,720. Both conditions are explained in
+> [README.md](README.md); ratios quoted against them understate the gap by
+> roughly 4x.
+
+
 **The noise floor on this rung is 1,700 points** — 81% of the naive floor, and
 8% of the heuristic reference. An iteration-to-iteration gain smaller than that
 is indistinguishable from nondeterminism.

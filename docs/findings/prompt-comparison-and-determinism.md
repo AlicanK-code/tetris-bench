@@ -19,6 +19,14 @@ written in response, adding two mechanical clarifications. This compares them.
 
 Reference, same seed: heuristic 21,600 · naive 2,100 · random 0.
 
+> **Conditions note.** The `naive` figure comes from an agent that no longer
+> exists in the codebase, and the heuristic figure here is at the old 500-piece
+> budget (about 21,600 on seed 1) rather than the current 2,000, where the same
+> heuristic averages ~84,720. Both conditions are explained in
+> [README.md](README.md); ratios quoted against them understate the gap by
+> roughly 4x.
+
+
 **v2 did not fix it.** Score, pieces and final holes are identical. The only
 movement is in discrimination: v2's function separates candidates on 4 of 22
 moves instead of 0, with a mean spread of 0.909 against a constant term of

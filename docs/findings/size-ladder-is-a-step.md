@@ -26,7 +26,11 @@ that preceded this run, and it is worth verifying rather than assuming.
 | `qwen3-30b-a3b` | 15/15 | **11/15** | 2,580 | 12,209 | **81,300** | 45.0 |
 | *hand-written heuristic* | — | — | *84,720* | *84,720* | *84,720* | — |
 
-Scores are per-chain means over the ten held-out sequences. "probe-clean" is
+Scores are per-chain means over the ten held-out sequences, and `pts/piece` is
+the mean of each game's own score-to-pieces ratio rather than the ratio of the
+pooled means (which would read 15.6 / 35.1 / 39.0 / 46.4). Note the best chain by
+rate is not always the best by score: on the 30B that is chain 4, not chain 3.
+"probe-clean" is
 [strategy-capable](../../src/tetris_bench/term_diagnostics.py): the function
 answers all four capability probes correctly, so its score reflects a strategy
 rather than a defect.
@@ -178,8 +182,10 @@ Per rung, among functions that loaded:
 | `qwen3-14b` | 13 | 10 | 6 | 7 |
 | `qwen3-30b-a3b` | 15 | 3 | 2 | 3 |
 
-The 14B is the worst rung on every term — worse than the 4B — which is the same
-inversion section 1 found and is not explained by scale.
+As a *rate*, the 14B is the worst rung on height (10/13, 77%) and above-gap
+(7/13, 54%), which is the same inversion section 1 found and is not explained by
+scale. It is **not** worst on holes: 46% against the 4B's 53%. The failure that
+distinguishes this rung is specifically orientation, not defects in general.
 
 ---
 
@@ -273,7 +279,7 @@ Dollar cost **$0.00**, as it will be for every planned run. Identical
 `tokens_in` across rungs is the byte-identical prompt showing up in the ledger.
 
 Wall-clock was **8.52 h** against 8.46 h of generation, so **generation is 99.4%
-of the cost** and the 780 games played are statistically free (~0.3% between
+of the cost** and the 728 games played are statistically free (~0.3% between
 them). Measured per rung: 98.1%, 98.6%, 99.7%, 99.9%. Any future effort to make
 a sweep cheaper has to reduce tokens or pick a faster rung; optimising the engine
 cannot help, which is consistent with the earlier measurement that generation
@@ -289,9 +295,10 @@ could not be sped up here.
    Neither fits this machine, so this may have to stand as a stated confound.
 3. **Does the loop move the probe-clean fraction?** The reframed milestone-6
    question, with baselines now measured at 4/15, 5/15, 3/15 and 11/15.
-4. **Why is the 14B the worst rung on every probe?** It is below the 4B on
-   height, above-gap and overall capability, and it is also the slowest. Three
-   separate measurements now disfavour this rung and none explains it.
+4. **Why is the 14B the worst rung on the orientation probes?** It is below the
+   4B on height and above-gap and on overall capability, though not on holes,
+   and it is also the slowest. Three separate measurements disfavour this rung
+   and none explains it.
 5. **Does the `import math` failure persist under a restated prompt?** Three of
    four rejections were one instruction. Whether a rung can follow it is worth
    measuring, but changing the prompt breaks comparability with these 60

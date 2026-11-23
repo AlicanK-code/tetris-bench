@@ -45,6 +45,21 @@ best was the 30B's 1,530.
 
 Still 8× below the reference, so this is not a solved game.
 
+> **Conditions note.** Two of the numbers above are tied to conditions that have
+> since changed, and both make this result look better than it is.
+>
+> The `naive` floor (1,675) came from an agent that no longer exists in the
+> codebase, and the reference (20,915) is the heuristic at the old **500-piece**
+> budget. At the current 2,000-piece budget the heuristic averages ~84,720, so
+> "8× below the reference" is really about **33×**. See [README.md](README.md).
+>
+> The **23×** is also measured against a 110-point iteration-0 baseline generated
+> under `strategy_v2`. On `strategy_v3` an unaided iteration 0 scores a held-out
+> 1,580, so on pieces survived the advantage is 101.5 against 71.8 — roughly
+> **1.4×, not 23×**. The qualitative finding (a feature-level counterexample
+> fixed what outcome feedback could not, on one board in three) is unaffected;
+> the multiplier is not quotable.
+
 > **Read §4c before quoting this number.** The result replicates across
 > generations on this trace board and **fails on two others**. One board out of
 > three produced the fix; of the other two, one changed nothing and one produced

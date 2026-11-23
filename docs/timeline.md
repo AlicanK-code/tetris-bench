@@ -37,6 +37,11 @@ Reference scores at the 500-piece budget, mean over seeds 1/2/17/123:
 | naive | 1,675 |
 | heuristic | 21,450 |
 
+> **Later note.** The `naive` row is not reproducible from this repo: no such
+> agent exists in the codebase any more, so treat 1,675 as a historical marker.
+> The budget also moved to 2,000 pieces, where the heuristic averages ~84,720 on
+> held-out seeds. See [docs/findings/README.md](findings/README.md).
+
 The heuristic hits the piece cap on every seed with 1–5 holes, so the budget
 bounds it rather than its skill.
 
@@ -392,6 +397,9 @@ Open questions, in rough priority order:
    model writes, on the one comparison available. Needs several samples per arm.
 3. **Raise the piece budget.** Iteration 4 is censored at 500 pieces on half its
    sequences, so the ceiling is now the measurement rather than the model.
+   **Partly done:** the default moved to 2,000, which uncensored that result --
+   but the ladder's best function is now censored in 8 of 10 games at 2,000, so
+   the same hazard has simply moved up the scale. Still open.
 4. ~~**The ladder.** 4B, 8B and 30B under the same protocol, and whether the loop
    lets a smaller rung close on a larger one.~~ **Answered** for iteration 0, all
    four rungs, 15 chains each: [size-ladder-is-a-step.md](findings/size-ladder-is-a-step.md).
