@@ -98,12 +98,21 @@ examples:
   tetris-bench play --agent heuristic --seed 1 --log runs/baseline.jsonl
   tetris-bench models --config configs/models.yaml
   tetris-bench strategy --model qwen3-4b --seed 1
+  tetris-bench direct --model qwen3-14b --seed 1 --max-pieces 20
   tetris-bench loop --model qwen3-14b --iterations 6
   tetris-bench loop --model qwen3-30b --chains 5
 """
 
 
 DEFAULT_MODEL_CONFIG = Path("configs/models.yaml")
+
+DEFAULT_DIRECT_PIECES = 20
+"""Piece budget for `direct` mode, which spends one model call per piece.
+
+Short on purpose. At the local rungs' latencies a 2,000-piece game would run for
+hours, and the point of this mode is the cost ratio, which twenty pieces measure
+as well as two thousand.
+"""
 
 
 def format_models(configs: list[ModelConfig], environ: dict[str, str]) -> str:
@@ -199,6 +208,32 @@ def build_parser() -> argparse.ArgumentParser:
         "--template", default=None, help="prompt template name (default: the current version)"
     )
 
+    direct = sub.add_parser(
+        "direct", help="let a model pick each placement itself: one call per piece"
+    )
+    direct.add_argument("--model", required=True, help="a name from the model config")
+    direct.add_argument("--config", type=Path, default=DEFAULT_MODEL_CONFIG)
+    direct.add_argument("--seed", type=int, default=1, help="piece sequence seed")
+    # Deliberately NOT DEFAULT_MAX_PIECES. This mode spends a model call per
+    # piece, so the engine default of 2,000 would be 2,000 calls -- hours for
+    # one game. The default is a demonstration length; raise it knowingly.
+    direct.add_argument(
+        "--max-pieces",
+        type=positive_int,
+        default=DEFAULT_DIRECT_PIECES,
+        help=f"piece budget (default {DEFAULT_DIRECT_PIECES}: one model call each)",
+    )
+    direct.add_argument("--log", type=Path, default=None, help="append the result to JSONL")
+    direct.add_argument(
+        "--show-pieces", action="store_true", help="render piece letters, not just #"
+    )
+    direct.add_argument(
+        "--show-prompt", action="store_true", help="print the first turn's prompt and exit"
+    )
+    direct.add_argument(
+        "--template", default=None, help="prompt template name (default: the current version)"
+    )
+
     loop = sub.add_parser("loop", help="run the improvement loop: feedback, revise, replay, repeat")
     loop.add_argument("--model", required=True, help="a name from the model config")
     loop.add_argument("--config", type=Path, default=DEFAULT_MODEL_CONFIG)
@@ -270,6 +305,9 @@ def main() -> None:
 
     elif args.command == "strategy":
         run_strategy(args)
+
+    elif args.command == "direct":
+        run_direct(args)
 
     elif args.command == "loop":
         run_improvement_loop(args)
@@ -455,6 +493,87 @@ def run_strategy(args: argparse.Namespace) -> None:
                     latency_seconds=usage.latency_seconds,
                     estimated_cost_usd=usage.estimated_cost_usd,
                     sandbox_failures=failures,
+                    retries=usage.retries,
+                    failed_calls=usage.failed_calls,
+                ),
+            ),
+        )
+
+
+def run_direct(args: argparse.Namespace) -> None:
+    """Let a model choose each placement itself, one call per piece.
+
+    Milestone 7's baseline. Imported lazily, like `strategy`, so `play` and
+    `models` keep working without the optional `llm` extra.
+    """
+    from tetris_bench.agents.direct import PROMPT_NAME, DirectAgent
+    from tetris_bench.clients.client import ModelClient
+    from tetris_bench.clients.config import load_model_config
+    from tetris_bench.jsonl import append_record
+    from tetris_bench.records import ModelUsage, RunRecord
+
+    config = load_model_config(args.config, args.model)
+    client = ModelClient(config)
+    agent = DirectAgent(
+        client,
+        prompt_name=args.template or PROMPT_NAME,
+        show_pieces=args.show_pieces,
+    )
+    game = Game(seed=args.seed, max_pieces=args.max_pieces)
+
+    if args.show_prompt:
+        print(agent.build_prompt(game, game.legal_placements()))
+        return
+
+    print(
+        f"{config.name} ({config.model}) picking placements directly, "
+        f"up to {args.max_pieces} pieces: one call each"
+    )
+    result = play_game(game, agent)
+
+    print()
+    print(render_board(game.board, show_pieces=args.show_pieces))
+    print()
+    print(f"score          {result.score}")
+    print(f"lines cleared  {result.lines_cleared}")
+    print(f"pieces placed  {result.pieces_placed}")
+    print(f"ended by       {result.cause}")
+    print(f"holes          {result.final_holes} (avg {result.avg_holes:.1f})")
+    print(f"max height     {result.final_max_height} (avg {result.avg_max_height:.1f})")
+    print(f"invalid replies {agent.invalid_outputs} (played move 0 each time)")
+    for reply in agent.invalid_samples:
+        print(f"  {reply}")
+
+    usage = client.usage
+    print(
+        f"model          {usage.model_calls} call(s), {usage.tokens_in} in / "
+        f"{usage.tokens_out} out, {usage.latency_seconds:.1f}s"
+    )
+    # The headline of this mode: what a placement costs. `strategy` mode pays
+    # these once per game, so the ratio between the two is the whole result.
+    pieces = result.pieces_placed
+    if pieces:
+        print(
+            f"per piece      {usage.tokens_in / pieces:.0f} in / "
+            f"{usage.tokens_out / pieces:.0f} out, "
+            f"{usage.latency_seconds / pieces:.1f}s"
+        )
+
+    if args.log is not None:
+        append_record(
+            args.log,
+            RunRecord(
+                game=result,
+                model=config.name,
+                mode="direct",
+                iteration=0,
+                usage=ModelUsage(
+                    model_calls=usage.model_calls,
+                    tokens_in=usage.tokens_in,
+                    tokens_out=usage.tokens_out,
+                    latency_seconds=usage.latency_seconds,
+                    estimated_cost_usd=usage.estimated_cost_usd,
+                    invalid_outputs=agent.invalid_outputs,
                     retries=usage.retries,
                     failed_calls=usage.failed_calls,
                 ),
