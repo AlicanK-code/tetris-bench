@@ -17,6 +17,111 @@ no gap to close between 4B and 14B and a step at the top, so the question is
 that path is tested, but no planned run uses one. Dollar cost is therefore always
 zero, so the headline cost measures are tokens and wall-clock seconds.
 
+## What we found
+
+The project asks one question: **do these models get better at Tetris when they
+are told how they did and allowed to try again?** The short answer, on the
+evidence so far, is *no -- and the interesting part is what happens instead.*
+
+Every claim here links to the evidence below, and the artifacts behind all of
+them are in [`runs/published/`](runs/published/).
+
+### 1. No model has been shown to improve
+
+On the only rung the loop has been run on properly -- `qwen3-14b`, five
+independent chains, six iterations, 300 held-out games -- the median rises from
+12.5 to 20.6 points per piece. That looks like learning until it is measured
+against the noise:
+
+| | |
+|---|---|
+| gain, first to last | **+8** |
+| bar a real change must clear | **13** |
+| plateau (peak, measured) | **iteration 0** |
+| chains gaining more than the noise | **0 of 5** |
+
+The bar is generation noise: five chains given the *identical* iteration-0
+prompt scored 12.5, 0.5, 35.4, 15.4 and 0.0. Two samples of the same request
+differ by more than six revisions do. `analysis/curves.py` prints the verdict
+itself -- *"gain +8, only 0.6x the noise bar of 13 - treat as indistinguishable
+from noise"* -- and puts the peak at the attempt before any feedback existed.
+
+So the headline the project set out to produce, an improvement curve with a
+slope, is not there. [The detail](#the-improvement-curve-is-smaller-than-its-own-noise).
+
+### 2. What the loop does instead is repair
+
+Of 60 first attempts across four models, **37 were not bad strategies but broken
+ones** -- code that cannot express a strategy at all, because it counts the empty
+space above the stack as holes, or computes a height term that is identically
+zero on every board. A score cannot tell those apart from a weak strategy; both
+are just a low number. [How that is measured](#most-model-written-scorers-are-broken-not-bad).
+
+That reframes what "improvement" has meant whenever it happened. The two chains
+that moved by more than the noise moved in **opposite directions**:
+
+- one rose from **0.0 to 10.0** points per piece by *deleting* two inverted terms — repair, not refinement
+- one fell from **35.4 to 24.8** by *adding* a term blind to everything above the first gap
+
+So the loop can fix code that was broken, and it can break code that worked. What
+has not been observed is a working scorer being made meaningfully better.
+
+### 3. The best result needed no feedback at all
+
+The strongest function the benchmark has produced came from a **first attempt
+with no feedback in its prompt**: 22 lines of lines, holes and bumpiness, with no
+height term, from `qwen3-30b-a3b`. On unseen sequences it scores **46.4 points
+per piece against a tuned hand-written heuristic's 43.5** -- parity with a
+published 2013 evaluator, cold.
+
+That is the project's best result and its most awkward one, because the loop had
+nothing to do with it. [The comparison](#the-top-rung-matches-a-hand-written-heuristic-cold).
+
+### 4. Given only outcome feedback, the models do not find their own bugs
+
+Traced by replaying the saved functions rather than inferred from scores, one
+chain measured column height as a row index on a board whose row 0 is the top --
+rewarding tall stacks. The next revision **flipped the signs and scored well
+without fixing the definition**. The revision after that corrected the definition
+and silently zeroed three of five terms, and the score collapsed.
+
+The model fixed its bug by accident and then broke it by correcting the accident.
+Locating that defect from outcome feedback is the exact ability the benchmark
+exists to measure. [The three functions](#the-strongest-result-is-a-credit-assignment-failure).
+
+### 5. Scale gives a step, not a slope
+
+The secondary question -- does the loop let a small model close on a large one --
+turned out to be ill-posed, because there is no gradient to close. `qwen3` at 4B,
+8B and 14B are statistically indistinguishable in how often they write a working
+scorer (every pairwise Fisher p >= 0.68), and the 30B-a3b jumps clear of all three
+(p = 0.002). The rung that separates is also the only mixture-of-experts model, so
+size and architecture are confounded and the honest claim is narrower than
+"capability scales with size". [The ladder](#the-ladder-is-a-step-not-a-slope).
+
+### What would change these answers
+
+The negative result is **narrow, not final**, and the main limit is coverage:
+
+- **The loop has only ever run on one of the four rungs.** The other three have
+  measured iteration-0 baselines and no revisions. A model that improves where
+  the 14B does not would change answer 1 outright.
+- **Six iterations may be too few**, and five chains is a small sample against a
+  noise floor this wide.
+- **The feedback is deliberately symptoms-only** -- score, lines, holes, height,
+  cause of death, board snapshots. Richer feedback would very likely move the
+  curve; it would also stop measuring self-diagnosis, which is the point.
+
+What the project does have is the machinery to answer the question properly:
+held-out evaluation, independent chains, a measured noise floor, capability
+probes that separate broken code from bad strategy, and a headline that a piece
+budget cannot distort. Several of the findings above only became visible because
+one of those was in place, and several earlier conclusions have been **withdrawn
+or corrected in place** when a better measurement contradicted them -- each one
+marked where it was claimed rather than quietly edited, because the sequence of
+wrong turns is part of what the project is demonstrating.
+[How these documents are written](docs/findings/).
+
 ## Status
 
 The engine, baseline agents, rendering and run records, the model client, the
@@ -497,7 +602,7 @@ cold.
 It stays an awkward result for this project, and worth saying plainly: the best
 function the benchmark has produced **arrived without the improvement loop**.
 
-### The improvement curve is real but smaller than its noise
+### The improvement curve is smaller than its own noise
 
 Five independent chains, six iterations, the 14B. Each chain revises only its own
 function and never sees another's, so a rising median cannot be selection bias.
@@ -593,7 +698,9 @@ uv run python analysis/baseline_ceiling.py --max-pieces 50000 --seeds 20
 ### Findings with their own write-ups
 
 Each of these is a separate experiment in [docs/findings/](docs/findings/), with
-the generated functions as artifacts:
+the generated functions as artifacts. They are written as the result was found
+and corrected in place with a dated note when something later overturned them --
+five of them currently carry one.
 
 - **The first revision reweights instead of debugging.** Two independent
   revisions kept a broken hole count character-for-character and changed only
