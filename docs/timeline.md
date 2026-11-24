@@ -766,7 +766,7 @@ methodological claim being made.
 
 ## Where it stands
 
-**Every milestone is built and tested, under 721 unit tests.** Milestone 7, the
+**Every milestone is built and tested, under 779 unit tests.** Milestone 7, the
 direct agent, landed as a single demonstration game rather than a full arm,
 because 672 s per piece makes a powered version weeks of wall clock for a
 baseline whose purpose is to be beaten; the cost ratio was its deliverable and

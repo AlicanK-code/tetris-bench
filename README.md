@@ -17,6 +17,174 @@ no gap to close between 4B and 14B and a step at the top, so the question is
 that path is tested, but no planned run uses one. Dollar cost is therefore always
 zero, so the headline cost measures are tokens and wall-clock seconds.
 
+## Architecture
+
+One loop, three layers, and a hard boundary in the middle. The model never
+chooses a move: it writes a **scoring function**, and the engine applies that
+function to every legal placement. That is what makes the benchmark cheap
+enough to run thousands of games, and what makes the *function* -- rather than
+any single move -- the thing being measured.
+
+```mermaid
+flowchart LR
+    subgraph loop["the improvement loop — loop.py"]
+        direction TB
+        PROMPT["prompts/strategy_v3<br/>one template, every iteration"]
+        GEN["clients/ → Ollama<br/>the model writes score(board, placement)"]
+        FB["feedback.py<br/>score, holes, height, cause of death, boards<br/><b>symptoms, never diagnoses</b>"]
+        PROMPT --> GEN
+        FB --> PROMPT
+    end
+
+    subgraph guard["the sandbox — model code never runs in-process"]
+        direction TB
+        AST["sandbox.py<br/>AST allowlist: no imports,<br/>no dunder, no file / net / OS"]
+        WORKER["sandbox_worker.py<br/>separate interpreter, python -I<br/>SIGALRM per call, deadline per game"]
+        AST -- "accepted" --> WORKER
+    end
+
+    subgraph eng["the engine — zero LLM dependencies"]
+        direction TB
+        AGENT["agents/strategy.py<br/>scores every legal placement,<br/>plays the best"]
+        GAME["engine/<br/>seeded 7-bag, collision,<br/>line clears, legal placements"]
+        AGENT --> GAME
+    end
+
+    GEN -- "source" --> AST
+    AST -- "rejected:<br/>no game runs" --> FB
+    WORKER <-- "candidates in,<br/>a float each out" --> AGENT
+    GAME --> REC["records.py<br/>jsonl.py<br/><br/>one row<br/>per game"]
+    REC -- "split: train<br/>fed back" --> FB
+    REC -- "split: eval<br/>held out" --> AN["analysis/<br/><br/>curves<br/>power<br/>placement_diff<br/>reweighting"]
+```
+
+Four properties the diagram is drawn to make visible, because each one is load
+bearing for whether a number here means anything:
+
+| | |
+|---|---|
+| **The engine never imports LLM code** | `engine/` and `agents/` are pure and unit-tested. A bug in prompting cannot change what a game score means. |
+| **Model code crosses a process boundary** | Two independent layers: an AST allowlist that rejects an import before anything runs, and a separate `python -I` interpreter with `SIGALRM` bounding every call. The function sees tuples and dicts -- no class, module or method of this project reaches it. |
+| **Feedback is symptoms, not diagnoses** | The model is told what happened, never what to fix. Diagnosing its own bug is the ability being measured, so handing it the diagnosis would measure something else. |
+| **Training and evaluation seeds are disjoint** | The model sees outcomes on seeds `1, 2, 17`. **Every curve in this README is read from seeds `1000-1009`, whose outcomes it never sees.** A function that overfits its feedback shows up as a gap between the two. |
+
+A fuller tour is in [Engine design notes](#engine-design-notes),
+[Agent design notes](#agent-design-notes) and [Model client](#model-client).
+
+## Install and run
+
+Requires [uv](https://docs.astral.sh/uv/), which supplies Python itself (pinned
+to 3.13 in `.python-version`). Everything below was run on an Apple Silicon
+MacBook with 32 GB of unified memory.
+
+```bash
+git clone https://github.com/AlicanK-code/tetris-bench && cd tetris-bench
+uv sync --all-extras
+```
+
+**Use `--all-extras`, not one extra at a time.** `uv sync` resolves the
+environment to exactly what is asked for, so `uv sync --extra analysis`
+*uninstalls* the `llm` extra and leaves the model client missing at import.
+Both are needed on the same machine, because a run is played and then plotted.
+
+### Step 1 — everything that needs no model at all
+
+This is the part worth trying first, and it reproduces **every published number
+in this README**. The artifacts are committed, so the analyses replay them
+without inference:
+
+```bash
+uv run pytest                                   # 779 tests, about 50s
+```
+
+```bash
+uv run tetris-bench play --agent heuristic --seed 1   # the reference player
+```
+
+```bash
+uv run python analysis/curves.py --log runs/published/8b-loop/loop.jsonl
+```
+
+```bash
+uv run python analysis/power_figure.py          # redraws the figure below
+```
+
+```bash
+uv run python analysis/reweighting.py           # the term-level replay
+```
+
+A saved scoring function replays in well under a second, which is why the
+findings are checkable: every claim links to a log and a function in
+[`runs/published/`](runs/published/), and each write-up ends with the commands
+that regenerate its own numbers.
+
+### Step 2 — running a model
+
+Install [Ollama](https://ollama.com), then pull whichever rungs you want --
+2.5, 5.2, 9.3 and 18 GB respectively, 35 GB for all four. The 8B alone
+reproduces the main experiment:
+
+```bash
+ollama pull qwen3:8b
+```
+
+```bash
+uv run tetris-bench models            # lists and validates configs/models.yaml
+```
+
+It reads the config and checks which models need an API key; it does not
+contact Ollama. The first command that does is the one-shot run:
+
+```bash
+uv run tetris-bench strategy --model qwen3-8b --seed 1    # one function, one game
+```
+
+```bash
+uv run tetris-bench loop --model qwen3-8b --chains 10 --iterations 6 --log runs/mine.jsonl
+```
+
+That last command is the experiment this README reports: ~7 hours and 60
+generations on an M-series laptop. It is **resumable by replay** -- rerun the
+identical command and it reads the log, skips completed positions, and
+regenerates the feedback from saved functions in under a second each. Safe to
+kill.
+
+Model names, temperature, token caps and timeouts live in
+[`configs/models.yaml`](configs/models.yaml), identical across rungs on purpose:
+a ladder comparison is only about model size if nothing else differs.
+
+## Results at a glance
+
+![Four rungs, four gains, each inside the gain its run could have detected](runs/published/figures/power-four-rungs.png)
+
+Four model sizes, one byte-identical prompt, six iterations each, curves read
+from ten held-out seeds per position.
+
+| rung | chains | iteration 0 | final | gain | detectable at that n | verdict |
+|---|---:|---:|---:|---:|---:|---|
+| `qwen3-4b` | 5 | 7.49 | 3.72 | **−4.63** | ±10.88 | null |
+| `qwen3-8b` | 10 | 15.63 | 17.04 | **+2.51** | ±11.02 | null |
+| `qwen3-14b` | 5 | 12.55 | 20.58 | **+8.04** | ±10.95 | null |
+| `qwen3-30b` | 6 | 38.57 | 33.51 | **+7.37** | ±19.16 | null |
+
+Points per piece, medians across chains; the gain column is the median of the
+per-chain first-to-last differences. For scale, **random play scores 0.4 and a
+hand-written 1-ply heuristic scores 43.2** on the same seeds.
+
+Three numbers that frame everything else:
+
+- **37 of 60 first attempts were broken code, not weak strategy** -- functions
+  that count the empty space above the stack as holes, or compute a height term
+  that is identically zero on every board. A score cannot tell those apart from
+  a bad idea. [How that is measured](#most-model-written-scorers-are-broken-not-bad).
+- **The best function in the corpus reaches 50.19 points per piece**, above the
+  hand-written heuristic -- and a term-level replay shows it won by *repairing a
+  dead term*, not by reweighting.
+  [The replay](#the-best-revision-was-a-repair-and-its-predecessor-was-a-lucky-tie-breaker).
+- **8 of 94 revisions rewrote their weights and changed no decision at all**, on
+  any board of ten full games. Six more changed at most one in two hundred.
+  [The measurement](#the-best-powered-null-and-the-revisions-that-change-nothing).
+
 ## What we found
 
 The project asks one question: **do these models get better at Tetris when they
@@ -199,43 +367,129 @@ scorer (every pairwise Fisher p >= 0.68), and the 30B-a3b jumps clear of all thr
 size and architecture are confounded and the honest claim is narrower than
 "capability scales with size". [The ladder](#the-ladder-is-a-step-not-a-slope).
 
-### What would change these answers
+## Why a negative result is the interesting one here
 
-The negative result is **narrow, not final**, and the main limit is coverage:
+"No improvement detected" could be a dull finding -- an experiment that failed
+to see anything. Four things make this one worth reading instead.
 
-- **The loop has now run on all four rungs**, and none produced a detectable
-  change. Coverage is no longer the limit; sampling is. How much sampling each
-  rung takes is quantified by
-  [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md),
-  with the caveat the 30B pilot added and the 8B confirmed: a paired σ_d must be
-  **measured, not scaled**. The four measured rungs give ratios of 0.70x, 0.84x,
-  1.07x and 2.39x against their cross-chain spreads, so there is no constant to
-  borrow.
-- **Resolving a small gain is affordable on exactly one rung.** On the 8B, 49
-  chains would resolve a +5 (about 6 hours) and 193 would resolve the +2.51 it
-  actually showed. On the 30B the same question costs 34 chains at roughly 20
-  hours. If the project runs one adequately powered curve, the 8B is where.
-- **Six iterations may be too few**, and on three of the four rungs five or six
-  chains is a small sample against a noise floor this wide.
-- **The feedback is deliberately symptoms-only** -- score, lines, holes, height,
-  cause of death, board snapshots. Richer feedback would very likely move the
-  curve; it would also stop measuring self-diagnosis, which is the point.
+**1. It is a bounded null, not an absence of evidence.** Each rung's own paired
+standard deviation was measured rather than assumed, so the claim has a size:
+*an 8B gain of eleven points per piece or more is ruled out; a gain of five is
+not addressed.* That is a far more useful statement than "p > 0.05", and
+getting it required discovering that the noise cannot be borrowed between rungs
+-- the ratio of paired to between-chain spread runs 0.70x, 0.84x, 1.07x and
+2.39x across four models, so [a scaling assumption this project had published
+was retired](#the-improvement-curve-is-smaller-than-its-own-noise) rather than
+re-tuned.
 
-What the project does have is the machinery to answer the question properly:
-held-out evaluation, independent chains, a measured noise floor, capability
-probes that separate broken code from bad strategy, and a headline that a piece
-budget cannot distort. Several of the findings above only became visible because
-one of those was in place, and several earlier conclusions have been **withdrawn
-or corrected in place** when a better measurement contradicted them -- each one
-marked where it was claimed rather than quietly edited, because the sequence of
-wrong turns is part of what the project is demonstrating.
-[How these documents are written](docs/findings/).
+**2. The failure modes are specific, reproducible, and more interesting than a
+curve.** The loop does not do nothing; it does the wrong things, legibly:
+
+- it **repairs and damages** rather than refines -- 10 repairs in 83 chances
+  against 9 regressions in 50, across four rungs;
+- it produces revisions that **cannot** change anything, where every weight is
+  doubled and the argmax is therefore untouched -- 428 seconds of inference for
+  a provable no-op;
+- it tunes **the numbers that never decide anything**, moving weights four- and
+  fivefold while the term that actually decides keeps its ratio to the rest;
+- it writes a **tie-breaker that becomes the policy**: the project's
+  second-best-known function owed 63% of its score to a term worth at most
+  0.199, because its real terms were dead and 55% of its decisions were ties.
+
+Each of those is a concrete claim about how a model behaves when asked to
+improve code from outcome feedback, and each is checkable against a saved
+function in minutes.
+
+**3. It is as much a result about measurement as about models.** Several
+conclusions this project published early were wrong in ways that flatter an
+experiment, and the corrections are recorded in place rather than quietly
+edited: a single-seed score that was a function's luckiest case out of
+twenty-one, a per-chain seed that was inert so five chains were one sample, a
+headline total censored by the piece budget. **Twenty-eight corrections are
+listed in [the timeline](docs/timeline.md#corrections), and not one of them
+reversed the central result -- every single one moved toward it or bounded it
+better.** A project that kept finding its effect was real would deserve more
+suspicion, not less.
+
+**4. It says where the effort goes.** If you are building a system that
+improves its own code from outcome feedback, the measurement here says the
+bottleneck is not the wording of the feedback. It is that **most first attempts
+cannot express the strategy at all**, that a model shown a bad outcome
+reweights rather than debugs, and that it cannot tell which of its own terms is
+dead. Richer feedback would very likely move the curve -- and would stop
+measuring self-diagnosis, which is the thing worth knowing.
+
+## Limitations
+
+Stated plainly, because several of them bound the headline:
+
+- **Power.** Every rung's null is bounded at roughly ±11 points per piece
+  (±19 on the 30B). A real gain of five would not have been seen on any of
+  them. Resolving +5 on the 8B needs 49 chains, about six hours; on the 30B the
+  same question costs 34 chains and twenty.
+- **One model family, one quantisation, one machine.** Everything is `qwen3` at
+  4-bit through Ollama on a 32 GB MacBook. Nothing here says how a frontier
+  model, a different family, or full precision would behave.
+- **Size and architecture are confounded at the top.** The 30B is the only
+  mixture-of-experts rung, and it is the one that outperforms. Nothing that
+  fits in 32 GB breaks that tie.
+- **Six iterations, and chains in single digits on three of four rungs.** A
+  slower effect over twenty iterations is not excluded.
+- **One prompt.** Every generation in the four loop runs and the size ladder
+  uses the `strategy_v3` template with a byte-identical instruction body --
+  226 of the 229 saved functions, the three exceptions being strays from an
+  earlier arm in `five-chain/`. That buys comparability across rungs and leaves
+  prompt sensitivity almost entirely unmeasured; the one arm that varied the
+  prompt deliberately found the comparison confounded by the sampler, not the
+  wording. [The write-up](docs/findings/counterexample-is-the-sampler-not-the-board.md).
+- **Generation is only partly reproducible.** At temperature 0.7 with a fixed
+  per-chain seed, 2 of 10 iteration-0 generations reproduced byte-for-byte
+  across two independent runs. The *distribution* reproduces closely; the
+  individual samples mostly do not.
+- **The game is a simplification.** Placement-based rather than real-time, no
+  hold piece, no lookahead beyond the next pieces shown, and a 2,000-piece
+  budget that caps how much play any single figure covers.
+- **`direct` mode is a demonstration, not an arm.** One 20-piece game at 672 s
+  per piece. The cost ratio was the deliverable; the comparison is not powered.
+- **Mechanism claims from a single example have been this project's most
+  expensive habit** -- eleven of the twenty-eight corrections. The rule that
+  now governs write-ups is in [CLAUDE.md](CLAUDE.md#writing-up-a-result).
+
+## Conclusions
+
+**On the question the project asked.** Across four model sizes under an
+identical protocol, with held-out evaluation and independent chains, **no rung
+shows an improvement larger than its own measurement noise.** The curve the
+benchmark was built to produce is not there. What the loop demonstrably does
+instead is repair broken functions and break working ones at roughly equal
+rates, while a measurable share of its revisions change nothing at all.
+
+**On the one result that looked like success.** The strongest function here --
+50.19 points per piece, above a tuned hand-written heuristic -- did come out of
+the loop, at iteration 5 of 6. It cannot be credited to the loop: its gain of
++8.64 sits inside that rung's noise, and a term-level replay showed the revision
+worked by repairing two dead terms, with its new weights worth **−3.90** applied
+to the unrepaired function. The loop produced the project's best artifact
+through the one mechanism the project had already shown it has.
+
+**On what the benchmark is for.** The machinery is the durable part: held-out
+seeds, independent chains, a measured noise floor per rung, capability probes
+that separate broken code from bad strategy, a two-layer sandbox for
+model-written code, and a headline a piece budget cannot distort. Several
+findings here only became visible because one of those was in place, and
+several earlier conclusions were withdrawn when a better measurement
+contradicted them.
+
+**On what would change the answer.** One adequately powered run, on the 8B,
+where 49 chains and six hours would resolve a gain of five. Everything needed
+to do it is in this repository, and so is the evidence for why nothing smaller
+would settle anything. [The full list](#not-done).
 
 ## Status
 
 The engine, baseline agents, rendering and run records, the model client, the
 sandboxed strategy agent, the improvement loop and the analysis all work, under
-721 unit tests. Every milestone that was going to be built is built; what
+779 unit tests. Every milestone that was going to be built is built; what
 remains is measurement, and the measurement has reframed the headline -- see
 [Results](#results).
 
@@ -249,22 +503,6 @@ remains is measurement, and the measurement has reframed the headline -- see
 | 6 | Improvement loop | **done** |
 | 7 | Direct agent | **done**, one demonstration game, see [Results](#direct-mode-costs-800x-and-plays-like-random) |
 | 8 | Analysis (curves, ladder gap, tokens/seconds per point) | **done**, ladder and the loop on all four rungs |
-
-## Setup
-
-Requires [uv](https://docs.astral.sh/uv/); uv supplies Python itself, pinned to
-3.13 in `.python-version`.
-
-```bash
-uv sync --all-extras
-uv run pytest
-uv run ruff check . && uv run ruff format .
-```
-
-**Use `--all-extras`, not one extra at a time.** `uv sync` resolves the
-environment to exactly what is asked for, so `uv sync --extra analysis`
-*uninstalls* the `llm` extra and leaves the model client missing. Both are
-needed on the same machine, because a run is played and then plotted.
 
 ## Engine design notes
 
