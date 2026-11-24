@@ -26,36 +26,32 @@ enough to run thousands of games, and what makes the *function* -- rather than
 any single move -- the thing being measured.
 
 ```mermaid
-flowchart LR
-    subgraph loop["the improvement loop — loop.py"]
-        direction TB
-        PROMPT["prompts/strategy_v3<br/>one template, every iteration"]
-        GEN["clients/ → Ollama<br/>the model writes score(board, placement)"]
-        FB["feedback.py<br/>score, holes, height, cause of death, boards<br/><b>symptoms, never diagnoses</b>"]
-        PROMPT --> GEN
-        FB --> PROMPT
-    end
+flowchart TB
+    M["<b>the model writes</b> <code>score(board, placement)</code>"]
 
-    subgraph guard["the sandbox — model code never runs in-process"]
-        direction TB
-        AST["sandbox.py<br/>AST allowlist: no imports,<br/>no dunder, no file / net / OS"]
-        WORKER["sandbox_worker.py<br/>separate interpreter, python -I<br/>SIGALRM per call, deadline per game"]
-        AST -- "accepted" --> WORKER
+    subgraph guard["the sandbox — model code never runs in this process"]
+        A{"<b>sandbox.py</b> · AST allowlist"}
+        W["<b>sandbox_worker.py</b> · separate interpreter, SIGALRM per call"]
     end
 
     subgraph eng["the engine — zero LLM dependencies"]
-        direction TB
-        AGENT["agents/strategy.py<br/>scores every legal placement,<br/>plays the best"]
-        GAME["engine/<br/>seeded 7-bag, collision,<br/>line clears, legal placements"]
-        AGENT --> GAME
+        E["<b>agents/strategy.py</b> · scores every placement, plays the best"]
+        G["<b>engine/</b> · seeded 7-bag, collision, line clears"]
     end
 
-    GEN -- "source" --> AST
-    AST -- "rejected:<br/>no game runs" --> FB
-    WORKER <-- "candidates in,<br/>a float each out" --> AGENT
-    GAME --> REC["records.py<br/>jsonl.py<br/><br/>one row<br/>per game"]
-    REC -- "split: train<br/>fed back" --> FB
-    REC -- "split: eval<br/>held out" --> AN["analysis/<br/><br/>curves<br/>power<br/>placement_diff<br/>reweighting"]
+    R[("<b>one row per game</b> · records.py")]
+    F["<b>feedback.py</b> · symptoms, never diagnoses"]
+    AN["<b>analysis/</b> · curves, power, placement_diff, reweighting"]
+    NEXT["<b>↻ iteration n+1</b> · same prompt, plus this feedback"]
+
+    M -- "source" --> A
+    A -- "rejected" --> F
+    A -- "accepted" --> W
+    W -- "a float per candidate" --> E
+    E --> G --> R
+    R -- "<b>train</b> · seeds 1, 2, 17" --> F
+    R -- "<b>eval</b> · seeds 1000-1009, never shown" --> AN
+    F --> NEXT
 ```
 
 Four properties the diagram is drawn to make visible, because each one is load
