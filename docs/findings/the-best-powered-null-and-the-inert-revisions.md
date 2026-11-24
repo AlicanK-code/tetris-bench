@@ -380,6 +380,19 @@ without any account of what separates a good reweighting from a fatal one beyond
 "how far". Noted as an open question rather than papered over; it is also one
 more reason the 30B's +8.64 should not be read as the loop working.
 
+> **Answered 2026-11-24 (later the same day), and the question dissolved.** The
+> term-level replay found that **neither revision was what it looked like, and
+> the shared direction helped in both cases.** Walking the 8B's weights one at a
+> time from iteration 0: raising the hole penalty 1 → 100 **gained +6.44**, and
+> halving the line reward changed nothing measurable. The collapse came from the
+> two surface terms, set to 150 each — `max_h` **−18.34** and `unevenness`
+> **−29.14** on their own. Reverting `unevenness` alone recovers +15.14 of the
+> 23.11 lost. Meanwhile the 30B's chain 1 turned out to be a **capability
+> repair**: its iteration-0 height and bumpiness terms were dead, and its new
+> weights applied to that broken function are worth **−3.90**. There is no
+> puzzle about one direction producing two outcomes, because it did not. See
+> [the-best-revision-was-a-repair.md](the-best-revision-was-a-repair.md).
+
 ---
 
 ## 7. The two side channels, pooled over four rungs

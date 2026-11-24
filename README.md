@@ -98,6 +98,13 @@ that moved by more than the noise moved in **opposite directions**:
 So the loop can fix code that was broken, and it can break code that worked. What
 has not been observed is a working scorer being made meaningfully better.
 
+**The project's best function is an instance of the first case, not a
+counterexample to the third.** The 30B chain that reached 50.19 points per piece
+was written up as a reweighting until a term-level replay found its iteration 0
+had dead height and bumpiness terms; its new weights are worth **-3.90** applied
+to the unrepaired function and **+5.91** once the repair is in.
+[The replay](#the-best-revision-was-a-repair-and-its-predecessor-was-a-lucky-tie-breaker).
+
 **And measured across all four completed loops, it does the second slightly
 more often than the first: 10 repairs in 83 chances against 9 regressions in
 50.** A broken function is repaired 12% of the time it could be, and a working
@@ -122,6 +129,21 @@ chain**, at **50.19 points per piece** over about 18,000 held-out pieces --
 above the tuned hand-written heuristic's 43.5. It is also the project's only
 clean example of a revision getting a weighting right: across five steps the
 hole penalty rose from 20 to 350 while the line reward fell from 100 to 10.
+
+> **Withdrawn 2026-11-24: it was a repair, not a reweighting.** A term-level
+> replay found iteration 0's height and bumpiness terms **dead** -- it scanned up
+> from row 19, so every height came out zero, which the capability probes had
+> already flagged as `height: blind`. Crossing the repair against the
+> reweighting: repair alone **+3.25**, reweighting alone **-3.90**, both +9.16,
+> interaction **+9.81**. The new weights make the broken function *worse*; they
+> are worth +5.91 only once the terms they weight are alive. So the project's
+> best function came from the one thing the loop has been shown to do, which is
+> [repair](#the-loop-does-not-repair-capability-either). Worse for the
+> baseline: iteration 0's 41.55 was **63% tie-breaker** -- without its trailing
+> `unique_term` it scores 15.29, because 55% of its decisions were ties at the
+> maximum and that term, worth at most 0.199, preferred lower placements and so
+> *was* its policy.
+> [The replay](#the-best-revision-was-a-repair-and-its-predecessor-was-a-lucky-tie-breaker).
 
 > **Amended 2026-11-24.** That last clause used to end "...which is the
 > direction the classic Tetris weightings go", offering the direction as the
@@ -1063,6 +1085,13 @@ return lines * 50 - sum_tops - holes * 20 - unevenness * 10 - max_height * 3  # 
 > -- and lost **23.11** points per piece from the best opening function in that
 > run. The direction is therefore not what distinguished this success, and no
 > account of what did currently stands.
+>
+> **Resolved the same day, and the premise was false.** Neither revision was a
+> reweighting in the way it read. The 8B's hole-penalty move **gained +6.44** on
+> its own; its collapse came from setting `max_h` and `unevenness` to 150 each
+> (-18.34 and -29.14 alone). And chain 1 here was a **capability repair** whose
+> new weights are worth -3.90 without it.
+> [The replay](#the-best-revision-was-a-repair-and-its-predecessor-was-a-lucky-tie-breaker).
 
 `tops[col]` is the row index of the topmost filled cell and **row 0 is the top**,
 so a larger `sum_tops` means a lower stack. Iteration 3 inverted it, rewarding
@@ -1182,6 +1211,82 @@ are not.
 [The full write-up](docs/findings/the-best-powered-null-and-the-inert-revisions.md)
 · [the artifacts](runs/published/8b-loop/)
 
+### The best revision was a repair, and its predecessor was a lucky tie-breaker
+
+Two revisions moved their weights the same direction -- hole penalty up, line
+reward down -- and ended in opposite places: the 30B's chain 1 at **41.55 ->
+50.19** points per piece, the 8B's chain 3 at **34.57 -> 11.46**. Both documents
+recorded the same open question. A term-level replay -- hold each function's
+structure fixed, change only its numbers, replay on the ten held-out seeds --
+says the question had a false premise.
+
+**The 30B's revision changed three things, not one.** Its iteration 0 computed
+column heights by scanning *up* from row 19 and stopping at the first filled
+cell, so on any board resting on the floor every height was `19 - 19 = 0`: the
+height and bumpiness terms were dead, as the capability probes had already
+recorded (`height: blind`). Crossing the repair against the reweighting, with
+iteration 0 as the baseline:
+
+| | |
+|---|---:|
+| repair alone, weights unchanged | **+3.25** |
+| reweighting alone, heights still dead | **-3.90** |
+| both together | +9.16 |
+| **interaction** | **+9.81** |
+
+The new weights make the broken function *worse*, and are worth +5.91 only once
+the terms they weight are alive. So the project's best function came from a
+**capability repair** -- the one thing the loop has been shown to do -- and the
+"only clean example of a revision getting a weighting right" is withdrawn. That
+run's own probe data had counted this chain as one of its three repairs, in a
+different section of the same document.
+
+**Iteration 0, meanwhile, was 63% tie-breaker.** Remove its trailing
+`unique_term` and it scores **15.29** rather than 41.55. With dead height terms
+the function is `lines * 100 - holes * 20`, which ties at the maximum on **55%
+of decisions**, so a term worth at most 0.199 was not breaking ties, it was the
+policy -- and since `row` is the piece's top row on a board whose row 0 is the
+top, it preferred *lower* placements:
+
+| trailing term | pts/piece | tied at max |
+|---|---:|---:|
+| none | 15.29 | 55% |
+| `(row*10 + column) * 0.001` -- as written | **41.55** | 0% |
+| `row * 0.001` -- prefers low | **42.88** | 25% |
+| `-row * 0.001` -- prefers high | **13.92** | 14% |
+| `column * 0.001` -- ties broken, no height info | 22.46 | 2% |
+
+Breaking ties at all is worth +7.17; preferring *low* adds +20.42. The model
+wrote a uniqueness hack and accidentally encoded the only strategy a
+height-blind function could have.
+
+**And the 8B's collapse was not the lines-and-holes move either.** Only its
+weights changed, so each one can be walked from its old value to its new one:
+
+| weight moved | from -> to | pts/piece | delta |
+|---|---|---:|---:|
+| *(iteration 0)* | | 34.57 | |
+| `lines` | 100 -> 50 | 34.57 | **+0.00** |
+| `holes` | 1 -> 100 | **41.02** | **+6.44** |
+| `max_h` | 0.5 -> 150 | 16.23 | **-18.34** |
+| `unevenness` | 0.1 -> 150 | 5.44 | **-29.14** |
+
+**The part that matched the 30B's direction is the part that helped.** The
+collapse came from the two surface terms at 150 each -- three times a line clear
+-- and reverting `unevenness` alone recovers +15.14 of the 23.11 lost. The
+result is a function that will not take a line if it raises the stack, which on
+a ten-wide board is most lines.
+
+So there was never a direction producing two outcomes. One revision also
+repaired its terms; the other also crushed its surface terms.
+
+[The full write-up](docs/findings/the-best-revision-was-a-repair.md)
+· [the 23 variants](runs/published/reweighting/)
+
+```bash
+uv run python analysis/reweighting.py
+```
+
 ### Direct mode costs 800x and plays like random
 
 The milestone 7 demonstration: `qwen3-14b` picking placements one at a time,
@@ -1233,7 +1338,7 @@ uv run tetris-bench direct --model qwen3-14b --seed 1 --max-pieces 20 # 3h44m
 Each of these is a separate experiment in [docs/findings/](docs/findings/), with
 the generated functions as artifacts. They are written as the result was found
 and corrected in place with a dated note when something later overturned them --
-six of them currently carry one.
+seven of them currently carry one.
 
 - **The first revision reweights instead of debugging.** Two independent
   revisions kept a broken hole count character-for-character and changed only
@@ -1306,6 +1411,14 @@ six of them currently carry one.
   all 8 on the two small rungs, one of them provably so, with 6 more changing at
   most one decision in two hundred -- and a counterexample that costs the 30B
   pilot its explanation for its single success.
+- **[The best revision was a repair, not a
+  reweighting](docs/findings/the-best-revision-was-a-repair.md)** -- a
+  term-level replay of the project's two contrasting reweightings. The 30B's
+  winning chain had **dead height terms** at iteration 0, and its new weights
+  are worth **-3.90** without the repair that came with them; its predecessor's
+  41.55 was **63% an accidental tie-breaker** that preferred low placements. The
+  8B's collapse came from its surface weights, not from the lines-and-holes move
+  that gained +6.44 on its own. Closes the open question by dissolving it.
 - **[Direct mode costs 800x and plays like
   random](docs/findings/direct-mode-costs-800x-and-plays-like-random.md)** --
   the milestone 7 demonstration. 3 h 44 m for 20 pieces, 86 holes against random
@@ -1344,10 +1457,12 @@ GPU at all.
   the same 8 pairs, no disagreement either way -- so the published count stands.
   It added a near-inert class of 6 more revisions, a per-rung rate of change, and
   the warning that too few seeds over-reports inertness.
-- **What separates a good reweighting from a fatal one.** The 30B's chain 1 and
-  the 8B's chain 3 moved their weights the same direction to opposite ends, so
-  direction is not the answer and nothing currently is. A term-level replay over
-  a grid of weights would settle it against the corpus already on disk.
+- ~~**What separates a good reweighting from a fatal one.**~~ **Done**
+  (`analysis/reweighting.py`). The question had a false premise: the 30B's gain
+  was a capability repair, and the 8B's lines-and-holes move gained +6.44 while
+  its surface weights lost 47. What is left, and sharper: **a grid over the hole
+  penalty and the two surface weights on a repaired structure**, to say whether
+  there is one ridge both models were walking along. Same corpus, no GPU.
 
 **Two are held rather than planned.**
 

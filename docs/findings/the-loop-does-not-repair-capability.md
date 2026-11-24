@@ -75,6 +75,18 @@ was 2 of 10.** The fraction went slightly down.
 > cannot change a decision is neither repair nor damage. See
 > [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md).
 
+> **Added 2026-11-24: the project's best function is one of these repairs.**
+> `qwen3-30b` chain 1 reaches 50.19 points per piece at iteration 5 and was
+> written up as a reweighting. A term-level replay shows its iteration 0 had
+> **dead height and bumpiness terms** — the `height: blind` verdict this
+> document's own probe data recorded — and that its new weights are worth
+> **−3.90** on the unrepaired function and **+5.91** on the repaired one. So the
+> single most successful revision in the corpus is a capability repair, and the
+> strongest evidence for this document was sitting in another one, credited to a
+> different mechanism. The counts above are unchanged; what changes is that one
+> of the 10 repairs is the headline result. See
+> [the-best-revision-was-a-repair.md](the-best-revision-was-a-repair.md).
+
 ### Per chain, the picture is starker
 
 ```

@@ -5,7 +5,7 @@ is traceable to a commit or a document in [`findings/`](findings/).
 
 The short version: the engine and baselines took an evening, the model-facing
 machinery took a day, and almost everything since has been **measurement** —
-establishing what a number from this benchmark is allowed to mean. Twenty-five of the
+establishing what a number from this benchmark is allowed to mean. Twenty-eight of the
 project's own published results have been corrected by later measurement, and
 that thread is tracked separately in [Corrections](#corrections) below, because
 it is the part a reader should trust least on first reading and most on
@@ -680,8 +680,48 @@ three regressions. And a two-seed trial of the same measure reported 10 of the
 8B's 31 live revisions as inert where ten seeds give 6: **inertness is a claim
 about every board, so too few boards can only over-report it.**
 
+### And the term-level replay took the best result off the loop's ledger
+
+The last cheap analysis, and the one that cost the most. Two revisions had moved
+their weights the same direction to opposite ends, and both write-ups recorded
+the same open question. `analysis/reweighting.py` holds each function's
+structure fixed, changes only its numbers, and replays on the held-out seeds, so
+each function is its own baseline and nothing depends on the rungs computing
+their terms alike.
+
+**The 30B's winning revision was not a reweighting.** Its iteration 0 computed
+column heights by scanning *up* from row 19 and stopping at the first filled
+cell, so on any board resting on the floor every height was `19 - 19 = 0`: the
+height and bumpiness terms were dead. The capability probes had already said so
+— `height: blind` — and the pilot's own §3 counted this chain among its three
+repairs, while §4 of the same document credited it to reweighting. Crossing the
+two factors: **repair alone +3.25, reweighting alone −3.90, both +9.16,
+interaction +9.81.** The new weights make the broken function worse and are
+worth +5.91 only once the terms they weight are alive. So the project's best
+function came from the one thing the loop has been shown to do.
+
+**And its predecessor's 41.55 was 63% an accident.** Remove the trailing
+`unique_term` — a uniqueness hack worth at most 0.199 against terms scaled in
+hundreds — and iteration 0 scores **15.29**. With dead height terms the function
+ties at the maximum on **55% of decisions**, so the tie-breaker was the policy;
+and because `row` is the piece's top row on a board whose row 0 is the top, it
+preferred *lower* placements. Breaking ties at all is worth +7.17, preferring low
+adds **+20.42**, and preferring high is worse than not breaking ties.
+
+**The 8B's collapse was not the lines-and-holes move either.** Walking its
+weights one at a time from iteration 0: `lines` 100→50 changed nothing, `holes`
+1→100 **gained +6.44**, `max_h` 0.5→150 lost **18.34** and `unevenness` 0.1→150
+lost **29.14**. Reverting unevenness alone recovers +15.14 of the 23.11. The
+hole-penalty direction helped on both rungs; there was never a direction
+producing two outcomes.
+
+Three claims withdrawn in one afternoon, and all three move toward the project's
+existing headline rather than away from it.
+
 `docs/findings/the-best-powered-null-and-the-inert-revisions.md`,
-`runs/published/8b-loop/`, `src/tetris_bench/placement_diff.py`.
+`docs/findings/the-best-revision-was-a-repair.md`,
+`runs/published/8b-loop/`, `runs/published/reweighting/`,
+`src/tetris_bench/placement_diff.py`, `src/tetris_bench/reweighting.py`.
 
 ---
 
@@ -718,6 +758,9 @@ methodological claim being made.
 | A rung's paired σ_d relative to its cross-chain spread, published as 0.70×, 1.05× and 2.39× | Two different denominators: the 30B's used the standard deviation of the iteration-0 rates, the others `Curve.chain_spread()`. Recomputed with one definition the four rungs read 0.70×, 0.84×, 1.07×, 2.39×. The 3.4× span, and the retirement of the scaling method, hold either way | 2026-11-24 |
 | Six revisions on the 4B "reweighted a crashing function", and similar steps elsewhere moved the score a little | Some revisions cannot move anything. 8 of 90 live adjacent revisions rewrote their weights and then chose identically on every held-out sequence; one is provably a no-op, every weight doubled | 2026-11-24 |
 | The inert-revision count is a lower bound, because it only catches exact ties in the totals | Measured at the decision level it is exact: the same 8 live pairs, no disagreement either way. The prediction behind the follow-up analysis was wrong, though it did turn up 6 near-inert revisions the totals miss, one worth +1.04 points per piece on 3 decisions out of 1,949 | 2026-11-24 |
+| The 30B's chain 1 is the project's only clean example of a revision getting a weighting right | It was a capability repair. Iteration 0's height and bumpiness terms were dead (`height: blind`, as its own probe data recorded), and the new weights are worth −3.90 on the unrepaired function against +5.91 on the repaired one, interaction +9.81 | 2026-11-24 |
+| The 30B rung's iteration 0 reaches 41.55 points per piece, close to the hand-written heuristic, with no feedback | 63% of that was a trailing `unique_term` worth at most 0.199. Without it the function scores 15.29, because 55% of its decisions were ties at the maximum and the term preferred lower placements, which was the only strategy a height-blind function had | 2026-11-24 |
+| The 8B's chain 3 collapsed because it moved the same direction as the 30B's winning chain, too far | Its lines-and-holes move gained +6.44 on its own. The collapse came from setting `max_h` and `unevenness` to 150 each, worth −18.34 and −29.14 alone | 2026-11-24 |
 
 ---
 
@@ -742,6 +785,14 @@ points per piece or more is ruled out; a gain of five is not addressed** — is
 the honest form of the headline. It is also the only rung where closing that gap
 is affordable: 49 chains, about six hours, against 34 chains and twenty hours
 for the same question on the 30B.
+
+The afternoon's two cheap analyses then took the best result off the loop's
+ledger. The 30B chain that reached 50.19 points per piece turned out to be a
+**capability repair** rather than a reweighting — its iteration 0's height terms
+were dead, and its new weights are worth −3.90 without the repair — and that
+iteration 0's own 41.55 was **63% a tie-breaker** that accidentally preferred low
+placements. Both findings move toward the project's existing headline rather
+than away from it.
 
 Two things the 8B found that no curve could have. **Eight of 94 live revisions
 across the corpus rewrote their weights and then never once chose differently**,
@@ -833,7 +884,15 @@ Open questions, in rough priority order:
    move a total — and the sharpest moved +1.04 points per piece on **3 decisions
    out of 1,949**, which is 41% of the whole 8B loop's median gain.
    `analysis/placement_diff.py`, 304 s, no model calls.
-10. **What separates a good reweighting from a fatal one?** The 30B's chain 1 and
-    the 8B's chain 3 moved their weights the same direction to opposite ends, so
-    the direction is not the answer and nothing currently is. A term-level replay
-    over a grid of weights would settle it against the 227 functions on disk.
+10. ~~**What separates a good reweighting from a fatal one?** The 30B's chain 1
+    and the 8B's chain 3 moved their weights the same direction to opposite ends,
+    so the direction is not the answer and nothing currently is.~~ **Answered by
+    dissolving it.** Neither revision was a reweighting in the way it read: the
+    30B's was a **capability repair** whose new weights are worth −3.90 without
+    it, and the 8B's lines-and-holes move **gained +6.44** while its two surface
+    weights lost 18.34 and 29.14. The hole-penalty direction helped on both
+    rungs. `analysis/reweighting.py`,
+    [the-best-revision-was-a-repair.md](findings/the-best-revision-was-a-repair.md).
+11. **Is there one ridge both models were walking along?** The sharper successor:
+    a grid over the hole penalty and the two surface weights on a repaired
+    structure. Same corpus, no GPU.

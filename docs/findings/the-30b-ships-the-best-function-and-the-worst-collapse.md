@@ -159,6 +159,34 @@ hand-written heuristic's 43.5**.
 > §6, which a term-level replay over a grid of weights could answer without a
 > model. One more reason the +8.64 here should not be read as the loop working.
 
+> **Withdrawn 2026-11-24 (later the same day): this was not a reweighting.**
+> The term-level replay ran. **Iteration 0's height and bumpiness terms were
+> dead** — it scanned up from row 19 and stopped at the first filled cell, so
+> every height was `19 - 19 = 0`, which §3 of this very document already
+> recorded as `height: blind` and counted among its three repairs. Iteration 5
+> fixed the scan. Crossing the repair against the reweighting:
+>
+> | | |
+> |---|---:|
+> | repair alone, weights unchanged | **+3.25** |
+> | reweighting alone, heights still dead | **−3.90** |
+> | both | +9.16 |
+> | interaction | **+9.81** |
+>
+> **The new weights make the broken function worse.** They are worth +5.91 only
+> once the terms they weight are alive. So this chain is a capability repair,
+> which is the one thing the loop has been shown to do, and "the project's only
+> clean example of a revision getting a weighting right" is withdrawn. This
+> document counted the same event as a repair in §3 and credited it to
+> reweighting here, and never connected the two.
+>
+> Worse for the baseline: **iteration 0's 41.55 was 63% tie-breaker.** With its
+> trailing `unique_term` removed it scores **15.29**, because with dead height
+> terms 55% of its decisions were ties at the maximum and that term — nominally
+> worth at most 0.199 — was the policy. It prefers lower placements, and
+> preferring low is worth +20.42 of the +26.26 it contributes. See
+> [the-best-revision-was-a-repair.md](the-best-revision-was-a-repair.md).
+
 ### Chain 2: a sign flip, carried forward twice, 39.4 to 13.5
 
 `tops[col]` is the row index of the topmost filled cell, and **row 0 is the

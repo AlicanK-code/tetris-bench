@@ -170,6 +170,7 @@ uv run python analysis/held_out.py                           # replay on unseen 
 uv run python analysis/null_arm.py --runs 0                  # build prompts, no GPU
 uv run python analysis/zeros_rate.py                         # dead-function proportion
 uv run python analysis/placement_diff.py                     # decisions a revision changed
+uv run python analysis/reweighting.py                        # term-level replay of weights
 ```
 
 ## Conventions
