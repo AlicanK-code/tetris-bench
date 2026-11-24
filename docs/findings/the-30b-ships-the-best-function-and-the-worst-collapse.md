@@ -72,6 +72,16 @@ The reason to measure rather than scale, in one table:
 |---|---:|---:|---:|
 | `qwen3-14b` | 8.74 | 12.55 | **0.70x** |
 | `qwen3-30b` | 16.76 | 15.93 | **1.05x** |
+
+> **Correction 2026-11-24 (later the same day).** This ratio uses the standard
+> deviation of the iteration-0 rates as its denominator, where the 4B's 2.39x
+> and the 14B's 0.70x use `Curve.chain_spread()` -- the project's own statistic,
+> which averages the between-chain spread over every iteration. Two definitions
+> of one denominator, compared across runs. Under `chain_spread()` throughout,
+> the four measured rungs read **0.70x (14B), 0.84x (8B), 1.07x (30B) and 2.39x
+> (4B)**. The conclusion is unchanged -- the span is 3.4x either way -- but the
+> mixed denominator is the kind of error that makes a cross-run comparison mean
+> nothing, so it is recorded here rather than quietly fixed.
 | `qwen3-4b` | 8.69 | 3.63 | **2.39x** |
 
 Three rungs, three ratios, spanning 3.4x. There is no constant here to borrow,
@@ -94,6 +104,13 @@ functions to improve.
 **It starts at 4 of 6 and ends at 4 of 6.** Within chains: **3 repairs against 3
 regressions over 28 transitions.** Pooled across all three loops the count is
 now 4 repairs against 5 regressions over 68 transitions.
+
+> **Superseded 2026-11-24 (later the same day):** the 8B loop added 50 more
+> transitions, so the pooled counts here and in §7 below are out of date. Over
+> all four rungs: **10 repairs in 83 chances against 9 regressions in 50**, and
+> **130 zeros-rate transitions with 14 revivals against 11 deaths, p = 0.690**.
+> Both still null. See
+> [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md).
 
 And among the chains that were probe-clean at both ends -- the ones with
 nothing to repair, where only refinement was available:
@@ -125,10 +142,22 @@ return lines * 100 - holes * 20  - max_height * 5  - bumpiness      + unique_ter
 return lines * 10  - holes * 350 - max_height * 15 - bumpiness * 35
 ```
 
-The hole penalty rises **17.5x** and the line reward falls **10x**. That is the
-direction the classic Tetris weightings go -- survive, do not chase lines -- and
-the model got there from outcome feedback alone, in five steps, ending **above
-the hand-written heuristic's 43.5**.
+The hole penalty rises **17.5x** and the line reward falls **10x**. The model
+got there from outcome feedback alone, in five steps, ending **above the
+hand-written heuristic's 43.5**.
+
+> **Amended 2026-11-24 (later the same day).** This paragraph used to add "that
+> is the direction the classic Tetris weightings go -- survive, do not chase
+> lines", offering the direction as the account of why the revision worked. The
+> 8B loop produced a counterexample the same night: its chain 3 moved the same
+> way -- hole penalty up **100x**, line reward halved -- and fell from 34.57 to
+> **11.46** points per piece, the worst collapse in that run and from the best
+> opening function in it. Same direction, opposite outcome. So the direction is
+> not what distinguished this chain, and the project has no account of what did
+> beyond "how far"; it is listed as an open question in
+> [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md)
+> §6, which a term-level replay over a grid of weights could answer without a
+> model. One more reason the +8.64 here should not be read as the loop working.
 
 ### Chain 2: a sign flip, carried forward twice, 39.4 to 13.5
 

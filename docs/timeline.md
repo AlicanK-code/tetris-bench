@@ -5,7 +5,7 @@ is traceable to a commit or a document in [`findings/`](findings/).
 
 The short version: the engine and baselines took an evening, the model-facing
 machinery took a day, and almost everything since has been **measurement** —
-establishing what a number from this benchmark is allowed to mean. Twenty of the
+establishing what a number from this benchmark is allowed to mean. Twenty-four of the
 project's own published results have been corrected by later measurement, and
 that thread is tracked separately in [Corrections](#corrections) below, because
 it is the part a reader should trust least on first reading and most on
@@ -575,6 +575,93 @@ The 8B loop — 10 chains, the run that could still move a headline — started 
 
 ---
 
+## 2026-11-24 (morning) — the fourth rung, and revisions that change nothing
+
+The 8B loop took the GPU 27 seconds after the 30B pilot released it — Ollama
+serves one model at a time, so the launcher waited on the pilot's pid rather
+than on a person — and ran 10 chains × 6 iterations in 7 h 09 m for 60
+generations and zero dollars. **The last rung, and the largest run in the
+project.**
+
+### A fourth null, and the first one worth quoting a bound from
+
+Median gain **+2.51** against a minimum detectable gain of **11.02**; seven
+chains up, three down, sign test p = 0.344. What ten chains buy is not a
+different answer but a usable one: an 8B improvement of eleven points per piece
+or more is ruled out, and a gain of five is not addressed. Resolving the +2.51
+would take **193 chains**; resolving a +5 would take 49, about six hours. Every
+other rung is several times dearer for the same resolution, which makes the 8B
+the only place an adequately powered curve is affordable.
+
+All four rungs now carry a **measured** paired σ_d — 8.69, 12.44, 8.74, 16.76 —
+so nothing in the repo scales one from another any more. Their ratios to their
+own cross-chain spreads are 2.39×, 0.84×, 0.70× and 1.07×. Recomputing all
+four with one piece of code also turned up that the published ratios had been
+using **two different denominators**: the 30B's 1.05× came from the standard
+deviation of the iteration-0 rates, the 4B's and the 14B's from
+`Curve.chain_spread()`. Same conclusion either way, and a reminder that a
+cross-run comparison is only as good as its definitions.
+
+### The result the curve could not have shown
+
+Chain 1's final revision rewrote its scoring function and then scored
+**identically on all thirteen sequences, game for game, piece for piece**. Every
+weight had been doubled, and doubling every weight of a linear score cannot move
+its argmax. Not an unlucky revision — one incapable of choosing differently,
+for 428 seconds of inference.
+
+Counting adjacent pairs where both functions are alive and both score
+identically on every held-out sequence: **4B 2/14, 8B 6/28, 14B 0/22, 30B 0/26.
+Eight of 90, all of them on the two small rungs.** Every one has a distinct
+source SHA, so none is a resubmission. Two of the three clear 8B cases moved
+their weights *non-uniformly*, by factors of four and five, and still changed
+nothing, because `lines_cleared` decides whenever it is non-zero and the
+remaining terms kept their ratios to each other. **The models are tuning the
+numbers that never decide anything** — a sharper account of a flat curve than
+"it is all noise", and one that only exists because the functions are on disk to
+re-read.
+
+### Two corrections the run forced
+
+**Revisions do break the import rule.** All five of the run's rejections were
+`import math` and four were revisions, against a published finding that read
+"revisions never do it — 0 of 55". That zero was a *no occasion*: all five
+occasions known the day before happened to fall at iteration 0. On the proper
+denominator the conditions are 4 of 7 against 4 of 12, Fisher p = 0.377. One
+chain imported at iterations 0, 2 and 4, was told each time in the validator's
+own words, and complied at 1 and 5 — the error message works while it is in the
+context window and not one step further.
+
+**The 30B's one success loses its explanation.** Yesterday's pilot credited its
+best chain to moving the weights "the direction the classic Tetris weightings
+go". The 8B's chain 3 moved the same direction — hole penalty up 100×, line
+reward halved — and fell from the run's best opening function to its worst
+ending one, 34.57 to 11.46. Same direction, opposite outcome, so direction is
+not the distinguishing thing and nothing currently is.
+
+### And one hypothesis, flagged as one
+
+The four revisions written immediately after a rejection — their prompts
+carrying the validator's message and no game data at all — gained a mean
+**+8.18**, against **+0.34** for the 41 revisions handed a full game report.
+Permutation p = 0.032, and p = 0.027 against a span-matched control, so the
+obvious confound is not it. But it was found after the fact, n is 4, two of the
+four are one chain, and taking one observation per chain leaves p = 0.098. It is
+written down as a hypothesis with its own 12-chains-a-group experiment attached,
+because if it survived it would be the most uncomfortable result here: the loop
+moving further when the feedback is removed.
+
+Free by-product, from comparing two logs: **2 of 10 iteration-0 generations
+reproduced byte-for-byte** against the ladder's 8B chains, under the same prompt
+and per-chain seed at temperature 0.7 — while the *distribution* reproduced
+closely (median 15.63 against 15.67, spread 13.09 against 13.36). A rung's noise
+is a stable property even where its individual samples are not.
+
+`docs/findings/the-best-powered-null-and-the-inert-revisions.md`,
+`runs/published/8b-loop/`.
+
+---
+
 ## Corrections
 
 Published results this project has overturned with its own later measurement.
@@ -603,6 +690,10 @@ methodological claim being made.
 | Revisions avoid the `import math` error despite the revise prompt stating the rule worse | `revise_v1` was never used in any published run. The loop uses one template for every iteration, so the wording is identical at iteration 0 and at revision; the difference is the feedback block and the previous function, which is already import-free | `04cc3ca` |
 | A properly aimed 30B loop needs 14–28 chains for a +8.04 gain | The paired σ_d was scaled from the 14B at 10.54; measured on the rung it is 16.76, too low by 1.59×, so the requirement is 34 chains. Three measured rungs give ratios of 0.70×, 1.05× and 2.39×, so the scaling method is retired, not re-tuned | 2026-11-24 |
 | The best result needed no feedback at all | The best function is now iteration 5 of a six-step chain, at 50.19 points per piece against the previous best of 46.4. The loop produced it; with +8.64 inside a σ_d of 16.76 it cannot be credited with causing it | 2026-11-24 |
+| Revisions never break the `import math` rule — 0 of 55 | A no-occasion, not a compliance: all five known occasions fell at iteration 0, so the condition had never been tested. The 8B loop added 12 revision occasions, 4 of which imported. Iteration 0 is 4 of 7, revisions 4 of 12, Fisher p = 0.377 | 2026-11-24 |
+| The 30B's best chain worked because it moved its weights the direction the classic Tetris weightings go | The 8B's chain 3 moved the same direction — hole penalty up 100×, line reward halved — and lost 23.11 points per piece from the best opening function in its run. Direction is not what distinguished it, and nothing currently is | 2026-11-24 |
+| A rung's paired σ_d relative to its cross-chain spread, published as 0.70×, 1.05× and 2.39× | Two different denominators: the 30B's used the standard deviation of the iteration-0 rates, the others `Curve.chain_spread()`. Recomputed with one definition the four rungs read 0.70×, 0.84×, 1.07×, 2.39×. The 3.4× span, and the retirement of the scaling method, hold either way | 2026-11-24 |
+| Six revisions on the 4B "reweighted a crashing function", and similar steps elsewhere moved the score a little | Some revisions cannot move anything. 8 of 90 live adjacent revisions rewrote their weights and then chose identically on every held-out sequence; one is provably a no-op, every weight doubled | 2026-11-24 |
 
 ---
 
@@ -614,49 +705,44 @@ because 672 s per piece makes a powered version weeks of wall clock for a
 baseline whose purpose is to be beaten; the cost ratio was its deliverable and
 it is measured.
 
-What remains is measurement. **Three rungs have now been through the loop** —
-the 14B, whose median rose +8 inside a noise bar of 13; the 4B, whose median
-fell 3.77 inside a noise bar of 10.88; and the 30B, whose median gain of +7.37
-sits inside a noise bar of 19.16. None shows a detectable change, which is a
-firmer version of the headline than one rung could support. The 4B cannot
-distinguish "the loop does nothing" from "the 4B has nowhere to go" — its honest
-headroom is 8.27 points against a 10.88 threshold — and the 30B now starts close
-enough to the hand-written heuristic that parity is the wrong target for it:
-4.93 points of headroom from an iteration-0 median of 38.57.
+What remains is power, not coverage. **All four rungs have now been through the
+loop** — the 14B, whose median rose +8.04 inside a bar of 10.95; the 4B, whose
+median fell 4.63 inside a bar of 10.88; the 30B, +7.37 inside 19.16; and the 8B,
++2.51 inside 11.02. None shows a detectable change, on four rungs under one
+byte-identical prompt, and every σ_d in that list is measured on its own rung's
+chains rather than scaled from another's.
 
-**The 8B at 10 chains, ~9.3 hours, is the run that would settle it**, and it
-started at 01:42 UTC on 2026-11-24 — the rung with both room (27.87 points) and
-the project's best headroom-to-noise ratio, 2.29 against the 30B's 1.31. Ten
-chains is powered at the edge rather than comfortably inside: applying the three
-measured σ_d ratios to the 8B's cross-chain spread gives detectable gains of
-8.5, 12.8 and 29.1 against 27.87 of headroom, so it clears the bar on two of
-three and would need eleven chains on the worst. The rest of the outstanding
-list is in the README's [Not done](../README.md#not-done).
+The 8B is the run that settled the shape of the answer. Ten chains made it the
+best-powered curve here, and the bound it supports — **an 8B gain of eleven
+points per piece or more is ruled out; a gain of five is not addressed** — is
+the honest form of the headline. It is also the only rung where closing that gap
+is affordable: 49 chains, about six hours, against 34 chains and twenty hours
+for the same question on the 30B.
 
-There is now one clean six-iteration curve, and it is simultaneously the
-project's strongest result and its least trustworthy. `curves.py` reports the
-gain as `+6,830, which is 21.5x the noise bar of 318`. Three reasons not to quote
-that number:
+Two things the 8B found that no curve could have. **Eight of 90 live revisions
+across the corpus rewrote their weights and then chose identically on every
+held-out sequence** — one of them provably, every weight doubled — so a fifth of
+the small rungs' revisions are not noisy but arithmetically inert. And the four
+revisions written with the feedback *removed* moved further than the 41 given a
+full game report (p = 0.032, n=4, found after the fact), which is written down
+as a hypothesis with an experiment attached rather than a result.
 
-- **The bar excludes generation noise.** 318 is seed noise on a ten-game mean.
-  Direct evidence that generation noise dwarfs it: the two runs' iteration 0 used
-  a byte-identical prompt and the same model seed, differing only in the sampler,
-  and scored **1,580 and 20**.
-- **The baseline collapsed.** Iteration 0 scored 20 because that generation
-  reproduced the inverted-orientation bug. A gain measured up from 20 is not the
-  same claim as one measured up from 1,580, and the choice between them was not
-  made by the loop.
-- **The steps are enormous.** Typical step size 2,270 across five steps. A random
-  walk with that step size will often end higher than it started and will often
-  have a high interior peak, which is exactly the shape observed.
+The outstanding list is in the README's [Not done](../README.md#not-done); the
+two cheapest items need no GPU at all, only the 227 functions already on disk.
 
-The unavoidable methodological problem: **chains cannot fix this on this rung.**
-Chains were introduced so a rising median across independent samples could rule
-out selection bias, but at temperature 0 with one model seed every chain
-generates the identical function — measured, byte-identical hashes. Independent
-samples therefore require a **per-chain model seed**, which the loop does not yet
-support. That is the next change, and nothing about the headline is quotable
-before it lands.
+> **Removed 2026-11-24.** A block stood here describing the `clean-6iter` run as
+> "one clean six-iteration curve", the project's strongest and least trustworthy
+> result, and ended by saying a per-chain model seed "is the next change, and
+> nothing about the headline is quotable before it lands". All of that was true
+> when written on 2026-11-20 and none of it has been true since 2026-11-21:
+> `model_seed_for` landed, chains became independent, and four multi-chain
+> curves have run on top of it. The reasoning it contained — that a bar
+> excluding generation noise is no bar, that a gain measured up from a collapsed
+> baseline is a different claim, and that large steps make a random walk look
+> like a trend — is what the noise-bar and chain machinery was built from, and
+> it is recorded in
+> [the-improvement-curve-is-smaller-than-its-own-noise](../README.md#the-improvement-curve-is-smaller-than-its-own-noise)
+> and in the [Corrections](#corrections) table above.
 
 Open questions, in rough priority order:
 
@@ -694,7 +780,29 @@ Open questions, in rough priority order:
    one-sided**. One rung, one iteration, and now an honest p-value instead of a
    ratio. See
    [counterexample-is-the-sampler-not-the-board.md](findings/counterexample-is-the-sampler-not-the-board.md).
-6. **The loop on a second rung.** Added here because it is now the top of the
+6. ~~**The loop on a second rung.** Added here because it is now the top of the
    list: every statement this project makes about what the loop *does* rests on
    the 14B alone. The 8B at 10 chains, ~9.3 hours, is the run that turns one
-   rung's behaviour into a measurement.
+   rung's behaviour into a measurement.~~ **Answered, and then some.** The loop
+   has run on all four rungs — the 4B, the 14B, the 30B and finally the 8B at
+   10 chains in 7 h 09 m — and none shows a detectable change. No statement
+   about the loop now rests on one rung.
+7. **An adequately powered curve, which only the 8B can afford.** 49 chains
+   (~6 h) resolves a +5 there; the same resolution costs 34 chains and ~20 h on
+   the 30B. Every null so far bounds the effect rather than excluding it, and
+   this is the only way to tighten the bound.
+8. **Does removing the feedback make a revision move further?** The 8B's four
+   post-rejection revisions gained a mean +8.18 against +0.34 for the 41 given a
+   full game report — p = 0.032, but found after the fact, with n=4 and p = 0.098
+   once clustered by chain. Twelve chains a group with the rejection scripted,
+   about 8.5 hours, would settle it. See
+   [the-best-powered-null-and-the-inert-revisions.md](findings/the-best-powered-null-and-the-inert-revisions.md).
+9. **How many revisions change no decision at all?** Eight of 90 scored
+   identically on every held-out sequence, which is a lower bound by
+   construction — the test catches only exact ties. Replaying each adjacent pair
+   over the same boards and counting *placements chosen differently* needs no
+   model and no GPU.
+10. **What separates a good reweighting from a fatal one?** The 30B's chain 1 and
+    the 8B's chain 3 moved their weights the same direction to opposite ends, so
+    the direction is not the answer and nothing currently is. A term-level replay
+    over a grid of weights would settle it against the 227 functions on disk.

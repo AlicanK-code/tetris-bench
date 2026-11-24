@@ -33,6 +33,7 @@ preference.
 | **14B**, 5 chains | 2/5 | 2/5 | 0/5 | 0/5 | 1/5 | 1/5 |
 | 14B, 1 chain | 0/1 | 0/1 | 0/1 | 0/1 | 1/1 | 0/1 |
 | **30B**, 6 chains | 4/6 | 4/5 | 6/6 | 4/6 | 5/6 | 4/6 |
+| **8B**, 10 chains | 3/10 | 2/10 | 3/10 | 4/10 | 5/10 | 5/10 |
 
 Pooled across both five-chain loops, **iteration 0 was 3 of 10 and iteration 5
 was 2 of 10.** The fraction went slightly down.
@@ -49,6 +50,30 @@ was 2 of 10.** The fraction went slightly down.
 > three, which is the wrong sign for a refinement story but not significant
 > (exact permutation p = 0.300). See
 > [the-30b-ships-the-best-function-and-the-worst-collapse.md](the-30b-ships-the-best-function-and-the-worst-collapse.md).
+
+> **Added 2026-11-24 (later the same day): the 8B row is the best test this
+> question will get, and it is still null.** Ten chains on the rung with the
+> most broken functions gives **33 repair chances, more than the other three
+> rungs combined**, and the probe-clean count does rise across the run -- 3, 2,
+> 3, 4, 5, 5 of 10, the largest rise recorded. It does not survive the
+> comparison that matters:
+>
+> | rung | repairs / chances | regressions / chances |
+> |---|---|---|
+> | `qwen3-4b` | 0 / 20 | 0 / 5 |
+> | **`qwen3-8b`** | **5 / 33** | 3 / 17 |
+> | `qwen3-14b` | 2 / 24 | 3 / 6 |
+> | `qwen3-30b` | 3 / 6 | 3 / 22 |
+> | **pooled** | **10 / 83 (12%)** | **9 / 50 (18%)** |
+>
+> A broken function is repaired 12% of the time it could be; a working one
+> breaks 18% of the time it could. Over 133 transitions the sign test on the 19
+> discordant pairs gives **p = 1.000**. The 8B also supplies the mechanism this
+> document has been describing from the outside: 8 of its 28 live adjacent
+> revisions rewrote their weights and then **chose identically on every held-out
+> sequence**, one of them provably unable to choose otherwise. Revision that
+> cannot change a decision is neither repair nor damage. See
+> [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md).
 
 ### Per chain, the picture is starker
 

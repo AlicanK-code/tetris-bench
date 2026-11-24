@@ -3,6 +3,10 @@
 **Date:** 2026-11-23 · **Models:** all four rungs · no GPU, corpus audit
 **Sources:** [`runs/published/`](../../runs/published/) — 131 generations
 **Prompt:** `strategy_v3`, SHA `f3a0cb0af765`, byte-identical across the ladder
+**Superseded in part, 2026-11-24:** the rate is **8 of 19 (42%)** on a
+227-generation corpus, and section 4's "revisions never do it" is overturned.
+The title is kept because every link in the repo uses this filename; the dated
+blocks below carry the current numbers.
 
 The ladder write-up recorded that three of the project's four rejections were
 `import math` "against a prompt that forbids imports in bold", and left
@@ -23,7 +27,14 @@ quantifying it open. Quantified here, and **the denominator is the finding.**
 > a reply that never finished. See
 > [the-30b-ships-the-best-function-and-the-worst-collapse.md](the-30b-ships-the-best-function-and-the-worst-collapse.md).
 
-Every rejection in the published corpus, all at iteration 0:
+> **Added 2026-11-24 (later the same day): five more, and they are revisions.**
+> The 8B loop produced **five** rejections in 60 generations, every one of them
+> `import math`, and **four of the five are revisions** -- the condition section 4
+> below reports as having never produced one. The counts in sections 3 and 4 are
+> superseded by the dated blocks there. See
+> [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md).
+
+Every rejection in the published corpus as of 2026-11-23, all at iteration 0:
 
 | run | rung | chain | reason |
 |---|---|---:|---|
@@ -68,6 +79,17 @@ they never wanted `math`.
 **Five functions in the entire 131-generation corpus reach for `math`. All five
 want `math.sqrt`. Three of the five added the forbidden import.**
 
+> **Updated 2026-11-24.** The corpus is now **227 generations** across seven
+> published runs, and **19** of them reach for `math`: the 30B pilot added six
+> (one chain, all correct) and the 8B loop added eight (five imported). The
+> failure rate on the larger denominator is **8 of 19, 42%** -- softer than 60%,
+> on a sample nearly four times the size, and still a bolded instruction
+> carrying its own worked example being ignored two times in five. The per-rung
+> split becomes 4B 0/1, 8B 6/10, 14B 2/2, 30B 0/6: the top rung now has six
+> occasions and obeyed all six, where before it had none and therefore no score.
+
+
+
 | function | outcome |
 |---|---|
 | `ladder/qwen3-4b-chain1-iter0` | used `math.sqrt` correctly, no import |
@@ -94,6 +116,31 @@ has no score on this instruction rather than a perfect one.
 |---|---:|---:|
 | iteration 0 | 76 | **3** |
 | revisions | 55 | **0** |
+
+> **Overturned 2026-11-24.** Revisions do it. The 8B loop contributed four
+> import rejections at revision steps, so the table becomes **4 in 86** at
+> iteration 0 and **4 in 105** at revisions -- and on this finding's own
+> preferred denominator, occasions rather than generations:
+>
+> | condition | occasions | imported |
+> |---|---:|---:|
+> | iteration 0 | 7 | **4** (57%) |
+> | revisions | 12 | **4** (33%) |
+>
+> Fisher's exact test on 4/7 against 4/12 gives **p = 0.377**: no detectable
+> difference. **The zero this section was built on was a "no occasion", not a
+> compliance.** Every one of the five occasions known on 2026-11-23 happened to
+> fall at iteration 0, so the revise condition had never been tested at all, and
+> the explanation below -- that a revision has the previous function to copy
+> where iteration 0 has only prose -- is left explaining a contrast that is not
+> there. It may still be true; nothing measures it now.
+>
+> What the 8B did show is narrower and sharper, in
+> [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md)
+> §4: **0 of the 5 revisions written immediately after a rejection imported,
+> against 4 of the other 45.** One chain imported at iterations 0, 2 and 4 and
+> complied at 1 and 5 -- the error message works while it is in the context
+> window and not one step further. At 0 of 5 that is an observation, not a rate.
 
 > **Correction (2026-11-23, same day).** This section first attributed the
 > contrast to the revise prompt stating the rule *worse* — an unbolded

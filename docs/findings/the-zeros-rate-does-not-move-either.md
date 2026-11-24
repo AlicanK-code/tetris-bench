@@ -66,6 +66,18 @@ perfectly null result in the project.
 > revivals, 5 deaths, p = 1.000.** Still far short of the 15–55 chains §3 asks
 > for.
 
+> **Added 2026-11-24 (later the same day).** The 8B loop adds the largest
+> contribution any single run will make here -- ten chains on the rung with the
+> most dead functions, **7 revivals against 5 deaths**, with 4 of 10 dead at
+> iteration 0 and 2 of 10 at iteration 5. Pooled over all four loops: **130
+> transitions, 14 revivals, 11 deaths, p = 0.690.** That is now within reach of
+> §3's requirement rather than far short of it, and the answer has not changed.
+> One caveat specific to the 8B: its chain 4 sits at 0.44–1.61 points per piece
+> against a `RANDOM_CEILING` of 0.851, so it crosses the dead line three times
+> without its behaviour changing; without that chain the pooled count reads 13
+> against 10. See
+> [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md).
+
 Two details worth keeping:
 
 - **The test is paired, deliberately.** Each iteration is compared against *its

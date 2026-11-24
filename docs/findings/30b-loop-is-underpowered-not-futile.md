@@ -110,6 +110,28 @@ substantial, and nothing like impossible.
 > term or says it is extrapolating. See
 > [the-30b-ships-the-best-function-and-the-worst-collapse.md](the-30b-ships-the-best-function-and-the-worst-collapse.md).
 
+> **Completed 2026-11-24 (the same day).** The 8B ran too, so **all four rungs
+> now have a measured paired σ_d** and nothing in this document needs scaling
+> any more:
+>
+> | rung | σ_d | cross-chain spread | ratio | chains for its own observed gain |
+> |---|---:|---:|---:|---|
+> | `qwen3-4b` | 8.69 | 3.63 | 2.39× | gain is negative |
+> | `qwen3-8b` | 12.44 | 14.89 | 0.84× | 193 for +2.51, **49 for a +5** |
+> | `qwen3-14b` | 8.74 | 12.55 | 0.70× | 9 for +8.04 |
+> | `qwen3-30b` | 16.76 | 15.70 | 1.07× | 34 for +8.04 |
+>
+> Two notes on that table. The 30B's ratio reads **1.07×** rather than the
+> 1.05× above because the pilot computed it against the standard deviation of
+> the iteration-0 rates while the 4B's and 14B's figures use
+> `Curve.chain_spread()`; one definition is used throughout here. And §3 below
+> argued for the 8B as the better first spend on a predicted minimum detectable
+> gain of 8.5 to 29.1 at ten chains: **measured, it was 11.02**, inside that
+> range and near its optimistic end. The reasoning held; the prediction was a
+> range three-and-a-half times wide, which is the cost of having had no measured
+> term. See
+> [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md).
+
 ---
 
 ## 3. Why the 8B is still the better first spend
@@ -129,6 +151,14 @@ experiment because it has more space for a result to appear in, not because the
 30B is barred.
 
 **Recommended next run: the 8B loop, 10 chains, 6 iterations, ~9.3 hours.**
+
+> **Ran 2026-11-24, in 7 h 09 m.** The recommendation held and the estimate was
+> 24% high. Measured on the rung, the 8B's paired σ_d is **12.44** — a ratio of
+> **0.84×**, inside the 0.70–2.39 range this section extrapolated over and near
+> its optimistic end — giving a minimum detectable gain of **11.02** at ten
+> chains against the 8.5–29.1 predicted here. Median gain **+2.51**: a fourth
+> null, and the first with a bound worth quoting. See
+> [the-best-powered-null-and-the-inert-revisions.md](the-best-powered-null-and-the-inert-revisions.md).
 
 ---
 

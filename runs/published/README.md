@@ -40,6 +40,8 @@ README. **Read them, do not import them** -- that is the entire premise of
 | `five-chain/` | The 14B over six iterations on five independent chains, 390 games. Supersedes `clean-6iter/` as the improvement result. | README Results |
 | `clean-6iter/` | The six-iteration improvement run, one chain, 78 games. Single-chain predecessor of `five-chain/`; still the source of the credit-assignment example. | README Results, `docs/timeline.md` |
 | `4b-loop/` | The 4B over six iterations on five independent chains, 390 games. The second rung taken past iteration 0, and the source of the five-revisions-of-a-crash result. | [4b-loop-reweights-a-crash-five-times.md](../../docs/findings/4b-loop-reweights-a-crash-five-times.md), README Results |
+| `30b-pilot/` | The 30B over six iterations on six independent chains, 458 games. The power pilot: commissioned to measure this rung's paired σ_d rather than to show improvement. Holds the best function in the project and its worst collapse. | [the-30b-ships-the-best-function-and-the-worst-collapse.md](../../docs/findings/the-30b-ships-the-best-function-and-the-worst-collapse.md), README Results |
+| `8b-loop/` | The 8B over six iterations on **ten** independent chains, 730 games — the largest run here, and the fourth and last rung taken past iteration 0. Holds the provable no-op revision and five `import math` rejections. | [the-best-powered-null-and-the-inert-revisions.md](../../docs/findings/the-best-powered-null-and-the-inert-revisions.md), README Results |
 | `seed-inert/` | Five chains at iteration 0 under model seeds 1-5, 65 games. | [seed-is-inert-at-temperature-zero.md](../../docs/findings/seed-is-inert-at-temperature-zero.md) |
 | `noise-floor/` | Repeated iteration-0 generations from one prompt: 5 on the 14B, 2 on the 30B. | [noise-floor-qwen3-14b.md](../../docs/findings/noise-floor-qwen3-14b.md), [noise-floor-qwen3-30b.md](../../docs/findings/noise-floor-qwen3-30b.md) |
 | `revise/` | Two independent revisions of the same function from the same feedback. | [first-revision-reweights-not-debugs.md](../../docs/findings/first-revision-reweights-not-debugs.md) |
@@ -66,6 +68,26 @@ grep -l "^import math" runs/published/ladder/functions/*.py    # three of the fo
 Those three imported `math` against a prompt that forbids imports in bold, which
 makes them instruction-following failures rather than harness artefacts. The
 fourth, `qwen3-8b-chain4-iter0.py`, is a plain syntax error.
+
+**`8b-loop/functions/qwen3-8b-chain1-iter{4,5}.py` is a revision that cannot
+change anything.** Every weight is doubled and one always-irrelevant term
+dropped; scaling a linear score uniformly cannot move its argmax, and the two
+functions score identically on all thirteen sequences, game for game.
+
+```bash
+diff runs/published/8b-loop/functions/qwen3-8b-chain1-iter{4,5}.py
+```
+
+**`8b-loop/functions/qwen3-8b-chain5-*` is the import rule in one chain.** It
+imports `math` at iterations 0, 2 and 4, is told each time in the validator's
+own words, and complies at 1 and 5 — half its budget producing nothing:
+
+```bash
+grep -ln "import math" runs/published/8b-loop/functions/*.py   # all five rejections
+```
+
+Four of the five put the import at column 0; `chain1-iter1` puts it on line 16,
+*inside* the function body, which the AST allowlist rejects just the same.
 
 ## Two more worth opening a file for
 

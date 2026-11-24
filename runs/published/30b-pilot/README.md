@@ -26,8 +26,11 @@ across rungs.
 
 **`functions/qwen3-30b-chain1-iter{0,5}.py`** — the project's only clean example
 of outcome feedback producing a correct reweighting. The hole penalty rises from
-20 to 350 and the line reward falls from 100 to 10, which is the direction the
-classic Tetris weightings go. 41.6 → **50.19 points per piece**, above the
+20 to 350 and the line reward falls from 100 to 10. (That was described here as
+"the direction the classic Tetris weightings go" until the 8B loop produced
+[`8b-loop/functions/qwen3-8b-chain3-iter{0,5}.py`](../8b-loop/functions/), which
+moved the same direction and lost 23.11 points per piece. The direction is not
+the explanation.) 41.6 → **50.19 points per piece**, above the
 hand-written heuristic's 43.5 and the best figure the project has recorded.
 
 **`functions/qwen3-30b-chain2-iter{2,3}.py`** — one character apart. `tops[col]`
