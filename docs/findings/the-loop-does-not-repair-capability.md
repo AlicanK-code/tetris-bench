@@ -32,9 +32,23 @@ preference.
 | **4B**, 5 chains | 1/5 | 1/5 | 1/5 | 1/5 | 1/5 | 1/5 |
 | **14B**, 5 chains | 2/5 | 2/5 | 0/5 | 0/5 | 1/5 | 1/5 |
 | 14B, 1 chain | 0/1 | 0/1 | 0/1 | 0/1 | 1/1 | 0/1 |
+| **30B**, 6 chains | 4/6 | 4/5 | 6/6 | 4/6 | 5/6 | 4/6 |
 
 Pooled across both five-chain loops, **iteration 0 was 3 of 10 and iteration 5
 was 2 of 10.** The fraction went slightly down.
+
+> **Added 2026-11-24: the 30B row above answers the limit this document
+> states.** Both original loops ran on rungs where most first attempts are
+> broken, so they could only measure *repair*. The 30B starts **4 of 6
+> probe-clean** and ends **4 of 6**, with **3 repairs against 3 regressions over
+> 28 transitions** — the first rung where refinement was available, and the
+> fraction does not move there either. Pooled over all three loops: **4 repairs
+> in 68 chances against 5 regressions**, 7 of 16 chains capable at iteration 0
+> and 6 of 16 at iteration 5. Among the three 30B chains that were probe-clean
+> at both ends, the mean gain was **−10.22** against **+11.30** for the other
+> three, which is the wrong sign for a refinement story but not significant
+> (exact permutation p = 0.300). See
+> [the-30b-ships-the-best-function-and-the-worst-collapse.md](the-30b-ships-the-best-function-and-the-worst-collapse.md).
 
 ### Per chain, the picture is starker
 

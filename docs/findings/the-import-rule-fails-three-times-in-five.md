@@ -12,6 +12,17 @@ quantifying it open. Quantified here, and **the denominator is the finding.**
 
 ## 1. The four rejections
 
+> **Added 2026-11-24: there are now five, and the fifth is a different
+> phenomenon.** The 30B pilot's chain 2 produced no function at iteration 1
+> because the generation emitted exactly **14,000 output tokens — the configured
+> `max_tokens`** — in 701 s and was still writing, so there was no complete code
+> block to extract. That is a **length cap at a revision step**, not a rule
+> violation at iteration 0. It does not change any denominator below, which
+> counts generations that reached for `math`, but it does mean "rejection" in
+> this project names two unrelated events: a function the validator refused and
+> a reply that never finished. See
+> [the-30b-ships-the-best-function-and-the-worst-collapse.md](the-30b-ships-the-best-function-and-the-worst-collapse.md).
+
 Every rejection in the published corpus, all at iteration 0:
 
 | run | rung | chain | reason |

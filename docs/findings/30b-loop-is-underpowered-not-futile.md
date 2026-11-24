@@ -49,7 +49,9 @@ Nothing here is unaffordable.
 The binding constraint is not how finely we can measure a gain. It is that
 **the gain being hoped for is far larger than any the loop has ever produced.**
 
-The project's only completed loop is the 14B five-chain run. Its first-to-last
+At the time of writing the project's only completed loop was the 14B
+five-chain run; the 4B and the 30B have since run too, and neither changes the
+figures in this section, which are the ones the 14B supported. Its first-to-last
 gains, per chain, in points per piece:
 
 | chain | 0 | 1 | 2 | 3 | 4 | median |
@@ -95,6 +97,18 @@ the requirement by roughly a factor of two in n.
 
 **So a properly aimed 30B loop needs 14–28 chains, or 8–16 hours.** Affordable,
 substantial, and nothing like impossible.
+
+> **Measured 2026-11-24, and this range was wrong.** The six-chain pilot ran and
+> measured the 30B's paired σ_d directly: **16.76**, against the 10.54 scaled
+> above and the 15.13 conservative proxy. The scaled figure was too low by
+> **1.59×**, so the requirement for a +8.04 target is **34 chains, about 19.6
+> hours** — outside the range this section gives, and above the conservative
+> column it was meant to be bounded by. The ratio to cross-chain spread came out
+> **1.05×** here, which with the 14B's 0.70× and the 4B's 2.39× makes three
+> rungs and three ratios spanning 3.4×. **There is no constant to scale by**, so
+> the method in this section is retired: a power claim measures its own paired
+> term or says it is extrapolating. See
+> [the-30b-ships-the-best-function-and-the-worst-collapse.md](the-30b-ships-the-best-function-and-the-worst-collapse.md).
 
 ---
 
@@ -194,10 +208,16 @@ chain counts these calculations rest on are real.
 
 ## 6. Open questions
 
-1. **σ_d has never been measured on the 30B**, only scaled from the 14B. The
+1. ~~**σ_d has never been measured on the 30B**, only scaled from the 14B. The
    first six chains of any 30B loop would measure it directly, which is an
    argument for running the cheap 6-chain version as a pilot before committing
-   to 14–28.
+   to 14–28.~~
+   **Closed 2026-11-24: the pilot ran and the scaling was wrong.** Measured
+   σ_d is **16.76** against the 10.54 scaled here, so the requirement is **34
+   chains** rather than 14–28. The pilot also produced the project's best
+   function (50.19 points per piece at iteration 5) and a chain that declined at
+   all five revisions, with the same sign inversion present in both. See
+   [the-30b-ships-the-best-function-and-the-worst-collapse.md](the-30b-ships-the-best-function-and-the-worst-collapse.md).
 2. **Is +8 the ceiling on loop gains, or the ceiling on the 14B's gains?**
    **Partly answered, and not reassuringly.** The 4B loop produced a median
    change of **−3.77** against a minimum detectable change of 10.88, so it shows

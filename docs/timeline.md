@@ -5,7 +5,7 @@ is traceable to a commit or a document in [`findings/`](findings/).
 
 The short version: the engine and baselines took an evening, the model-facing
 machinery took a day, and almost everything since has been **measurement** —
-establishing what a number from this benchmark is allowed to mean. Eighteen of the
+establishing what a number from this benchmark is allowed to mean. Twenty of the
 project's own published results have been corrected by later measurement, and
 that thread is tracked separately in [Corrections](#corrections) below, because
 it is the part a reader should trust least on first reading and most on
@@ -523,6 +523,58 @@ so iterations within a 4B chain share no stable lineage. The 30B's published
 
 ---
 
+## 2026-11-24 — the third rung, and a power figure retired
+
+The 30B pilot: 6 chains, 6 iterations, 3 h 42 m, 36 generations, 337,273 output
+tokens. Run as a **power pilot** rather than as an attempt to show improvement.
+Every power claim in the repo had been scaling its paired standard deviation
+from the 14B, and the 4B had just shown that the scaling can invert; the pilot's
+job was to measure the 30B's term directly.
+
+**It did, and the published figure did not survive.** Measured σ_d is **16.76**
+against the **10.54** scaled, too low by 1.59×, which turns a published
+requirement of "14–28 chains" into **34**. With three rungs now measured the
+ratios to their own cross-chain spreads are 0.70× (14B), 1.05× (30B) and 2.39×
+(4B) — a 3.4× span with no constant in it. The scaling method is retired rather
+than adjusted: a power claim in this project measures its own paired term or
+says out loud that it is extrapolating.
+
+**The curve itself is the third null.** Median gain +7.37 against a minimum
+detectable 19.16. It is also the first run where the loop had working functions
+to refine — the 30B starts 4 of 6 probe-clean where the other rungs start mostly
+broken — and it ends 4 of 6, with 3 repairs against 3 regressions.
+
+**And it overturned a headline.** The project's best function had been a 46.4
+first attempt, which supported the uncomfortable claim that the best result
+needed no feedback at all. The pilot's chain 1 reached **50.19 points per piece
+at iteration 5**, over about 18,000 held-out pieces, by raising its hole penalty
+from 20 to 350 and dropping its line reward from 100 to 10 across five steps —
+the project's only clean example of a revision getting a weighting right. The
+claim is withdrawn. What replaces it is weaker rather than stronger: +8.64 sits
+well inside this rung's 16.76, so the loop produced the best function without
+being shown to be the reason.
+
+**The counter-example is in the same run.** Chain 2 inverted one sign at
+iteration 3 — `+ sum_tops` to `- sum_tops`, on a board where row 0 is the top,
+so the term now rewarded building tall — kept it through two more revisions, and
+declined at every step: 24,710 → 11,470 → 5,810 → 1,860 → 820. The same
+inversion sits inside chain 0's iteration 5, the project's *second*-best
+function, where it is harmless because a line clear is worth 3,000 and a hole
+200. So the bug is not what separates the best chain from the worst; the scale
+of the terms around it is.
+
+One generation produced nothing: 14,000 output tokens, exactly `max_tokens`,
+still writing. The project's fifth rejection and its first **length cap** rather
+than a rule violation — which means the import-rule write-up was counting one
+phenomenon where there are two. The chain's lineage survived it, because the
+loop keeps the last function that played rather than carrying an empty source
+forward.
+
+The 8B loop — 10 chains, the run that could still move a headline — started at
+01:42 UTC the same night.
+
+---
+
 ## Corrections
 
 Published results this project has overturned with its own later measurement.
@@ -549,28 +601,37 @@ methodological claim being made.
 | Paired σ_d is about 0.70× cross-chain spread, so cross-chain spread is the safe proxy | A property of the 14B, not the method. On the 4B it inverts to 2.39×, because a single revision there replaces or breaks the function rather than refining it. Predicted n=1.2 chains for a +8.04 gain, measured n=9.2 | 2026-11-23 |
 | The 4B is cheap to measure through the loop because it is the quietest rung | Quiet at iteration 0 was a floor effect — every chain starts near-equally bad — and said nothing about how violently a chain moves once revisions start | 2026-11-23 |
 | Revisions avoid the `import math` error despite the revise prompt stating the rule worse | `revise_v1` was never used in any published run. The loop uses one template for every iteration, so the wording is identical at iteration 0 and at revision; the difference is the feedback block and the previous function, which is already import-free | `04cc3ca` |
+| A properly aimed 30B loop needs 14–28 chains for a +8.04 gain | The paired σ_d was scaled from the 14B at 10.54; measured on the rung it is 16.76, too low by 1.59×, so the requirement is 34 chains. Three measured rungs give ratios of 0.70×, 1.05× and 2.39×, so the scaling method is retired, not re-tuned | 2026-11-24 |
+| The best result needed no feedback at all | The best function is now iteration 5 of a six-step chain, at 50.19 points per piece against the previous best of 46.4. The loop produced it; with +8.64 inside a σ_d of 16.76 it cannot be credited with causing it | 2026-11-24 |
 
 ---
 
 ## Where it stands
 
-**Every milestone is built and tested, under 698 unit tests.** Milestone 7, the
+**Every milestone is built and tested, under 721 unit tests.** Milestone 7, the
 direct agent, landed as a single demonstration game rather than a full arm,
 because 672 s per piece makes a powered version weeks of wall clock for a
 baseline whose purpose is to be beaten; the cost ratio was its deliverable and
 it is measured.
 
-What remains is measurement. **Two rungs have now been through the loop** — the
-14B, whose median rose +8 inside a noise bar of 13, and the 4B, whose median
-fell 3.77 inside a noise bar of 10.88. Neither shows a detectable change, which
-is a firmer version of the headline than one rung could support, but the 4B
-cannot distinguish "the loop does nothing" from "the 4B has nowhere to go": its
-honest headroom is 8.27 points against a 10.88 threshold.
+What remains is measurement. **Three rungs have now been through the loop** —
+the 14B, whose median rose +8 inside a noise bar of 13; the 4B, whose median
+fell 3.77 inside a noise bar of 10.88; and the 30B, whose median gain of +7.37
+sits inside a noise bar of 19.16. None shows a detectable change, which is a
+firmer version of the headline than one rung could support. The 4B cannot
+distinguish "the loop does nothing" from "the 4B has nowhere to go" — its honest
+headroom is 8.27 points against a 10.88 threshold — and the 30B now starts close
+enough to the hand-written heuristic that parity is the wrong target for it:
+4.93 points of headroom from an iteration-0 median of 38.57.
 
-**The 8B at 10 chains, ~9.3 hours, is the run that would settle it** — the rung
-with both room (27.87 points) and the project's best headroom-to-noise ratio,
-2.29 against the 30B's 1.31. The rest of the outstanding list is in the README's
-[Not done](../README.md#not-done).
+**The 8B at 10 chains, ~9.3 hours, is the run that would settle it**, and it
+started at 01:42 UTC on 2026-11-24 — the rung with both room (27.87 points) and
+the project's best headroom-to-noise ratio, 2.29 against the 30B's 1.31. Ten
+chains is powered at the edge rather than comfortably inside: applying the three
+measured σ_d ratios to the 8B's cross-chain spread gives detectable gains of
+8.5, 12.8 and 29.1 against 27.87 of headroom, so it clears the bar on two of
+three and would need eleven chains on the worst. The rest of the outstanding
+list is in the README's [Not done](../README.md#not-done).
 
 There is now one clean six-iteration curve, and it is simultaneously the
 project's strongest result and its least trustworthy. `curves.py` reports the

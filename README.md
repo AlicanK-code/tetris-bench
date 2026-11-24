@@ -75,24 +75,35 @@ that moved by more than the noise moved in **opposite directions**:
 So the loop can fix code that was broken, and it can break code that worked. What
 has not been observed is a working scorer being made meaningfully better.
 
-**And measured across both completed loops, it does the second slightly more
-often than the first: 1 repair in 40 chances against 2 regressions.** The
-function-level capability fraction ends lower than it starts. Revision moves
+**And measured across all three completed loops, it does the second slightly
+more often than the first: 4 repairs in 68 chances against 5 regressions.** The
+function-level capability fraction ends lower than it starts -- 7 of 16 chains
+capable at iteration 0, 6 of 16 at iteration 5. Revision moves
 individual terms about -- 6 repaired and 7 broken on the 4B -- but capability is
 a conjunction over terms, so fixing them one at a time while breaking others is
 a walk that does not arrive.
 [The measurement](#the-loop-does-not-repair-capability-either).
 
-### 3. The best result needed no feedback at all
+### 3. The best result came out of the loop, and still cannot be credited to it
 
-The strongest function the benchmark has produced came from a **first attempt
-with no feedback in its prompt**: 22 lines of lines, holes and bumpiness, with no
-height term, from `qwen3-30b-a3b`. On unseen sequences it scores **46.4 points
-per piece against a tuned hand-written heuristic's 43.5** -- parity with a
-published 2013 evaluator, cold.
+> **Corrected 2026-11-24.** This finding previously read "the best result needed
+> no feedback at all", on the strength of a 46.4 first attempt. The 30B pilot
+> overturned that: its best function came after five revisions. The claim as
+> stated is withdrawn, and what replaces it is weaker in a different way.
 
-That is the project's best result and its most awkward one, because the loop had
-nothing to do with it. [The comparison](#the-top-rung-matches-a-hand-written-heuristic-cold).
+The strongest function the benchmark has produced is **iteration 5 of a six-step
+chain**, at **50.19 points per piece** over about 18,000 held-out pieces --
+above the tuned hand-written heuristic's 43.5. It is also the project's only
+clean example of a revision getting a weighting right: across five steps the
+hole penalty rose from 20 to 350 while the line reward fell from 100 to 10,
+which is the direction the classic Tetris weightings go.
+
+**That is not evidence the loop works.** Its +8.64 gain sits well inside this
+rung's own noise -- a paired σ_d of 16.76, a minimum detectable gain of 19.16 at
+six chains -- and in the same run two chains fell by 13.4 and 25.9 points, one
+of them declining at every single revision. The loop produced the best function
+the project has; it has not been shown to be the reason.
+[The run](#the-30b-ships-the-best-function-and-the-worst-collapse).
 
 ### 4. Given only outcome feedback, the models do not find their own bugs
 
@@ -126,13 +137,15 @@ size and architecture are confounded and the honest claim is narrower than
 
 The negative result is **narrow, not final**, and the main limit is coverage:
 
-- **The loop has only ever run on one of the four rungs.** The other three have
-  measured iteration-0 baselines and no revisions. A model that improves where
-  the 14B does not would change answer 1 outright. How much sampling that takes
-  is now quantified per rung by
-  [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md):
-  on the 30B it needs 14 to 28 chains rather than the five used so far, and the
-  8B is the better first spend.
+- **The loop has now run on three of the four rungs** -- the 14B, the 4B and
+  the 30B -- and none of the three produced a detectable change. The 8B is the
+  fourth and is running at the time of writing. How much sampling that takes is
+  quantified per rung by
+  [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md),
+  with one caveat the pilot added: a paired σ_d must be **measured, not scaled**.
+  The three measured rungs give ratios of 0.70x, 1.05x and 2.39x against their
+  cross-chain spreads, so there is no constant to borrow, and the 30B's own
+  requirement moved from 14-28 chains to 34 once its term was measured.
 - **Six iterations may be too few**, and five chains is a small sample against a
   noise floor this wide.
 - **The feedback is deliberately symptoms-only** -- score, lines, holes, height,
@@ -153,7 +166,7 @@ wrong turns is part of what the project is demonstrating.
 
 The engine, baseline agents, rendering and run records, the model client, the
 sandboxed strategy agent, the improvement loop and the analysis all work, under
-698 unit tests. Every milestone that was going to be built is built; what
+721 unit tests. Every milestone that was going to be built is built; what
 remains is measurement, and the measurement has reframed the headline -- see
 [Results](#results).
 
@@ -166,7 +179,7 @@ remains is measurement, and the measurement has reframed the headline -- see
 | 5 | Strategy agent + sandbox | **done** |
 | 6 | Improvement loop | **done** |
 | 7 | Direct agent | **done**, one demonstration game, see [Results](#direct-mode-costs-800x-and-plays-like-random) |
-| 8 | Analysis (curves, ladder gap, tokens/seconds per point) | **done**, ladder measured on all four rungs |
+| 8 | Analysis (curves, ladder gap, tokens/seconds per point) | **done**, ladder on all four rungs, the loop on three |
 
 ## Setup
 
@@ -622,12 +635,21 @@ Read that as parity rather than a win: the heuristic's rate is measured over
 10,467 pieces and chain 4's over about 1,034, and a rate measured over a shorter
 run has had less chance to meet the board states that punish a weak evaluator.
 
+> **Update 2026-11-24.** The short-run caveat no longer applies to the project's
+> best figures. Two functions from
+> [the 30B pilot](#the-30b-ships-the-best-function-and-the-worst-collapse) score
+> **50.19 and 47.01 over roughly 19,000 held-out pieces each**, censored by the
+> piece budget in 8 and 9 games of 10. They do not die; they run out of budget.
+
 Chain 4's function is 22 lines of lines, holes and bumpiness with **no height
 term at all**. One chain in fifteen reproduced a Dellacherie-style evaluator
 cold.
 
-It stays an awkward result for this project, and worth saying plainly: the best
-function the benchmark has produced **arrived without the improvement loop**.
+It stayed an awkward result for this project while it was the best one: a
+first attempt, no loop involved. The 30B pilot has since produced two better
+functions, both at iteration 5 -- which replaces the awkwardness rather than
+removing it, because the gains that got there are smaller than the run's own
+noise.
 
 ### The improvement curve is smaller than its own noise
 
@@ -831,6 +853,10 @@ write-ups that deferred this question were not negligent; the design could not
 have detected it. The cheapest sufficient version is a 15-chain 4B loop at 7.4
 hours.
 
+The 30B pilot adds 28 transitions and does not move it: **1 revival, no deaths**.
+Pooled across all three loops, **78 transitions, 6 revivals, 5 deaths,
+p = 1.000**.
+
 Full write-up:
 [docs/findings/the-zeros-rate-does-not-move-either.md](docs/findings/the-zeros-rate-does-not-move-either.md).
 
@@ -921,6 +947,69 @@ Full write-up:
 ```bash
 uv run tetris-bench loop --model qwen3-4b --chains 5 --iterations 6   # 2h22m
 ```
+
+### The 30B ships the best function and the worst collapse
+
+6 chains x 6 iterations on `qwen3:30b-a3b`, 3 h 42 m, commissioned as a **power
+pilot**: every power claim in this repo had been scaling its paired standard
+deviation from the 14B, and the 4B had shown that the scaling can invert.
+
+| chain | it0 | it1 | it2 | it3 | it4 | it5 | gain |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 38.3 | 41.7 | 32.4 | 39.4 | 40.0 | **47.0** | +8.70 |
+| 1 | 41.6 | 42.2 | 28.6 | 33.2 | 43.7 | **50.2** | +8.64 |
+| 2 | 39.4 | — | 36.3 | 32.2 | 21.3 | 13.5 | **−25.91** |
+| 3 | 38.8 | 38.4 | 25.9 | 22.9 | 32.2 | 25.4 | −13.44 |
+| 4 | 0.0 | 0.4 | 14.2 | 1.4 | 29.2 | 19.2 | +19.17 |
+| 5 | 35.5 | 43.5 | 43.2 | 48.4 | 41.8 | 41.6 | +6.10 |
+| **median** | **38.57** | 41.66 | 30.51 | 32.70 | 36.12 | **33.51** | **+7.37** |
+
+Median gain **+7.37** against a minimum detectable gain of **19.16**. A third
+rung, a third null.
+
+**The pilot's deliverable is that σ_d cannot be borrowed.** Measured here it is
+**16.76**, against the **10.54** this repo had published for the rung -- too low
+by 1.59x, which turns "14 to 28 chains" into **34**. Three rungs now have a
+measured paired term and their ratios to their own cross-chain spreads are
+**0.70x (14B), 1.05x (30B), 2.39x (4B)**: a 3.4x span with no constant in it.
+
+**It was also the first run with working functions to refine.** The 30B starts
+4 of 6 probe-clean, where the 14B and 4B start mostly broken, so the capability
+probes could previously only measure repair. It **ends 4 of 6** -- 3 repairs
+against 3 regressions over 28 transitions.
+
+The two mechanisms are legible, and they are the same kind of edit:
+
+```python
+# chain 1, the best function in the project: 41.6 -> 50.2
+return lines * 100 - holes * 20 - max_height * 5 - bumpiness  # iteration 0
+return lines * 10 - holes * 350 - max_height * 15 - bumpiness * 35  # iteration 5
+
+# chain 2, the worst collapse: 39.4 -> 13.5, one character
+return lines * 50 + sum_tops - holes * 20 - unevenness * 10 - max_height * 3  # it2
+return lines * 50 - sum_tops - holes * 20 - unevenness * 10 - max_height * 3  # it3
+```
+
+`tops[col]` is the row index of the topmost filled cell and **row 0 is the top**,
+so a larger `sum_tops` means a lower stack. Iteration 3 inverted it, rewarding
+tall stacks; iterations 4 and 5 kept the inversion and retuned the terms around
+it. Eval totals fall at every step: 24,710 → 11,470 → 5,810 → 1,860 → 820.
+
+**The same inversion sits inside the second-best function.** Chain 0's iteration
+5 scores 47.01 with `score_val -= sum_top * 10.0` in it. It does no harm there
+only because a line clear is worth 3,000 and a hole 200, so the inverted term
+never decides a placement that matters. The bug is not what separates the best
+chain from the worst -- the scale of the terms around it is, which is a property
+of the whole function rather than of the edit the model made.
+
+One generation produced nothing at all: it emitted exactly 14,000 output tokens,
+the configured `max_tokens`, and was still writing. That is the project's fifth
+rejection and its first **length cap** rather than a rule violation. The chain's
+lineage survived it -- the loop keeps the last function that played, so the next
+iteration revised the one from two steps back.
+
+[The full write-up](docs/findings/the-30b-ships-the-best-function-and-the-worst-collapse.md)
+· [the artifacts](runs/published/30b-pilot/)
 
 ### Direct mode costs 800x and plays like random
 
@@ -1018,13 +1107,20 @@ five of them currently carry one.
   15 to 55 chains against the 5 that ran.
 - **[The loop does not repair capability
   either](docs/findings/the-loop-does-not-repair-capability.md)** -- 1 repair in
-  40 chances against 2 regressions, across both completed loops. Closes the
-  question the ladder left open.
+  40 chances against 2 regressions on the first two rungs, and 4 in 68 against 5
+  once the 30B is included. Closes the question the ladder left open.
 - **[The 4B loop reweights a crashing function five
   times](docs/findings/4b-loop-reweights-a-crash-five-times.md)** -- the second
   rung past iteration 0. No detectable change, a chain that carried an
   `UnboundLocalError` through five revisions with the traceback quoted back to
   it, and a power assumption of this project's own broken.
+- **[The 30B ships the best function in the project and its worst
+  collapse](docs/findings/the-30b-ships-the-best-function-and-the-worst-collapse.md)**
+  -- the power pilot. A measured paired σ_d of 16.76 against the 10.54 this repo
+  had published, which turns a 14-28 chain requirement into 34; the first rung
+  with working functions to refine, ending with as many as it started; and one
+  chain that declined at all five revisions after inverting a sign that sits,
+  harmlessly, inside the project's second-best function too.
 - **[Direct mode costs 800x and plays like
   random](docs/findings/direct-mode-costs-800x-and-plays-like-random.md)** --
   the milestone 7 demonstration. 3 h 44 m for 20 pieces, 86 holes against random
@@ -1035,30 +1131,30 @@ five of them currently carry one.
 
 Ordered by whether it would change anything claimed above.
 
-**One experiment would.** Everything in [What we found](#what-we-found) rests on
-the loop having been run on **one rung**: the 14B. The ladder measured all four
-rungs at *iteration 0 only*. So "no model has been shown to improve" and "the
-largest gain ever observed is +10.0" are statements about one model currently
-being quoted as statements about the mechanism.
+**One experiment would, and it is running.** Three of the four rungs have now
+been taken past iteration 0 -- the 14B, the 4B and the 30B -- and all three are
+null. The 8B is the fourth.
 
 - **The loop on a rung with room -- the 8B, 10 chains, 6 iterations, ~9.3
-  hours.** The 4B has now been run and showed **no detectable change**, which
-  establishes that the 14B's +8 is not a general figure but cannot distinguish
-  "the loop does nothing" from "the 4B has nowhere to go" -- its honest headroom
-  is 8.27 points against a detectable threshold of 10.88. The 8B is the rung
-  with both room (27.87 points) and the project's best headroom-to-noise ratio,
-  **2.29 against the 30B's 1.31**. See
-  [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md).
+  hours. Started 2026-11-24 01:42 UTC.** The 4B showed no detectable change,
+  which establishes that the 14B's +8 is not a general figure but cannot
+  distinguish "the loop does nothing" from "the 4B has nowhere to go" -- its
+  honest headroom is 8.27 points against a detectable threshold of 10.88. The
+  8B is the rung with both room (27.87 points) and the project's best
+  headroom-to-noise ratio, **2.29 against the 30B's 1.31**.
+
+  Ten chains is powered **at the edge rather than comfortably inside**, and the
+  pilot is why that can now be stated: applying the three measured σ_d ratios
+  (0.70x, 1.05x, 2.39x) to the 8B's cross-chain spread of 13.74 gives minimum
+  detectable gains at n=10 of 8.5, 12.8 and 29.1 against 27.87 of headroom. Ten
+  chains clears the bar on two of the three and would need eleven on the worst.
+  See [the power analysis](docs/findings/30b-loop-is-underpowered-not-futile.md).
   This is the only outstanding item that could move a headline.
 
-**One pilot would shore up a soft spot in the analysis.**
-
-- **The 30B at 6 chains, ~3.5 hours.** Every power claim in this repo uses a
-  paired standard deviation **scaled from the 14B** (8.74 x 15.13/12.55), and
-  the 4B run has now shown that scaling can invert -- its paired figure came out
-  2.39x its cross-chain spread where the 14B's is 0.70x. So the 30B's published
-  14-chain requirement is a lower bound, and this pilot is a precondition for
-  the larger run rather than a nice-to-have.
+**The pilot that was listed here has run**, and it changed the number it was
+run to check: the 30B's paired σ_d is 16.76 where the repo had 10.54, so its own
+requirement is 34 chains rather than 14-28. See
+[the write-up](docs/findings/the-30b-ships-the-best-function-and-the-worst-collapse.md).
 
 **Nothing cheap is left.** Every analysis answerable from the logs on disk has
 been run; what remains needs a GPU.

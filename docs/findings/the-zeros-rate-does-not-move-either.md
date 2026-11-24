@@ -60,6 +60,12 @@ Two chains revived, two died.
 exact sign test on the 10 discordant pairs gives **p = 1.000** — the most
 perfectly null result in the project.
 
+> **Added 2026-11-24.** The 30B pilot contributes 28 more transitions and does
+> not disturb it: **1 revival, 0 deaths**, one chain dead at iteration 0 and
+> none at iteration 5. Pooled over all three loops: **78 transitions, 6
+> revivals, 5 deaths, p = 1.000.** Still far short of the 15–55 chains §3 asks
+> for.
+
 Two details worth keeping:
 
 - **The test is paired, deliberately.** Each iteration is compared against *its
