@@ -181,3 +181,35 @@ uv run python analysis/reweighting.py                        # term-level replay
 - Never commit API keys; read them from environment variables (`.env` is gitignored).
 - Every experiment run is reproducible from its config file + seed list.
 - Keep prompts in versioned template files, not inline strings, so prompt changes are traceable.
+
+## Writing up a result
+
+**No mechanism claim from n=1 without a replay first.** If a write-up is about
+to say *why* something happened -- this revision worked because it reweighted,
+this rejection pattern is because revisions have a template to copy -- and the
+evidence is one chain, one function or one generation, the claim does not go in
+until it has been tested against the corpus on disk.
+
+This is the project's most expensive habit, not a hypothetical. **Eleven of the
+28 entries in [the corrections table](docs/timeline.md#corrections) are a
+mechanism inferred from a single example that a second example then broke**, and
+three of those were published and withdrawn on the same day -- one of them
+three hours and two commits apart. The replays that would have caught them take
+minutes and need no GPU.
+
+What counts as having tested it:
+
+- **Replay it.** Saved functions run in under a second each. If the claim is
+  that term X caused outcome Y, change X and replay -- `analysis/reweighting.py`
+  is the worked example, and it dissolved the question it was written to answer.
+- **Count the denominator.** "Revisions never do it, 0 of 55" was really 0 of 0:
+  no revision had ever had the occasion. Before quoting a rate, count the cases
+  that could have gone either way.
+- **Check the probes before explaining a score.** A function can look like it
+  has four working terms and have two dead ones; `term_diagnostics` already
+  knows. The project's best function was credited to reweighting for a day
+  because nobody read its own probe verdict.
+
+If it cannot be tested yet, label it: *hypothesis*, with the experiment that
+would settle it and its cost. A labelled hypothesis has never had to be
+withdrawn; an unlabelled mechanism has, eleven times.
