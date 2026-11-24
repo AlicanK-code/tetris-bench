@@ -74,9 +74,9 @@ Three ways the loop could have been improving something the curve cannot see
 have each been checked and each come back null: the mean, the fraction of
 functions that can express a strategy at all, and the fraction that score
 nothing. A fourth check, added with the 8B, found the opposite of hidden
-progress -- **8 of 90 live revisions across the corpus rewrote their weights and
-then chose identically on every held-out sequence**, one of them provably
-unable to choose otherwise. So the headline the project set out to produce, an
+progress -- **8 of 94 live revisions across the corpus rewrote their weights and
+then never once chose differently**, on any board of ten full games, one of them
+provably unable to. Six more changed at most one decision in two hundred. So the headline the project set out to produce, an
 improvement curve with a slope, is not there on any of the four rungs.
 [The 14B detail](#the-improvement-curve-is-smaller-than-its-own-noise),
 [the 4B's](#the-loop-shows-nothing-on-a-second-rung).
@@ -1130,6 +1130,26 @@ score identically on every held-out sequence: **4B 2/14, 8B 6/28, 14B 0/22, 30B
 and so a genuine rewrite rather than a resubmission. Three of the 8B's six are
 one chain sitting a hair above the dead line, so the clear count is five.
 
+**Checked at the decision level, that count is exact rather than a floor.**
+Replaying every pair over the same boards -- the game driven by the earlier
+function, both asked about each board it reaches -- gives **8 of 94 live
+revisions that never once chose differently**, and they are the same eight
+pairs, with no disagreement in either direction. The 14B managed 0 of 17 and the
+30B 0 of 27, so two independent measures split the rungs the same way.
+
+What that measure adds is a **near-inert class the totals miss**: six more
+revisions changed between one and three decisions, which is not a tie because a
+few different choices move a total. The sharpest is 8B chain 1's step from
+iteration 3 to 4 -- **3 decisions out of 1,949, worth +1.04 points per piece**,
+or 41% of the median gain the entire 8B loop showed. A curve moving at that
+scale is measuring a handful of placements. Median share of decisions a revision
+changes, by rung: **4B 7.4%, 8B 3.3%, 14B 3.7%, 30B 12.8%** -- not a ladder, but
+the rung that starts with working functions rewrites them hardest.
+
+```bash
+uv run python analysis/placement_diff.py
+```
+
 The mechanism is not uniform scaling -- only chain 1's was. Two others moved
 their weights *non-uniformly*, by factors of four and five, and still changed
 nothing, because `lines_cleared` decides whenever it is non-zero and the
@@ -1281,10 +1301,11 @@ six of them currently carry one.
   nothing](docs/findings/the-best-powered-null-and-the-inert-revisions.md)** --
   the fourth rung, and the largest run in the project: 10 chains, a measured
   σ_d of 12.44, median gain **+2.51** against a detectable 11.02. It also found
-  revisions that **cannot** change anything -- 8 of 90 live revisions rewrote
-  their weights and chose identically on every held-out sequence, all 8 on the
-  two small rungs, one of them provably so -- and a counterexample that costs
-  the 30B pilot its explanation for its single success.
+  revisions that **cannot** change anything -- 8 live revisions rewrote their
+  weights and then never once chose differently on any board of ten full games,
+  all 8 on the two small rungs, one of them provably so, with 6 more changing at
+  most one decision in two hundred -- and a counterexample that costs the 30B
+  pilot its explanation for its single success.
 - **[Direct mode costs 800x and plays like
   random](docs/findings/direct-mode-costs-800x-and-plays-like-random.md)** --
   the milestone 7 demonstration. 3 h 44 m for 20 pieces, 86 holes against random
@@ -1318,11 +1339,11 @@ adding *power*, and the cost is now known per rung rather than estimated.
 **Two cheap analyses are left**, both answerable from the logs on disk with no
 GPU at all.
 
-- **Count placements chosen differently**, rather than exact score ties, when
-  replaying each adjacent pair of functions over the same boards. The 8 inert
-  revisions found so far are a lower bound by construction: the test only
-  catches revisions that changed *nothing*, not ones that changed one decision
-  in a thousand.
+- ~~**Count placements chosen differently**, rather than exact score ties.~~
+  **Done** (`analysis/placement_diff.py`). The lower bound turned out tight --
+  the same 8 pairs, no disagreement either way -- so the published count stands.
+  It added a near-inert class of 6 more revisions, a per-rung rate of change, and
+  the warning that too few seeds over-reports inertness.
 - **What separates a good reweighting from a fatal one.** The 30B's chain 1 and
   the 8B's chain 3 moved their weights the same direction to opposite ends, so
   direction is not the answer and nothing currently is. A term-level replay over

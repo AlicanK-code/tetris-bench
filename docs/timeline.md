@@ -5,7 +5,7 @@ is traceable to a commit or a document in [`findings/`](findings/).
 
 The short version: the engine and baselines took an evening, the model-facing
 machinery took a day, and almost everything since has been **measurement** —
-establishing what a number from this benchmark is allowed to mean. Twenty-four of the
+establishing what a number from this benchmark is allowed to mean. Twenty-five of the
 project's own published results have been corrected by later measurement, and
 that thread is tracked separately in [Corrections](#corrections) below, because
 it is the part a reader should trust least on first reading and most on
@@ -657,8 +657,31 @@ and per-chain seed at temperature 0.7 — while the *distribution* reproduced
 closely (median 15.63 against 15.67, spread 13.09 against 13.36). A rung's noise
 is a stable property even where its individual samples are not.
 
+### The follow-up that disproved its own premise
+
+`analysis/placement_diff.py` was written to replace the inertness count with a
+better one: the published figure counted exact ties in the held-out totals,
+which is a lower bound by construction, so a revision changing one decision in a
+thousand would have counted as having changed something. Measured properly — the
+game driven by the earlier function, both functions asked about every board it
+reaches, 129 revisions and 304 seconds with no model calls — **the bound was
+tight. The same 8 live pairs, no disagreement in either direction.** The
+prediction that justified the analysis was wrong.
+
+It earned its keep three other ways. There is a **near-inert class** the totals
+cannot see: six revisions changed between one and three decisions, and the
+sharpest moved **+1.04 points per piece on 3 decisions out of 1,949** — 41% of
+the loop's whole median gain, produced by three choices. Unlike exact inertness,
+which is confined to the 4B and 8B (8 of 8, with the 14B at 0 of 17 and the 30B
+at 0 of 27), this class reaches the top two rungs. The **rate of change by rung**
+came out 4B 7.4%, 8B 3.3%, 14B 3.7%, 30B 12.8%, so the one rung that starts with
+working functions also rewrites them hardest — which sits awkwardly beside its
+three regressions. And a two-seed trial of the same measure reported 10 of the
+8B's 31 live revisions as inert where ten seeds give 6: **inertness is a claim
+about every board, so too few boards can only over-report it.**
+
 `docs/findings/the-best-powered-null-and-the-inert-revisions.md`,
-`runs/published/8b-loop/`.
+`runs/published/8b-loop/`, `src/tetris_bench/placement_diff.py`.
 
 ---
 
@@ -694,6 +717,7 @@ methodological claim being made.
 | The 30B's best chain worked because it moved its weights the direction the classic Tetris weightings go | The 8B's chain 3 moved the same direction — hole penalty up 100×, line reward halved — and lost 23.11 points per piece from the best opening function in its run. Direction is not what distinguished it, and nothing currently is | 2026-11-24 |
 | A rung's paired σ_d relative to its cross-chain spread, published as 0.70×, 1.05× and 2.39× | Two different denominators: the 30B's used the standard deviation of the iteration-0 rates, the others `Curve.chain_spread()`. Recomputed with one definition the four rungs read 0.70×, 0.84×, 1.07×, 2.39×. The 3.4× span, and the retirement of the scaling method, hold either way | 2026-11-24 |
 | Six revisions on the 4B "reweighted a crashing function", and similar steps elsewhere moved the score a little | Some revisions cannot move anything. 8 of 90 live adjacent revisions rewrote their weights and then chose identically on every held-out sequence; one is provably a no-op, every weight doubled | 2026-11-24 |
+| The inert-revision count is a lower bound, because it only catches exact ties in the totals | Measured at the decision level it is exact: the same 8 live pairs, no disagreement either way. The prediction behind the follow-up analysis was wrong, though it did turn up 6 near-inert revisions the totals miss, one worth +1.04 points per piece on 3 decisions out of 1,949 | 2026-11-24 |
 
 ---
 
@@ -719,10 +743,11 @@ the honest form of the headline. It is also the only rung where closing that gap
 is affordable: 49 chains, about six hours, against 34 chains and twenty hours
 for the same question on the 30B.
 
-Two things the 8B found that no curve could have. **Eight of 90 live revisions
-across the corpus rewrote their weights and then chose identically on every
-held-out sequence** — one of them provably, every weight doubled — so a fifth of
-the small rungs' revisions are not noisy but arithmetically inert. And the four
+Two things the 8B found that no curve could have. **Eight of 94 live revisions
+across the corpus rewrote their weights and then never once chose differently**,
+on any board of ten full games — one provably, every weight doubled — with six
+more changing at most one decision in two hundred. Both measures put every
+exactly-inert case on the 4B or the 8B. And the four
 revisions written with the feedback *removed* moved further than the 41 given a
 full game report (p = 0.032, n=4, found after the fact), which is written down
 as a hypothesis with an experiment attached rather than a result.
@@ -797,11 +822,17 @@ Open questions, in rough priority order:
    once clustered by chain. Twelve chains a group with the rejection scripted,
    about 8.5 hours, would settle it. See
    [the-best-powered-null-and-the-inert-revisions.md](findings/the-best-powered-null-and-the-inert-revisions.md).
-9. **How many revisions change no decision at all?** Eight of 90 scored
+9. ~~**How many revisions change no decision at all?** Eight of 90 scored
    identically on every held-out sequence, which is a lower bound by
    construction — the test catches only exact ties. Replaying each adjacent pair
    over the same boards and counting *placements chosen differently* needs no
-   model and no GPU.
+   model and no GPU.~~ **Answered, and the bound was tight.** Measured at the
+   decision level over 94 live revisions: **the same 8 pairs, no disagreement in
+   either direction**, so the published count stands. Six further revisions
+   changed between one and three decisions — not ties, because a few choices
+   move a total — and the sharpest moved +1.04 points per piece on **3 decisions
+   out of 1,949**, which is 41% of the whole 8B loop's median gain.
+   `analysis/placement_diff.py`, 304 s, no model calls.
 10. **What separates a good reweighting from a fatal one?** The 30B's chain 1 and
     the 8B's chain 3 moved their weights the same direction to opposite ends, so
     the direction is not the answer and nothing currently is. A term-level replay

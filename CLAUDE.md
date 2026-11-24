@@ -169,6 +169,7 @@ uv run python analysis/plots.py                              # figures
 uv run python analysis/held_out.py                           # replay on unseen seeds
 uv run python analysis/null_arm.py --runs 0                  # build prompts, no GPU
 uv run python analysis/zeros_rate.py                         # dead-function proportion
+uv run python analysis/placement_diff.py                     # decisions a revision changed
 ```
 
 ## Conventions

@@ -168,6 +168,80 @@ is tuning the numbers that never decide anything.** That is a sharper statement
 of why these curves are flat than "it is all noise": a fifth of the small rungs'
 revisions are not noisy, they are arithmetically incapable of being anything.
 
+### Measured at the decision level: the lower bound was tight
+
+> **Added 2026-11-24 (later the same day).** Everything above counts **exact
+> ties in the held-out totals**, which this document called "a lower bound by
+> construction" and §10 listed as worth replacing with a count of *placements
+> chosen differently*. That measurement has now been run
+> (`analysis/placement_diff.py`, 304 s, no model calls), and **the bound was
+> tight, not loose.** The prediction that motivated the analysis was wrong, and
+> the analysis still earned its keep three other ways.
+
+The game is driven by the **earlier** function and both functions are asked
+about every board it reaches, so they are always answering the same question;
+comparing two independent playouts would instead measure how far the
+trajectories drifted after their first disagreement. The rate is therefore "how
+often would the revision have chosen otherwise, in the situations its parent
+gets into", and it is a floor rather than an effect size: one early divergence
+changes every board after it.
+
+**129 revisions compared, 94 of them between two live functions.**
+
+| | |
+|---|---:|
+| changed **no decision at all** | **8 of 94** |
+| changed fewer than 1 in 200 | 6 more |
+| scored identically on the totals (the test above) | **8** |
+
+**The two sets are the same eight pairs, with no disagreement in either
+direction.** Among live revisions, scoring identically on ten held-out
+sequences and never once choosing differently turn out to be the same event, so
+the published 8 needs no revision upward. Six further pairs among the dead
+functions are also inert, and also exact ties.
+
+Inertness stays confined to the small rungs under the new measure too, which is
+the useful part: **8 of 8 are 4B or 8B, while the 14B managed 0 of 17 and the
+30B 0 of 27.** Two independent measures, same split.
+
+### What it added, since the headline did not move
+
+**A near-inert class the totals genuinely do miss.** Six revisions changed
+between one and three decisions and are not ties, because a handful of different
+choices moves a total:
+
+| revision | decisions changed | rate | points per piece |
+|---|---|---|---:|
+| `qwen3-8b` chain 1, it3→it4 | **3 of 1,949** | 1 in 649 | 38.84 → **39.88** (+1.04) |
+| `qwen3-8b` chain 9, it3→it4 | 2 of 1,712 | 1 in 856 | 35.81 → 34.32 (−1.48) |
+| `qwen3-8b` chain 1, it2→it3 | 2 of 2,002 | 1 in 1,001 | 38.86 → 38.84 (−0.02) |
+| `qwen3-14b` chain 3, it2→it3 | 2 of 826 | 1 in 413 | 25.42 → 26.12 (+0.69) |
+| `qwen3-14b` chain 0, it2→it3 | 3 of 621 | 1 in 207 | 18.04 → 18.07 (+0.03) |
+| `qwen3-30b` chain 5, it4→it5 | **1 of 3,086** | 1 in 3,086 | 41.77 → 41.63 (−0.14) |
+
+So **14 of 94 revisions (15%) changed at most one decision in two hundred**, and
+unlike exact inertness this class reaches the top two rungs. The first row is
+the one to keep: **three choices out of 1,949 produced +1.04 points per piece**,
+which is 41% of the median gain the whole 8B loop showed. A curve built on
+movements of that size is measuring a handful of placements, which is a more
+specific statement of why the noise bar is what it is.
+
+**How much a revision normally changes, by rung.** Median share of decisions
+changed: **4B 7.4%, 8B 3.3%, 14B 3.7%, 30B 12.8%** (pooled 8.3%, range 0% to
+78%). Not a ladder — the 4B is above the 8B and the 14B — but the 30B's
+revisions move about four times as many decisions as the middle rungs', so the
+rung that starts with working functions also rewrites them most aggressively.
+That sits awkwardly beside its three regressions and is the most likely place to
+look next.
+
+**A sampling trap, worth recording because it nearly became the result.** A
+two-seed trial of this same measure reported **10** of the 8B's 31 live
+revisions as inert; ten seeds give **6**. Four of the ten were artefacts of
+having too few boards to disagree on, in the same way that
+[a one-board probe over-reports flatness five-fold](the-discriminate-warning-does-not-fix-inert-arithmetic.md).
+Inertness is a claim about *every* board, so it can only ever be over-reported
+by sampling fewer of them.
+
 ---
 
 ## 4. The import rule: revisions do it too
@@ -398,10 +472,11 @@ arithmetic on a null result and should not be quoted as a cost of improvement.
   about 23 and 6 hours of 8B time respectively. The 8B is the only rung where
   this is affordable at all, which makes it the right place to run the
   project's one adequately powered curve if any gets run.
-- **The inert revisions.** The count above is a lower bound: it catches only
-  exact ties. A cheap and better measure replays each adjacent pair over the
-  same boards and counts *placements chosen differently*, which would catch
-  revisions that change one decision in a thousand. No model calls needed.
+- ~~**The inert revisions.** The count above is a lower bound: it catches only
+  exact ties.~~ **Done, same day** — see the dated section in §3. The bound was
+  tight: the same 8 pairs, no disagreement either way. What it added is a
+  near-inert class of 6 more, a per-rung rate of change, and the warning that
+  too few seeds over-reports inertness.
 - **The post-rejection effect.** 12 chains a group, pre-registered, with the
   rejection scripted rather than waited for. §5.
 - **The reweighting question** §6 leaves open: what distinguishes the 30B's
@@ -414,6 +489,16 @@ arithmetic on a null result and should not be quoted as a cost of improvement.
 ## 11. Reproducing every number above
 
 No model required; all of it is replay and arithmetic, a few seconds.
+
+The decision-level measure in §3 has its own entry point, because it plays
+games rather than reading logs:
+
+```bash
+uv run python analysis/placement_diff.py              # ~5 min, all four rungs
+uv run python analysis/placement_diff.py --runs 8b-loop --seeds 1000 1001
+```
+
+Everything else is replay and arithmetic:
 
 ```bash
 uv run python - <<'PY'
