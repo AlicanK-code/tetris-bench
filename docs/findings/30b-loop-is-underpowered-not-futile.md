@@ -118,8 +118,13 @@ substantial, and nothing like impossible.
 > |---|---:|---:|---:|---|
 > | `qwen3-4b` | 8.69 | 3.63 | 2.39× | gain is negative |
 > | `qwen3-8b` | 12.44 | 14.89 | 0.84× | 193 for +2.51, **49 for a +5** |
-> | `qwen3-14b` | 8.74 | 12.55 | 0.70× | 9 for +8.04 |
-> | `qwen3-30b` | 16.76 | 15.70 | 1.07× | 34 for +8.04 |
+> | `qwen3-14b` | 8.74 | 12.55 | 0.70× | 10 for +8.04 |
+> | `qwen3-30b` | 16.76 | 15.70 | 1.07× | 35 for +8.04 |
+>
+> (Chain counts are rounded **up**, and go as the square of an estimated
+> standard deviation, so read them to two significant figures. The 30B's
+> reads 35 here where this document says 34 above: 34.07 rounded to nearest
+> rather than up. Nothing downstream turns on the difference.)
 >
 > Two notes on that table. The 30B's ratio reads **1.07×** rather than the
 > 1.05× above because the pilot computed it against the standard deviation of

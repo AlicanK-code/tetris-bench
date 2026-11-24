@@ -165,7 +165,8 @@ uv run tetris-bench strategy --model qwen3-4b --seed 1       # model writes a sc
 uv run tetris-bench loop --model qwen3-14b --iterations 6 --chains 3   # the loop
 uv run tetris-bench direct --model qwen3-14b --seed 1 --max-pieces 20  # 1 call/piece
 uv run python analysis/curves.py                             # improvement curves
-uv run python analysis/plots.py                              # figures
+uv run python analysis/plots.py --log runs/published/8b-loop/loop.jsonl  # curves
+uv run python analysis/power_figure.py                       # gains vs noise, 4 rungs
 uv run python analysis/held_out.py                           # replay on unseen seeds
 uv run python analysis/null_arm.py --runs 0                  # build prompts, no GPU
 uv run python analysis/zeros_rate.py                         # dead-function proportion

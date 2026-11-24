@@ -49,6 +49,7 @@ README. **Read them, do not import them** -- that is the entire premise of
 | `direct/` | The milestone 7 direct-mode demonstration: one 20-piece game, one model call per piece, 3 h 44 m. The only `mode: "direct"` row in the repo. | [direct-mode-costs-800x-and-plays-like-random.md](../../docs/findings/direct-mode-costs-800x-and-plays-like-random.md), README Results |
 | `qwen3-4b-iter0/` | The 4B's first functions, including the `strategy_v1` vs `v2` prompt comparison. | [qwen3-4b-iter0-detailed.md](../../docs/findings/qwen3-4b-iter0-detailed.md), [prompt-comparison-and-determinism.md](../../docs/findings/prompt-comparison-and-determinism.md) |
 | `reweighting/` | 23 reconstructed variants, not model output: each is one of two saved functions with exactly one thing changed, for the term-level replay. | [the-best-revision-was-a-repair.md](../../docs/findings/the-best-revision-was-a-repair.md), README Results |
+| `figures/` | The pictures the top-level README shows, beside the logs they are drawn from. Regenerate with `analysis/plots.py` and `analysis/power_figure.py`. | README, [its own README](figures/README.md) |
 
 ## The results worth opening a file for
 

@@ -70,6 +70,17 @@ another's, because [the scaling inverts](#the-improvement-curve-is-smaller-than-
 the ratio of a rung's paired σ_d to its between-chain spread runs 0.70, 0.84,
 1.07 and 2.39 across the four.
 
+![Four rungs, four gains, each inside the gain its run could have detected](runs/published/figures/power-four-rungs.png)
+
+The grey band is what each rung could have resolved at 80% power, from its own
+paired σ. Read it as four **bounded** nulls rather than four zeros: the 30B's
++7.37 is a respectable gain measured too coarsely, and the 8B's +2.51 is a small
+gain measured well. Neither is evidence of no effect.
+
+```bash
+uv run python analysis/power_figure.py
+```
+
 Three ways the loop could have been improving something the curve cannot see
 have each been checked and each come back null: the mean, the fraction of
 functions that can express a strategy at all, and the fraction that score
@@ -566,6 +577,39 @@ piece at 500, 2,000, 20,000 and 50,000 pieces alike. Totals are still reported
 beside it, because survival is a separate thing worth knowing. Rates are totals
 over totals across a position's ten unseen sequences, which is what the
 baseline's own 43.5 is (454,900 / 10,467).
+
+### The curves
+
+One figure per rung, each drawn from the published log. The per-chain lines are
+the point: chains are independent lineages that never see each other's
+functions, so a rising median over three agreeing chains is a result and the
+same median over one chain carrying two collapsed ones is not. The wide band is
+the bar a change must clear; the narrow one is seed noise alone. A red cross is
+a generation the validator rejected.
+
+| rung | figure |
+|---|---|
+| `qwen3-4b`, 5 chains | [curve-qwen3-4b.png](runs/published/figures/curve-qwen3-4b.png) |
+| `qwen3-8b`, 10 chains | [curve-qwen3-8b.png](runs/published/figures/curve-qwen3-8b.png) |
+| `qwen3-14b`, 5 chains | [curve-qwen3-14b.png](runs/published/figures/curve-qwen3-14b.png) |
+| `qwen3-30b`, 6 chains | [curve-qwen3-30b.png](runs/published/figures/curve-qwen3-30b.png) |
+
+![The 8B's curve: ten chains, six iterations, held-out points per piece and
+pieces placed](runs/published/figures/curve-qwen3-8b.png)
+
+**These figures and the tables below use different conventions, deliberately,
+and the numbers differ because of it.** The figures are drawn by
+`analysis/plots.py` from `Curve`, which scores a rejected generation as a real
+zero and reports the **gain of the medians**; the tables exclude rejected
+positions and report the **median of the per-chain gains**. On the 8B that is
+8.3 → 17.0 against 15.63 → 17.04, and on the 30B it is −5 against +7.37. Both
+are defensible -- a rejection genuinely produced no function, and it genuinely
+is not a measurement of a function -- and neither is the other's error. The
+per-rung writeups in [`runs/published/`](runs/published/) say which each uses.
+
+```bash
+uv run python analysis/plots.py --log runs/published/8b-loop/loop.jsonl
+```
 
 The honest summary of what this benchmark has measured so far: **the clearest
 signal is whether a model can express a strategy at all, and the improvement

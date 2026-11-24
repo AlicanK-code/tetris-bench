@@ -26,7 +26,16 @@ runs/*
 
 # Generated figures. Reproducible from a log with `analysis/plots.py`, so the
 # PNGs are an output of the run rather than a source of it; committing them also
-# risks a figure drawn from a synthetic or stale log outliving its data.
+# risks a figure drawn from a synthetic or stale log outliving its data -- which
+# already happened once, a 14B curve sitting here for two runs after the rungs
+# it was missing had both been measured.
+#
+# This stays the scratch output directory. The figures the README shows live in
+# runs/published/figures/ instead, beside the logs they are drawn from, so a
+# commit that changes the data and a commit that changes the picture are the
+# same commit. That is the structural fix for the staleness this comment warns
+# about; keeping both means a figure can be redrawn freely without touching the
+# published set.
 analysis/figures/
 
 # Tooling caches
