@@ -803,7 +803,7 @@ revisions written with the feedback *removed* moved further than the 41 given a
 full game report (p = 0.032, n=4, found after the fact), which is written down
 as a hypothesis with an experiment attached rather than a result.
 
-The outstanding list is in the README's [Not done](../README.md#not-done); the
+The outstanding list is in the README's [Not done](results.md#not-done); the
 two cheapest items need no GPU at all, only the 227 functions already on disk.
 
 > **Removed 2026-11-24.** A block stood here describing the `clean-6iter` run as
@@ -817,7 +817,7 @@ two cheapest items need no GPU at all, only the 227 functions already on disk.
 > baseline is a different claim, and that large steps make a random walk look
 > like a trend — is what the noise-bar and chain machinery was built from, and
 > it is recorded in
-> [the-improvement-curve-is-smaller-than-its-own-noise](../README.md#the-improvement-curve-is-smaller-than-its-own-noise)
+> [the-improvement-curve-is-smaller-than-its-own-noise](results.md#the-improvement-curve-is-smaller-than-its-own-noise)
 > and in the [Corrections](#corrections) table above.
 
 Open questions, in rough priority order:

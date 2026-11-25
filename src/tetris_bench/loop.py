@@ -38,7 +38,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import statistics
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -116,6 +116,12 @@ class LoopConfig:
     #: ways at once -- including dropping the board-orientation note that every
     #: rung has struggled with -- so the direction of the prompt change was
     #: unknown and tangled up with the measured effect.
+    #: Show every earlier attempt in the chain, not just the last one. Off by
+    #: default: every published run here was measured without it, and turning it
+    #: on silently would make a new run incomparable with those. See
+    #: :func:`history_section` for why its scores are training scores.
+    history: bool = False
+
     template: str = TEMPLATE
     #: Name the measured quantities at iteration 0 as well. See
     #: MEASUREMENT_DECLARATION.
@@ -404,7 +410,52 @@ def feedback_text(outcome: Outcome | MultiOutcome, config: LoopConfig) -> str:
     ).render()
 
 
-def build_prompt(config: LoopConfig, previous: Outcome | MultiOutcome | None) -> str:
+def history_section(history: Sequence[Outcome | MultiOutcome]) -> str:
+    """Every earlier attempt in this chain, oldest first, with what it scored.
+
+    The single-step loop shows a model only its last function and how that one
+    went, so it cannot tell whether its previous change helped -- which is a
+    plausible cause of the "reweights rather than debugs" behaviour this project
+    measures. This renders the trajectory instead, in the spirit of Reflexion
+    and OPRO.
+
+    **The scores here are training scores, not held-out ones.** Showing a model
+    its held-out results would destroy the only property that makes the curve
+    worth reading: the evaluation sequences are the ones it never sees. A
+    history arm built on held-out feedback would measure a model tuning against
+    the test set, so it reports the same training outcomes the model was already
+    shown at the time -- only now it can see all of them at once.
+
+    Attempts that never played -- a rejected or unparseable generation -- are
+    listed with their reason rather than a score, because "this produced
+    nothing" is exactly the kind of step a model should be able to see it took.
+    """
+    if not history:
+        return ""
+    blocks = []
+    for index, outcome in enumerate(history):
+        if isinstance(outcome, MultiOutcome) and outcome.results:
+            pieces = sum(r.pieces_placed for r in outcome.results)
+            score = sum(r.score for r in outcome.results)
+            rate = score / pieces if pieces else 0.0
+            headline = f"{score:,} points over {pieces:,} pieces ({rate:.2f} per piece)"
+        else:
+            headline = outcome.reason.strip() or "it produced no playable function"
+        source = outcome.source.strip()
+        body = f"```python\n{source}\n```\n" if source else "_no function was produced_\n"
+        blocks.append(f"### Attempt {index} - {headline}\n\n{body}")
+    return (
+        "## Everything you have tried in this chain so far\n\n"
+        "Oldest first, on the training sequences. Use it to judge whether your "
+        "last change helped.\n\n" + "\n".join(blocks) + "\n"
+    )
+
+
+def build_prompt(
+    config: LoopConfig,
+    previous: Outcome | MultiOutcome | None,
+    history: Sequence[Outcome | MultiOutcome] = (),
+) -> str:
     """Render the prompt for one iteration.
 
     Identical at every iteration apart from the feedback block, which is empty
@@ -432,6 +483,12 @@ def build_prompt(config: LoopConfig, previous: Outcome | MultiOutcome | None) ->
 
     # Delegated rather than rendered here, so that one-shot `strategy` mode and
     # this cannot render the same template differently. They did once.
+    if config.history and history:
+        # Prepended inside the feedback section rather than added to the
+        # template, so `strategy_v3` is byte-identical in both arms and the only
+        # difference between them is this block.
+        feedback_section = history_section(history) + "\n" + feedback_section
+
     return build_strategy_prompt(
         width=10,
         height=20,
@@ -447,11 +504,12 @@ def generate(
     config: LoopConfig,
     position: Position,
     previous: Outcome | MultiOutcome | None,
+    history: Sequence[Outcome | MultiOutcome] = (),
 ) -> GeneratedFunction:
     """Ask the model for a function, first attempt or revision alike."""
     from tetris_bench.agents.strategy import extract_code
 
-    prompt = build_prompt(config, previous)
+    prompt = build_prompt(config, previous, history)
     seed = model_seed_for(config.model_seed, position.chain)
     response = client.complete([{"role": "user", "content": prompt}], seed=seed)
     return GeneratedFunction(
@@ -667,11 +725,13 @@ def run_loop(
     have_eval = logged_eval_seeds(config.log_path, config.model)
 
     previous: Outcome | MultiOutcome | None = None
+    history: list[Outcome | MultiOutcome] = []
     current_chain: int | None = None
 
     for position in positions(config):
         if position.chain != current_chain:
-            current_chain, previous = position.chain, None
+            # A chain is an independent lineage, so its history starts empty.
+            current_chain, previous, history = position.chain, None, []
 
         if (position.chain, position.iteration) in done:
             key = (position.chain, position.iteration)
@@ -703,6 +763,7 @@ def run_loop(
                 )
             source = path.read_text()
             previous = play_on_seeds(source, config.train_seeds, config)
+            history.append(previous)
 
             # Top up any held-out games the log is missing. A kill between the
             # training and evaluation writes would otherwise leave this position
@@ -728,7 +789,7 @@ def run_loop(
 
         client.reset_usage()
         try:
-            generated = generate(client, config, position, previous)
+            generated = generate(client, config, position, previous, history)
         except ModelError as error:
             # The call itself never came back -- a timeout, or a provider error
             # the client gave up on. Previously this propagated and killed the
@@ -791,6 +852,7 @@ def run_loop(
             label = "REJECTED" if multi.rejected else "CRASHED"
             say(f"iter {position.iteration} chain {position.chain}: {label}")
             previous = multi
+            history.append(multi)
             continue
 
         _log_multi(config, position, multi, client.usage, "train")
@@ -835,6 +897,7 @@ def run_loop(
             f"({len(config.eval_seeds)} held-out seeds)"
         )
         previous = multi
+        history.append(multi)
 
 
 def summarise_run(log_path: Path | str, model: str, statistic: str = "median") -> str:

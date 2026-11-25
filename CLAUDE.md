@@ -104,6 +104,16 @@ tetris-bench/
 6. **Improvement loop**: feedback summary → revised function → replay, for N iterations over a fixed seed set. *Done.*
    - **Independent chains.** On a nondeterministic rung, several samples per iteration are needed before a difference means anything — the 30B showed a 1,700-point spread between two runs of the same request. Each chain iterates on its own function and never sees another's, so a rising median across chains cannot be selection bias. Carrying best-of-N forward would manufacture a curve from noise.
    - **Feedback is symptoms, not diagnoses**: score, lines, holes, height, cause of death, board snapshots and the prior function. The model must diagnose its own bug, because that is the ability being measured. The one exception is mechanical: when a function scored every candidate identically, the summary says so, since "you scored 0" cannot distinguish a bad strategy from inert arithmetic.
+   - **One step of memory, and an arm that removes it.** A revision sees only
+     the previous function and that attempt's outcome -- never the attempts
+     before it or how they scored -- so the model cannot tell whether its last
+     change helped. That is a plausible cause of the "reweights rather than
+     debugs" result, and it is a *separate* choice from the no-best-of-N one
+     below: not carrying a winner forward removes selection, while single-step
+     memory removes information. `--history` shows the whole trajectory, in the
+     spirit of Reflexion and OPRO. **Its scores are training scores**, because
+     showing held-out ones would let a model tune against the set the curve is
+     read from. Off by default: every published run was measured without it.
    - **Resumable by replay, no state file.** Records append as games finish and functions are written to disk; a rerun reads the log, skips completed positions, and replays the saved function to regenerate its feedback in under a second. One source of truth instead of a checkpoint that can drift.
    - **Training seeds are fed back; evaluation seeds are held out.** A function plays every training sequence and the feedback aggregates across them, so a revision cannot be tuned to one sequence. It is then replayed on a disjoint set of evaluation sequences whose outcomes the model never sees, and **the curve is read from those rows** (`split` in the log). This matters because a single sequence is a noisy estimate: a fixed, deterministic function varies 85–348% across unseen seeds, and a training-seed score of 400 turned out to be a function's luckiest case out of twenty-one (held-out mean 110). Evaluation games cost under a second each, so this is free.
    - **Chains per rung is not established.** `qwen3-14b` is reproducible on the *iteration-0* prompt but **not** on the revise prompt, which is 1.5× longer — two revisions of the same function gave two different sources, though both scored the same. No rung is text-reproducible for revisions. `chains=1` for the 14B currently rests on score stability from two samples. See `docs/findings/`.
@@ -163,6 +173,7 @@ uv run tetris-bench play --agent random --show-state --log runs/baseline.jsonl
 uv run tetris-bench models                                   # validate model config
 uv run tetris-bench strategy --model qwen3-4b --seed 1       # model writes a scorer
 uv run tetris-bench loop --model qwen3-14b --iterations 6 --chains 3   # the loop
+uv run tetris-bench loop --model qwen3-8b --chains 6 --history         # the history arm
 uv run tetris-bench direct --model qwen3-14b --seed 1 --max-pieces 20  # 1 call/piece
 uv run python analysis/curves.py                             # improvement curves
 uv run python analysis/plots.py --log runs/published/8b-loop/loop.jsonl  # curves

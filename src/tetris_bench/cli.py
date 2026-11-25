@@ -258,6 +258,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="independent chains per seed; use 1 for a reproducible rung, more otherwise",
     )
+    loop.add_argument(
+        "--history",
+        action="store_true",
+        help=(
+            "show the model every earlier attempt in the chain and what it scored "
+            "on the training sequences, not just the last one. Off by default "
+            "because every published run was measured without it"
+        ),
+    )
     loop.add_argument("--max-pieces", type=positive_int, default=DEFAULT_MAX_PIECES)
     loop.add_argument("--per-call-seconds", type=float, default=1.0)
     loop.add_argument(
@@ -327,6 +336,7 @@ def run_improvement_loop(args: argparse.Namespace) -> None:
         eval_seeds=tuple(args.eval_seeds),
         iterations=args.iterations,
         chains=args.chains,
+        history=args.history,
         max_pieces=args.max_pieces,
         per_call_seconds=args.per_call_seconds,
         per_game_seconds=_game_budget(args),

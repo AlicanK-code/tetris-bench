@@ -289,8 +289,10 @@ class TestRunLoopIntegration:
     def patch_generation(self, monkeypatch, client, source: str = FLAT) -> None:  # noqa: ANN001
         from tetris_bench.agents.strategy import GeneratedFunction
 
-        def fake_generate(cl, cfg, position, previous):  # noqa: ANN001, ANN202
-            client.prompts.append(build_prompt(cfg, previous))
+        # Mirrors the real signature, history included, so these tests exercise
+        # the same call the loop makes rather than an older shape of it.
+        def fake_generate(cl, cfg, position, previous, history=()):  # noqa: ANN001, ANN202
+            client.prompts.append(build_prompt(cfg, previous, history))
             return GeneratedFunction(
                 source=source,
                 model=cfg.model,
@@ -407,7 +409,7 @@ class TestRunLoopIntegration:
         config = self.config(tmp_path, iterations=1)
         client = self.stub_client()
 
-        def unparseable(cl, cfg, position, previous):  # noqa: ANN001, ANN202
+        def unparseable(cl, cfg, position, previous, history=()):  # noqa: ANN001, ANN202
             raise loop_module.StrategyError("no code block in the reply")
 
         monkeypatch.setattr(loop_module, "generate", unparseable)
