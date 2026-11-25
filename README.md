@@ -52,8 +52,21 @@ each.
 
 The change column is the **median of each chain's own first-to-last
 difference** — not the difference between medians, which is a different number
-because different chains are the median at each end. For scale, random play
-scores 0.4 points per piece and a hand-written 1-ply heuristic scores 43.2.
+because different chains are the median at each end.
+
+**The reference players, measured under the identical conditions** — the same
+ten held-out sequences, the same 2,000-piece budget:
+
+| | points per piece |
+|---|---:|
+| random play, pooled over 20 agent seeds | **0.33** |
+| hand-written 1-ply heuristic (Lee's 2013 weights) | **43.3** |
+
+Every comparison in this project uses those two numbers. Older write-ups quote
+the heuristic at 43.2 or 43.5; those are the same player on twenty sequences and
+run to exhaustion respectively, and the spread between all three is the honest
+measure of how stable the rate is. The conditions now travel with the number —
+see [`baselines.py`](src/tetris_bench/baselines.py).
 
 **1. No model improved by more than its own noise.** Every gain above sits
 inside the range that model's sample size could resolve, so each result is a
@@ -78,6 +91,17 @@ weights applied to the unrepaired function are worth **−3.90**. Meanwhile 8 of
 94 revisions rewrote their weights and then chose **identically** on every board
 of ten full games; one of them doubled every weight, which cannot move an
 argmax.
+
+**Where the functions actually land.** Every published function replayed under
+those same conditions, against the two reference players:
+
+![Every published function against the baselines](runs/published/figures/functions-vs-baselines.png)
+
+The spread inside a single model is far wider than anything the improvement loop
+moved. 23 of the 217 playable functions score at or below random, and 7 beat
+the hand-written heuristic — all 7 from the 30B. Median by model — 4.7, 17.5, 14.0, 33.3 —
+rises with size but not monotonically, which is the same step-not-slope shape
+the capability probes found.
 
 [All results in full](docs/results.md) · [individual write-ups](docs/findings/)
 · [raw logs and every generated function](runs/published/)

@@ -144,7 +144,7 @@ model, mode, seed, iteration, score, lines cleared, pieces placed, final/avg max
 
 Derived: improvement per iteration, best-so-far curve, iterations to plateau, regression count, tokens per point, seconds per point.
 
-**The headline measure is points per piece, not total score.** A total is censored by the piece budget — a game that hits the cap is cut off rather than finished — so it is a lower bound, and the project's best function is censored in 8 of 10 games. A rate has no such failure mode and is empirically budget-independent: the heuristic measures 43.2–43.5 points per piece at 500, 2,000, 20,000 and 50,000 pieces alike. Defined as total points over total pieces, which is what the baseline's own 43.5 already is. Totals stay in the schema and are reported beside the rate, because survival is a separate thing to know; "per point" in the derived metrics above therefore means per point of *rate*.
+**The headline measure is points per piece, not total score.** A total is censored by the piece budget — a game that hits the cap is cut off rather than finished — so it is a lower bound, and the project's best function is censored in 8 of 10 games. A rate has no such failure mode and is empirically budget-independent: the heuristic measures 43.16–43.46 points per piece at 500, 2,000, 20,000 and 50,000 pieces alike. **The comparator is 43.34**, its rate under the conditions model results use — ten held-out sequences at the 2,000-piece budget; random is 0.33 there. Quote a baseline with its conditions, from `tetris_bench/baselines.py`, never bare. Defined as total points over total pieces, which is what the baseline's own rate already is. Totals stay in the schema and are reported beside the rate, because survival is a separate thing to know; "per point" in the derived metrics above therefore means per point of *rate*.
 
 Estimated cost stays in the schema and will read zero for every local run; it is there so a paid model could be added without a migration.
 
@@ -178,6 +178,8 @@ uv run tetris-bench direct --model qwen3-14b --seed 1 --max-pieces 20  # 1 call/
 uv run python analysis/curves.py                             # improvement curves
 uv run python analysis/plots.py --log runs/published/8b-loop/loop.jsonl  # curves
 uv run python analysis/power_figure.py                       # gains vs noise, 4 rungs
+uv run python analysis/comparison_figure.py                  # all functions vs baselines
+uv run python analysis/baselines.py                          # re-measure the reference players
 uv run python analysis/held_out.py                           # replay on unseen seeds
 uv run python analysis/null_arm.py --runs 0                  # build prompts, no GPU
 uv run python analysis/zeros_rate.py                         # dead-function proportion

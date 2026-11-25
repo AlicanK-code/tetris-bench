@@ -25,6 +25,15 @@ Both numbers are correct. Neither supports the conclusion.
 | `2.8 × σ / √5`, σ = 15.134 | **18.95** | minimum detectable gain at n=5 |
 | `43.5 − 25.98` | **17.52** | heuristic reference minus the 30B's median |
 
+> **Note (2026-11-25).** The heuristic reference is quoted here at 43.5, its
+> rate run to exhaustion. The comparator this project now uses is **43.34**,
+> the same player on the ten held-out sequences at the 2,000-piece budget
+> that model results are measured in. The three figures it has been quoted
+> at — 43.16, 43.34, 43.46 — are the same player under different conditions,
+> and the spread is the honest measure of how stable the rate is. Nothing
+> below changes; see [`baselines.py`](../../src/tetris_bench/baselines.py).
+
+
 `2.8` is `z₀.₉₇₅ + z₀.₈₀` — 80% power, α = 0.05, two-sided.
 
 The error is that **n=5 was treated as the affordable ceiling.** It is not. One

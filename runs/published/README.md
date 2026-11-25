@@ -51,6 +51,13 @@ README. **Read them, do not import them** -- that is the entire premise of
 | `reweighting/` | 23 reconstructed variants, not model output: each is one of two saved functions with exactly one thing changed, for the term-level replay. | [the-best-revision-was-a-repair.md](../../docs/findings/the-best-revision-was-a-repair.md), README Results |
 | `figures/` | The pictures the top-level README shows, beside the logs they are drawn from. Regenerate with `analysis/plots.py` and `analysis/power_figure.py`. | README, [its own README](figures/README.md) |
 
+`replayed-at-canonical.json` sits beside these directories: every published
+function replayed on the ten held-out sequences at the 2,000-piece budget, so
+that functions from runs played under different budgets can be compared with
+each other and with the reference players. `clean-6iter` was played at the old
+500-piece budget, so reading rates straight out of the logs would put it on a
+different footing from everything else.
+
 ## The results worth opening a file for
 
 **`ladder/functions/qwen3-30b-chain3-iter0.py` is the best function the project

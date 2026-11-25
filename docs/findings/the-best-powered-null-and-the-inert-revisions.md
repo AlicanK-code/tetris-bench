@@ -48,6 +48,15 @@ game was censored: the best one survives about 201 pieces, a tenth of the
 2,000-piece budget, so unlike the 30B's figures these rates are uncensored
 throughout.
 
+> **Note (2026-11-25).** The heuristic reference is quoted here at 43.5, its
+> rate run to exhaustion. The comparator this project now uses is **43.34**,
+> the same player on the ten held-out sequences at the 2,000-piece budget
+> that model results are measured in. The three figures it has been quoted
+> at — 43.16, 43.34, 43.46 — are the same player under different conditions,
+> and the spread is the honest measure of how stable the rate is. Nothing
+> below changes; see [`baselines.py`](../../src/tetris_bench/baselines.py).
+
+
 ### Why this null is worth more than the three before it
 
 | rung | chains | median gain | σ_d | MDE at that n |

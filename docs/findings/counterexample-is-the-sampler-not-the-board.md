@@ -66,6 +66,15 @@ heuristic's 43.5. Nothing in the outcome-only control has come close: its two
 revisions scored 130 and 85 against 110, both keeping `heights[col] > row`
 verbatim and changing only weights.
 
+> **Note (2026-11-25).** The heuristic reference is quoted here at 43.5, its
+> rate run to exhaustion. The comparator this project now uses is **43.34**,
+> the same player on the ten held-out sequences at the 2,000-piece budget
+> that model results are measured in. The three figures it has been quoted
+> at — 43.16, 43.34, 43.46 — are the same player under different conditions,
+> and the spread is the honest measure of how stable the rate is. Nothing
+> below changes; see [`baselines.py`](../../src/tetris_bench/baselines.py).
+
+
 **Supported: the mechanism is visible in the holes column.** Both big winners cut
 holes from 85.8 to 37.6 and 22.9. Every other sample stayed at 78–102 — it never
 learned to see the gap at all, whatever it did to its weights. Of the 12 distinct

@@ -146,6 +146,15 @@ The hole penalty rises **17.5x** and the line reward falls **10x**. The model
 got there from outcome feedback alone, in five steps, ending **above the
 hand-written heuristic's 43.5**.
 
+> **Note (2026-11-25).** The heuristic reference is quoted here at 43.5, its
+> rate run to exhaustion. The comparator this project now uses is **43.34**,
+> the same player on the ten held-out sequences at the 2,000-piece budget
+> that model results are measured in. The three figures it has been quoted
+> at — 43.16, 43.34, 43.46 — are the same player under different conditions,
+> and the spread is the honest measure of how stable the rate is. Nothing
+> below changes; see [`baselines.py`](../../src/tetris_bench/baselines.py).
+
+
 > **Amended 2026-11-24 (later the same day).** This paragraph used to add "that
 > is the direction the classic Tetris weightings go -- survive, do not chase
 > lines", offering the direction as the account of why the revision worked. The

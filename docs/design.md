@@ -177,10 +177,22 @@ multiplier since there is no gravity to speed up.
 Two reference players, on the 20 held-out seeds the improvement curve is read
 from, at the default 2000-piece budget.
 
+**On the ten sequences every model figure uses** (`1000-1009`, 2,000-piece
+budget) — these are the numbers to compare a model against, and the ones
+[`baselines.py`](../src/tetris_bench/baselines.py) publishes:
+
+| agent | what it does | mean score | mean pieces | points/piece | censored |
+|-------|--------------|-----------:|------------:|-------------:|---------:|
+| random | uniform over legal placements, pooled over 20 agent seeds | 8.5 | 25.4 | **0.33** | 0/200 |
+| heuristic | Lee's 2013 weights, 1-ply | 84,720 | 1,955 | **43.34** | 8/10 |
+
+**On twenty sequences** (`1000-1019`, same budget), which earlier write-ups
+quote:
+
 | agent | what it does | mean score | mean pieces | points/piece | lines/piece | censored |
 |-------|--------------|-----------:|------------:|-------------:|------------:|---------:|
 | random | uniform over legal placements | 10 | 26 | 0.4 | 0.00 | 0/20 |
-| heuristic | Lee's 2013 weights, 1-ply | 76,040 | 1,762 | **43.2** | **0.40** | 14/20 |
+| heuristic | Lee's 2013 weights, 1-ply | 76,040 | 1,762 | **43.16** | **0.40** | 14/20 |
 
 **The heuristic's total score is nearly unmeasurable, and that changes how
 everything else gets quoted.** Run it to exhaustion -- a 50,000-piece budget,
@@ -189,9 +201,19 @@ where it dies on its own on all 20 seeds -- and it averages 454,900 points over
 variation above 100% means a single game says almost nothing, and pinning the
 mean to even 10% would take hundreds of games.
 
-Its *rate*, meanwhile, is 43.5 points per piece, and holds at 43.2-43.5 across
-every budget tried: 500, 2,000, 20,000, 50,000. One of these two numbers is a
-usable comparator and the other is not.
+Its *rate*, meanwhile, is **43.46** points per piece run to exhaustion, and
+holds between **43.16 and 43.46** across every budget and seed set tried: 500,
+2,000, 20,000 and 50,000 pieces, on ten sequences and on twenty. One of these
+two quantities is a usable comparator and the other is not.
+
+That 0.3-point spread is also the answer to an obvious objection. The project
+has quoted 43.2 and 43.5 in different places, and both were right — twenty
+sequences at the default budget, and twenty run to exhaustion. Neither was
+labelled, so a reader comparing a model's 50.19 against 43.5 could fairly ask
+why the table said 43.2. The comparator is now fixed at **43.34**, the value
+under the conditions model results are actually measured in, and
+[`baselines.py`](../src/tetris_bench/baselines.py) carries all three rows with
+their conditions.
 
 At the 2000-piece budget runs actually use, the heuristic is censored on 14 of
 20 seeds, so its total there is a lower bound and "beat 21,600" was really "beat

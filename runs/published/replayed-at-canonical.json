@@ -1,0 +1,1801 @@
+[
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain0-iter0",
+  "rate": 38.312724371759074,
+  "score": 192100,
+  "pieces": 5014
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain0-iter1",
+  "rate": 41.663501709077096,
+  "score": 548500,
+  "pieces": 13165
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain0-iter2",
+  "rate": 32.36788617886179,
+  "score": 63700,
+  "pieces": 1968
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain0-iter3",
+  "rate": 39.35393694673086,
+  "score": 253400,
+  "pieces": 6439
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain0-iter4",
+  "rate": 40.03189792663477,
+  "score": 301200,
+  "pieces": 7524
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain0-iter5",
+  "rate": 47.013838310269485,
+  "score": 903700,
+  "pieces": 19222
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain1-iter0",
+  "rate": 41.554741554741554,
+  "score": 102100,
+  "pieces": 2457
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain1-iter1",
+  "rate": 42.21221326071017,
+  "score": 403000,
+  "pieces": 9547
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain1-iter2",
+  "rate": 28.649492583918814,
+  "score": 36700,
+  "pieces": 1281
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain1-iter3",
+  "rate": 33.21536905965622,
+  "score": 65700,
+  "pieces": 1978
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain1-iter4",
+  "rate": 43.71406020971925,
+  "score": 775400,
+  "pieces": 17738
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain1-iter5",
+  "rate": 50.192688835058355,
+  "score": 911700,
+  "pieces": 18164
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain2-iter0",
+  "rate": 39.41617482852129,
+  "score": 247100,
+  "pieces": 6269
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain2-iter2",
+  "rate": 36.27450980392157,
+  "score": 114700,
+  "pieces": 3162
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain2-iter3",
+  "rate": 32.18836565096953,
+  "score": 58100,
+  "pieces": 1805
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain2-iter4",
+  "rate": 21.3302752293578,
+  "score": 18600,
+  "pieces": 872
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain2-iter5",
+  "rate": 13.509060955518946,
+  "score": 8200,
+  "pieces": 607
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain3-iter0",
+  "rate": 38.82538431217974,
+  "score": 197000,
+  "pieces": 5074
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain3-iter1",
+  "rate": 38.377888536474856,
+  "score": 169400,
+  "pieces": 4414
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain3-iter2",
+  "rate": 25.938566552901023,
+  "score": 22800,
+  "pieces": 879
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain3-iter3",
+  "rate": 22.87917737789203,
+  "score": 17800,
+  "pieces": 778
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain3-iter4",
+  "rate": 32.19895287958115,
+  "score": 36900,
+  "pieces": 1146
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain3-iter5",
+  "rate": 25.38370720188902,
+  "score": 21500,
+  "pieces": 847
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain4-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 251
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain4-iter1",
+  "rate": 0.40160642570281124,
+  "score": 100,
+  "pieces": 249
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain4-iter2",
+  "rate": 14.16382252559727,
+  "score": 8300,
+  "pieces": 586
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain4-iter3",
+  "rate": 1.4035087719298245,
+  "score": 400,
+  "pieces": 285
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain4-iter4",
+  "rate": 29.153846153846153,
+  "score": 37900,
+  "pieces": 1300
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain4-iter5",
+  "rate": 19.168900804289546,
+  "score": 14300,
+  "pieces": 746
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain5-iter0",
+  "rate": 35.524538496172894,
+  "score": 78900,
+  "pieces": 2221
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain5-iter1",
+  "rate": 43.45982142857143,
+  "score": 194700,
+  "pieces": 4480
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain5-iter2",
+  "rate": 43.18652849740933,
+  "score": 166700,
+  "pieces": 3860
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain5-iter3",
+  "rate": 48.433734939759034,
+  "score": 160800,
+  "pieces": 3320
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain5-iter4",
+  "rate": 41.769280622164615,
+  "score": 128900,
+  "pieces": 3086
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "30b-pilot",
+  "stem": "qwen3-30b-chain5-iter5",
+  "rate": 41.6271186440678,
+  "score": 122800,
+  "pieces": 2950
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain0-iter0",
+  "rate": 1.293103448275862,
+  "score": 300,
+  "pieces": 232
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain0-iter1",
+  "rate": 4.664723032069971,
+  "score": 1600,
+  "pieces": 343
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain0-iter2",
+  "rate": 4.664723032069971,
+  "score": 1600,
+  "pieces": 343
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain0-iter3",
+  "rate": 4.424778761061947,
+  "score": 1500,
+  "pieces": 339
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain0-iter4",
+  "rate": 4.69208211143695,
+  "score": 1600,
+  "pieces": 341
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain0-iter5",
+  "rate": 4.69208211143695,
+  "score": 1600,
+  "pieces": 341
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain1-iter0",
+  "rate": 0.6134969325153374,
+  "score": 200,
+  "pieces": 326
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain1-iter1",
+  "rate": 4.129793510324483,
+  "score": 1400,
+  "pieces": 339
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain1-iter2",
+  "rate": 4.189944134078212,
+  "score": 1500,
+  "pieces": 358
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain1-iter3",
+  "rate": 4.63768115942029,
+  "score": 1600,
+  "pieces": 345
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain1-iter4",
+  "rate": 5.2631578947368425,
+  "score": 1900,
+  "pieces": 361
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain1-iter5",
+  "rate": 13.051823416506718,
+  "score": 6800,
+  "pieces": 521
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain2-iter0",
+  "rate": 8.25242718446602,
+  "score": 3400,
+  "pieces": 412
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain2-iter1",
+  "rate": 8.91566265060241,
+  "score": 3700,
+  "pieces": 415
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain2-iter2",
+  "rate": 7.282913165266106,
+  "score": 2600,
+  "pieces": 357
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain2-iter3",
+  "rate": 7.142857142857143,
+  "score": 2500,
+  "pieces": 350
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain2-iter4",
+  "rate": 8.25242718446602,
+  "score": 3400,
+  "pieces": 412
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain2-iter5",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 254
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain3-iter0",
+  "rate": 7.493540051679586,
+  "score": 2900,
+  "pieces": 387
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain3-iter1",
+  "rate": 0.4424778761061947,
+  "score": 100,
+  "pieces": 226
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain3-iter2",
+  "rate": 0.4424778761061947,
+  "score": 100,
+  "pieces": 226
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain3-iter3",
+  "rate": 0.4424778761061947,
+  "score": 100,
+  "pieces": 226
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain3-iter4",
+  "rate": 0.4424778761061947,
+  "score": 100,
+  "pieces": 226
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain3-iter5",
+  "rate": 0.4424778761061947,
+  "score": 100,
+  "pieces": 226
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain4-iter0",
+  "rate": 8.35117773019272,
+  "score": 3900,
+  "pieces": 467
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain4-iter1",
+  "rate": 0.27100271002710025,
+  "score": 100,
+  "pieces": 369
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain4-iter2",
+  "rate": 3.140096618357488,
+  "score": 1300,
+  "pieces": 414
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain4-iter3",
+  "rate": 10.471204188481675,
+  "score": 4000,
+  "pieces": 382
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain4-iter4",
+  "rate": 0.6688963210702341,
+  "score": 200,
+  "pieces": 299
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "4b-loop",
+  "stem": "qwen3-4b-chain4-iter5",
+  "rate": 3.7249283667621778,
+  "score": 1300,
+  "pieces": 349
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain0-iter0",
+  "rate": 15.630550621669627,
+  "score": 8800,
+  "pieces": 563
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain0-iter1",
+  "rate": 15.3713298791019,
+  "score": 8900,
+  "pieces": 579
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain0-iter2",
+  "rate": 17.59581881533101,
+  "score": 10100,
+  "pieces": 574
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain0-iter3",
+  "rate": 17.736486486486488,
+  "score": 10500,
+  "pieces": 592
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain0-iter4",
+  "rate": 23.45191040843215,
+  "score": 17800,
+  "pieces": 759
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain0-iter5",
+  "rate": 17.475728155339805,
+  "score": 10800,
+  "pieces": 618
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain1-iter0",
+  "rate": 26.20215897939156,
+  "score": 26700,
+  "pieces": 1019
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain1-iter1",
+  "rate": null,
+  "error": "line 16: imports are not allowed (found math); 'math' is already available witho"
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain1-iter2",
+  "rate": 38.86113886113886,
+  "score": 77800,
+  "pieces": 2002
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain1-iter3",
+  "rate": 38.84043099025141,
+  "score": 75700,
+  "pieces": 1949
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain1-iter4",
+  "rate": 39.88035892323031,
+  "score": 80000,
+  "pieces": 2006
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain1-iter5",
+  "rate": 39.88035892323031,
+  "score": 80000,
+  "pieces": 2006
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain2-iter0",
+  "rate": 0.4149377593360996,
+  "score": 100,
+  "pieces": 241
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain2-iter1",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 232
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain2-iter2",
+  "rate": null,
+  "error": "line 1: imports are not allowed (found math); 'math' is already available withou"
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain2-iter3",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 232
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain2-iter4",
+  "rate": 24.652338811630848,
+  "score": 19500,
+  "pieces": 791
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain2-iter5",
+  "rate": 16.610169491525422,
+  "score": 9800,
+  "pieces": 590
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain3-iter0",
+  "rate": 34.572922719349215,
+  "score": 59500,
+  "pieces": 1721
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain3-iter1",
+  "rate": 16.442451420029894,
+  "score": 11000,
+  "pieces": 669
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain3-iter2",
+  "rate": 26.094727435210007,
+  "score": 29200,
+  "pieces": 1119
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain3-iter3",
+  "rate": 26.094727435210007,
+  "score": 29200,
+  "pieces": 1119
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain3-iter4",
+  "rate": 19.923857868020306,
+  "score": 15700,
+  "pieces": 788
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain3-iter5",
+  "rate": 11.460258780036968,
+  "score": 6200,
+  "pieces": 541
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain4-iter0",
+  "rate": 0.8733624454148472,
+  "score": 200,
+  "pieces": 229
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain4-iter1",
+  "rate": 0.8733624454148472,
+  "score": 200,
+  "pieces": 229
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain4-iter2",
+  "rate": 0.8733624454148472,
+  "score": 200,
+  "pieces": 229
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain4-iter3",
+  "rate": 0.8733624454148472,
+  "score": 200,
+  "pieces": 229
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain4-iter4",
+  "rate": 0.44052863436123346,
+  "score": 100,
+  "pieces": 227
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain4-iter5",
+  "rate": 1.606425702811245,
+  "score": 400,
+  "pieces": 249
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain5-iter0",
+  "rate": null,
+  "error": "line 1: imports are not allowed (found math); 'math' is already available withou"
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain5-iter1",
+  "rate": 17.752442996742673,
+  "score": 10900,
+  "pieces": 614
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain5-iter2",
+  "rate": null,
+  "error": "line 1: imports are not allowed (found math); 'math' is already available withou"
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain5-iter3",
+  "rate": 27.101038715769594,
+  "score": 28700,
+  "pieces": 1059
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain5-iter4",
+  "rate": null,
+  "error": "line 1: imports are not allowed (found math); 'math' is already available withou"
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain5-iter5",
+  "rate": 37.81297904956566,
+  "score": 74000,
+  "pieces": 1957
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain6-iter0",
+  "rate": 0.4149377593360996,
+  "score": 100,
+  "pieces": 241
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain6-iter1",
+  "rate": 0.4149377593360996,
+  "score": 100,
+  "pieces": 241
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain6-iter2",
+  "rate": 1.8518518518518519,
+  "score": 400,
+  "pieces": 216
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain6-iter3",
+  "rate": 2.6923076923076925,
+  "score": 700,
+  "pieces": 260
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain6-iter4",
+  "rate": 0.4,
+  "score": 100,
+  "pieces": 250
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain6-iter5",
+  "rate": 0.4,
+  "score": 100,
+  "pieces": 250
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain7-iter0",
+  "rate": 0.4149377593360996,
+  "score": 100,
+  "pieces": 241
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain7-iter1",
+  "rate": 0.4166666666666667,
+  "score": 100,
+  "pieces": 240
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain7-iter2",
+  "rate": 0.398406374501992,
+  "score": 100,
+  "pieces": 251
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain7-iter3",
+  "rate": 0.4329004329004329,
+  "score": 100,
+  "pieces": 231
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain7-iter4",
+  "rate": 0.5882352941176471,
+  "score": 100,
+  "pieces": 170
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain7-iter5",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 237
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain8-iter0",
+  "rate": 18.066561014263076,
+  "score": 11400,
+  "pieces": 631
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain8-iter1",
+  "rate": 25.57840616966581,
+  "score": 19900,
+  "pieces": 778
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain8-iter2",
+  "rate": 24.242424242424242,
+  "score": 17600,
+  "pieces": 726
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain8-iter3",
+  "rate": 25.57840616966581,
+  "score": 19900,
+  "pieces": 778
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain8-iter4",
+  "rate": 23.293768545994066,
+  "score": 15700,
+  "pieces": 674
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain8-iter5",
+  "rate": 21.233859397417504,
+  "score": 14800,
+  "pieces": 697
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain9-iter0",
+  "rate": 21.714922048997774,
+  "score": 19500,
+  "pieces": 898
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain9-iter1",
+  "rate": 25.630676084762865,
+  "score": 25400,
+  "pieces": 991
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain9-iter2",
+  "rate": 25.630676084762865,
+  "score": 25400,
+  "pieces": 991
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain9-iter3",
+  "rate": 35.80607476635514,
+  "score": 61300,
+  "pieces": 1712
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain9-iter4",
+  "rate": 34.32147562582345,
+  "score": 52100,
+  "pieces": 1518
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "8b-loop",
+  "stem": "qwen3-8b-chain9-iter5",
+  "rate": 36.24200116346713,
+  "score": 62300,
+  "pieces": 1719
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "clean-6iter",
+  "stem": "qwen3-14b-chain0-iter0",
+  "rate": 1.3333333333333333,
+  "score": 200,
+  "pieces": 150
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "clean-6iter",
+  "stem": "qwen3-14b-chain0-iter1",
+  "rate": 23.367346938775512,
+  "score": 22900,
+  "pieces": 980
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "clean-6iter",
+  "stem": "qwen3-14b-chain0-iter2",
+  "rate": 22.854077253218883,
+  "score": 21300,
+  "pieces": 932
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "clean-6iter",
+  "stem": "qwen3-14b-chain0-iter3",
+  "rate": 9.003831417624522,
+  "score": 4700,
+  "pieces": 522
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "clean-6iter",
+  "stem": "qwen3-14b-chain0-iter4",
+  "rate": 40.210795273075696,
+  "score": 251800,
+  "pieces": 6262
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "clean-6iter",
+  "stem": "qwen3-14b-chain0-iter5",
+  "rate": 37.06709956709957,
+  "score": 68500,
+  "pieces": 1848
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain0-iter0",
+  "rate": 12.546816479400748,
+  "score": 6700,
+  "pieces": 534
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain0-iter1",
+  "rate": 21.428571428571427,
+  "score": 14100,
+  "pieces": 658
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain0-iter2",
+  "rate": 18.035426731078903,
+  "score": 11200,
+  "pieces": 621
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain0-iter3",
+  "rate": 18.066561014263076,
+  "score": 11400,
+  "pieces": 631
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain0-iter4",
+  "rate": 15.95197255574614,
+  "score": 9300,
+  "pieces": 583
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain0-iter5",
+  "rate": 20.583941605839417,
+  "score": 14100,
+  "pieces": 685
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain1-iter0",
+  "rate": 0.47619047619047616,
+  "score": 100,
+  "pieces": 210
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain1-iter1",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 208
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain1-iter2",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 234
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain1-iter3",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 261
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain1-iter4",
+  "rate": 0.3952569169960474,
+  "score": 100,
+  "pieces": 253
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain1-iter5",
+  "rate": 0.7874015748031497,
+  "score": 200,
+  "pieces": 254
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain2-iter0",
+  "rate": 35.38745387453874,
+  "score": 95900,
+  "pieces": 2710
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain2-iter1",
+  "rate": 26.13737734165923,
+  "score": 29300,
+  "pieces": 1121
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain2-iter2",
+  "rate": 30.24561403508772,
+  "score": 43100,
+  "pieces": 1425
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain2-iter3",
+  "rate": 21.502890173410403,
+  "score": 18600,
+  "pieces": 865
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain2-iter4",
+  "rate": 23.386243386243386,
+  "score": 22100,
+  "pieces": 945
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain2-iter5",
+  "rate": 24.84725050916497,
+  "score": 24400,
+  "pieces": 982
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain3-iter0",
+  "rate": 15.357142857142858,
+  "score": 8600,
+  "pieces": 560
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain3-iter1",
+  "rate": 24.691358024691358,
+  "score": 20000,
+  "pieces": 810
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain3-iter2",
+  "rate": 25.423728813559322,
+  "score": 21000,
+  "pieces": 826
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain3-iter3",
+  "rate": 26.11764705882353,
+  "score": 22200,
+  "pieces": 850
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain3-iter4",
+  "rate": 20.957095709570957,
+  "score": 12700,
+  "pieces": 606
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain3-iter5",
+  "rate": 24.815724815724817,
+  "score": 20200,
+  "pieces": 814
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain4-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 244
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain4-iter1",
+  "rate": 2.0100502512562812,
+  "score": 400,
+  "pieces": 199
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain4-iter2",
+  "rate": 2.487562189054726,
+  "score": 500,
+  "pieces": 201
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain4-iter3",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 229
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain4-iter4",
+  "rate": 9.698275862068966,
+  "score": 4500,
+  "pieces": 464
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "five-chain",
+  "stem": "qwen3-14b-chain4-iter5",
+  "rate": 10.0,
+  "score": 4600,
+  "pieces": 460
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain0-iter0",
+  "rate": 12.546816479400748,
+  "score": 6700,
+  "pieces": 534
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain1-iter0",
+  "rate": 0.423728813559322,
+  "score": 100,
+  "pieces": 236
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain10-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 244
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain11-iter0",
+  "rate": 39.04572564612326,
+  "score": 98200,
+  "pieces": 2515
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain12-iter0",
+  "rate": 16.06425702811245,
+  "score": 8000,
+  "pieces": 498
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain13-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 245
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain14-iter0",
+  "rate": null,
+  "error": "line 1: imports are not allowed (found math); 'math' is already available withou"
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain2-iter0",
+  "rate": 24.8565965583174,
+  "score": 26000,
+  "pieces": 1046
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain3-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 174
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain4-iter0",
+  "rate": 0.423728813559322,
+  "score": 100,
+  "pieces": 236
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain5-iter0",
+  "rate": 32.6605504587156,
+  "score": 53400,
+  "pieces": 1635
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain6-iter0",
+  "rate": 23.627075351213282,
+  "score": 18500,
+  "pieces": 783
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain7-iter0",
+  "rate": 37.047052460789615,
+  "score": 68500,
+  "pieces": 1849
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain8-iter0",
+  "rate": 1.8957345971563981,
+  "score": 400,
+  "pieces": 211
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "ladder",
+  "stem": "qwen3-14b-chain9-iter0",
+  "rate": null,
+  "error": "line 1: imports are not allowed (found math); 'math' is already available withou"
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain0-iter0",
+  "rate": 38.312724371759074,
+  "score": 192100,
+  "pieces": 5014
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain1-iter0",
+  "rate": 27.87385554425229,
+  "score": 27400,
+  "pieces": 983
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain10-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 235
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain11-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 246
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain12-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 222
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain13-iter0",
+  "rate": 35.2900069881202,
+  "score": 101000,
+  "pieces": 2862
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain14-iter0",
+  "rate": 25.121713729308667,
+  "score": 25800,
+  "pieces": 1027
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain2-iter0",
+  "rate": 23.172242874845104,
+  "score": 18700,
+  "pieces": 807
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain3-iter0",
+  "rate": 43.36693871019363,
+  "score": 813000,
+  "pieces": 18747
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain4-iter0",
+  "rate": 46.35844859270723,
+  "score": 479300,
+  "pieces": 10339
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain5-iter0",
+  "rate": 20.075282308657467,
+  "score": 16000,
+  "pieces": 797
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain6-iter0",
+  "rate": 35.739592559787425,
+  "score": 80700,
+  "pieces": 2258
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain7-iter0",
+  "rate": 19.44074567243675,
+  "score": 14600,
+  "pieces": 751
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain8-iter0",
+  "rate": 25.975473801560756,
+  "score": 23300,
+  "pieces": 897
+ },
+ {
+  "model": "qwen3-30b",
+  "run": "ladder",
+  "stem": "qwen3-30b-chain9-iter0",
+  "rate": 33.4749362786746,
+  "score": 39400,
+  "pieces": 1177
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain0-iter0",
+  "rate": 1.293103448275862,
+  "score": 300,
+  "pieces": 232
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain1-iter0",
+  "rate": 5.10752688172043,
+  "score": 1900,
+  "pieces": 372
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain10-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 337
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain11-iter0",
+  "rate": 11.029411764705882,
+  "score": 4500,
+  "pieces": 408
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain12-iter0",
+  "rate": 0.8928571428571429,
+  "score": 200,
+  "pieces": 224
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain13-iter0",
+  "rate": 15.630550621669627,
+  "score": 8800,
+  "pieces": 563
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain14-iter0",
+  "rate": 7.3604060913705585,
+  "score": 2900,
+  "pieces": 394
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain2-iter0",
+  "rate": 7.493540051679586,
+  "score": 2900,
+  "pieces": 387
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain3-iter0",
+  "rate": 7.493540051679586,
+  "score": 2900,
+  "pieces": 387
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain4-iter0",
+  "rate": 1.1730205278592376,
+  "score": 400,
+  "pieces": 341
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain5-iter0",
+  "rate": 7.0886075949367084,
+  "score": 2800,
+  "pieces": 395
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain6-iter0",
+  "rate": 12.2040072859745,
+  "score": 6700,
+  "pieces": 549
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain7-iter0",
+  "rate": 7.493540051679586,
+  "score": 2900,
+  "pieces": 387
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain8-iter0",
+  "rate": 8.439897698209718,
+  "score": 3300,
+  "pieces": 391
+ },
+ {
+  "model": "qwen3-4b",
+  "run": "ladder",
+  "stem": "qwen3-4b-chain9-iter0",
+  "rate": 7.065217391304348,
+  "score": 2600,
+  "pieces": 368
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain0-iter0",
+  "rate": 15.630550621669627,
+  "score": 8800,
+  "pieces": 563
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain1-iter0",
+  "rate": 26.20215897939156,
+  "score": 26700,
+  "pieces": 1019
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain10-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 264
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain11-iter0",
+  "rate": 34.44444444444444,
+  "score": 55800,
+  "pieces": 1620
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain12-iter0",
+  "rate": 0.5405405405405406,
+  "score": 100,
+  "pieces": 185
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain13-iter0",
+  "rate": 35.12714370195151,
+  "score": 59400,
+  "pieces": 1691
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain14-iter0",
+  "rate": 15.630550621669627,
+  "score": 8800,
+  "pieces": 563
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain2-iter0",
+  "rate": 0.4166666666666667,
+  "score": 100,
+  "pieces": 240
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain3-iter0",
+  "rate": 31.42361111111111,
+  "score": 36200,
+  "pieces": 1152
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain4-iter0",
+  "rate": null,
+  "error": "syntax error on line 12: invalid syntax"
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain5-iter0",
+  "rate": 0.4166666666666667,
+  "score": 100,
+  "pieces": 240
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain6-iter0",
+  "rate": 18.41269841269841,
+  "score": 11600,
+  "pieces": 630
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain7-iter0",
+  "rate": null,
+  "error": "line 1: imports are not allowed (found math); 'math' is already available withou"
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain8-iter0",
+  "rate": 15.666666666666666,
+  "score": 9400,
+  "pieces": 600
+ },
+ {
+  "model": "qwen3-8b",
+  "run": "ladder",
+  "stem": "qwen3-8b-chain9-iter0",
+  "rate": 26.912181303116146,
+  "score": 28500,
+  "pieces": 1059
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "seed-inert",
+  "stem": "qwen3-14b-chain0-iter0",
+  "rate": 1.3333333333333333,
+  "score": 200,
+  "pieces": 150
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "seed-inert",
+  "stem": "qwen3-14b-chain1-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 227
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "seed-inert",
+  "stem": "qwen3-14b-chain2-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 227
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "seed-inert",
+  "stem": "qwen3-14b-chain3-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 227
+ },
+ {
+  "model": "qwen3-14b",
+  "run": "seed-inert",
+  "stem": "qwen3-14b-chain4-iter0",
+  "rate": 0.0,
+  "score": 0,
+  "pieces": 227
+ }
+]

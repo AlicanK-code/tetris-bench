@@ -20,8 +20,17 @@ done
 uv run python analysis/power_figure.py --out runs/published/figures
 ```
 
+```bash
+uv run python analysis/comparison_figure.py
+```
+
+The comparison figure reads `../replayed-at-canonical.json`, the cached replay
+of all 229 published functions under the canonical conditions. Regenerate the
+cache itself with `--replay`; it takes about ten minutes and needs no model.
+
 | file | what it shows |
 |---|---|
+| `functions-vs-baselines.png` | Every published function replayed under one set of conditions — the ten held-out sequences at the 2,000-piece budget — against random play and the hand-written heuristic. The distribution is the result: the spread inside one model is far wider than any gain the loop produced. |
 | `power-four-rungs.png` | Each rung's median gain against the gain its run could have detected at 80% power, from that rung's own paired σ. The project's headline in one image: four bounded nulls, none clearing its bar. |
 | `curve-qwen3-4b.png` | 5 chains × 6 iterations, the second rung measured. |
 | `curve-qwen3-8b.png` | 10 chains × 6 iterations, the best-powered curve here. |

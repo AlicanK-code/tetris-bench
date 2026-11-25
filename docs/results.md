@@ -7,6 +7,16 @@ artifacts in [`runs/published/`](../runs/published/).
 
 Moved out of the README on 2026-11-25, unchanged apart from this header.
 
+**The comparator.** A model result is compared against the hand-written 1-ply
+heuristic at **43.34 points per piece** — its rate on the same ten held-out
+sequences at the same 2,000-piece budget that every model figure uses. Random
+play under those conditions is **0.33**. Both come from
+[`baselines.py`](../src/tetris_bench/baselines.py), which also records why the
+heuristic reads 43.16 on twenty sequences and 43.46 run to exhaustion: the rate
+is stable to about 0.3, not to the decimal, and older passages below quote
+whichever figure was in use at the time. Where one of them is used as a
+comparator it now carries its conditions.
+
 ---
 
 ## Results
@@ -18,11 +28,13 @@ saw, at zero dollars.
 censored by the piece budget -- a game that hits the cap is cut off rather than
 finished, so its score is a lower bound, and the best function here was censored
 in 8 of 10 games. A rate does not have that failure mode and is empirically
-budget-independent: the hand-written heuristic measures 43.2-43.5 points per
-piece at 500, 2,000, 20,000 and 50,000 pieces alike. Totals are still reported
+budget-independent: the hand-written heuristic measures 43.16-43.46 points per
+piece at 500, 2,000, 20,000 and 50,000 pieces alike, and **43.34** under the
+conditions the models are measured in. Totals are still reported
 beside it, because survival is a separate thing worth knowing. Rates are totals
 over totals across a position's ten unseen sequences, which is what the
-baseline's own 43.5 is (454,900 / 10,467).
+baseline's own rate is — 454,900 / 10,467 run to exhaustion, or 84,720 / 1,955
+on the ten evaluation sequences at the default budget.
 
 ### The curves
 
@@ -114,7 +126,7 @@ so the only variable is the model.
 | `qwen3-8b` | 5/15 | 15.6 | 35.1 | 880 | 5,940 |
 | `qwen3-14b` | 3/15 | **1.9** | 39.0 | 40 | 9,820 |
 | `qwen3-30b-a3b` | 11/15 | **26.0** | **46.4** | 2,580 | 81,300 |
-| *hand-written heuristic* | — | *43.5* | *43.5* | *84,720* | *84,720* |
+| *hand-written heuristic* | — | *43.34* | *43.34* | *84,720* | *84,720* |
 
 Medians are over all **15** positions per rung, with a rejected function counting
 as a zero -- it failed, which is a result rather than missing data, and it is the
@@ -169,7 +181,7 @@ looks best depends entirely on the measure:
 |---|---:|---:|---:|---:|
 | chain 4 | **46.4** | 47,930 | 1,034 | 1/10 |
 | chain 3 | 43.4 | **81,300** | 1,875 | 8/10 |
-| *heuristic (Lee 2013)* | *43.5* | *84,720* | *10,467* | — |
+| *heuristic (Lee 2013), 10 eval seeds, 2,000 pieces* | *43.34* | *84,720* | *1,955* | *8/10* |
 
 **Chain 3 wins on totals by surviving longer; chain 4 actually scores faster.**
 That inversion is the switch to a rate earning its keep. Chain 3's 81,300 was a
@@ -178,7 +190,8 @@ reporting the budget. Chain 4 is censored once in ten, which makes its 46.4 the
 more trustworthy figure of the two.
 
 So the result is that a 4-bit local model, on its first attempt, **matches the
-scoring rate of a tuned hand-written heuristic** -- 46.4 and 43.4 against 43.5.
+scoring rate of a tuned hand-written heuristic** -- 46.4 and 43.4 against
+43.34.
 Read that as parity rather than a win: the heuristic's rate is measured over
 10,467 pieces and chain 4's over about 1,034, and a rate measured over a shorter
 run has had less chance to meet the board states that punish a weak evaluator.
@@ -275,7 +288,7 @@ gives 24,060 over 602 pieces, which does not change the conclusion.
 
 | | points/piece | pieces survived |
 |---|---:|---:|
-| heuristic (Lee 2013) | 43.5 | 10,467 |
+| heuristic (Lee 2013), run to exhaustion | 43.46 | 10,467 |
 | 14B, iteration 4 | 40.2 | 626 |
 
 **About 92% of the heuristic's scoring rate, and 6% of its survival.** The model
@@ -690,7 +703,7 @@ chain). **A hypothesis, not a result** -- found after the fact, n=4 -- and one
 that 12 chains a group would settle.
 
 Two cheap by-products. The 8B's best function reaches 39.88 points per piece,
-**below the hand-written heuristic's 43.5**, and no 8B game was censored, so
+**below the hand-written heuristic's 43.34**, and no 8B game was censored, so
 unlike the 30B's figures these rates are uncensored throughout. And comparing
 this log with the ladder's, **2 of 10 iteration-0 generations reproduced
 byte-for-byte** under the same prompt and per-chain seed at temperature 0.7 --
